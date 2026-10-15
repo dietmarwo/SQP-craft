@@ -1,0 +1,21 @@
+[package]
+name = "sqp-craft-python"
+description = "PyO3 binding for sqp-craft (built with maturin; see pyproject.toml)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+# The extension cannot link a standalone test binary without a matching libpython.
+# It is tested through pytest against the compiled module instead.
+test = false
+doctest = false
+
+[dependencies]
+sqp-craft = { path = "../core" }
+pyo3 = { version = "0.30.1", features = ["abi3-py310"] }
