@@ -371,6 +371,8 @@ impl QpBackend for DummyQp {
 /// Per-call configuration for a convex QP backend.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QpOptions {
+    /// Permit compatible backend workspace reuse, not a primal/dual warm start.
+    pub reuse_workspace: bool,
     /// Native feasibility and gap tolerances, in the backend's own (possibly
     /// scaled) measure.
     pub tolerance: f64,
@@ -385,6 +387,7 @@ impl Default for QpOptions {
     fn default() -> Self {
         Self {
             tolerance: 1e-10,
+            reuse_workspace: false,
             acceptance_tolerance: 1e-7,
             max_iterations: 200,
             time_limit_seconds: None,
@@ -419,4 +422,22 @@ pub struct QpReport {
     pub limit_reason: Option<String>,
     /// Iterations including unsuccessful calls.
     pub iterations: u64,
+    /// Fresh engine setup attempts, including a cold retry.
+    pub setups: u64,
+    /// Successful complete numeric workspace updates.
+    pub updates: u64,
+    /// Fresh retries after an unsuccessful workspace update or reused solve.
+    pub cold_retries: u64,
+    /// Reason requesting a cold retry, even if the remaining budget prevents it.
+    pub retry_reason: Option<String>,
+    /// Model conversion and positive-definiteness validation time.
+    pub conversion_seconds: f64,
+    /// Fresh engine setup time.
+    pub setup_seconds: f64,
+    /// Numeric data update time, including failed updates.
+    pub update_seconds: f64,
+    /// Total engine solve time across all attempts.
+    pub solve_seconds: f64,
+    /// Independent solution-check time across all attempts.
+    pub check_seconds: f64,
 }

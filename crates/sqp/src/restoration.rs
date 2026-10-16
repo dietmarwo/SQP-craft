@@ -100,6 +100,7 @@ pub(super) fn step<B: QpBackend>(
         .min(settings.stationarity_tolerance)
         .min(settings.complementarity_tolerance);
     backend.configure(&QpOptions {
+        reuse_workspace: settings.qp_reuse_workspace,
         tolerance: settings.qp_tolerance,
         acceptance_tolerance: acceptance,
         max_iterations: settings.qp_max_iterations,
@@ -112,6 +113,7 @@ pub(super) fn step<B: QpBackend>(
     let outcome = backend.solve(&q, None, calls.cancel);
     result.report.qp_seconds += began.elapsed().as_secs_f64();
     let report = backend.report();
+    record_qp_work(&mut result.report, &report);
     result.report.qp_backend = report.backend;
     result.report.qp_status = report.raw_status;
     result.report.qp_iterations += report.iterations;
