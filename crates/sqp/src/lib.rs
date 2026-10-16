@@ -47,6 +47,9 @@ const ARMIJO: f64 = 1e-4;
 /// keeps the predicted merit decrease positive at infeasible iterates although
 /// interior-point QP solutions stop slightly short of active bounds.
 const PENALTY_MARGIN: f64 = 1.1;
+/// Consecutive steps allowed whose predicted merit decrease is non-positive
+/// only within the QP's accuracy (see the line search).
+const MAX_NOISE_STEPS: u32 = 3;
 
 /// Settings of [`NativeSqp`]. Every field is used; invalid values are rejected.
 #[derive(Clone, Debug, PartialEq)]
@@ -306,6 +309,76 @@ fn shifted(bounds: &Bounds, values: &[f64]) -> Result<Bounds> {
     Ok(Bounds::new(shift(&bounds.lower)?, shift(&bounds.upper)?))
 }
 
+/// Moves step components that exceed their QP step bounds by at most
+/// `tolerance` onto the bound, counting each move.
+///
+/// Interior-point solutions satisfy bounds only to their tolerance. Near an
+/// active variable bound the remaining room `u − x` can be far smaller than
+/// that tolerance (it was 3e-14 in the case that exposed this), so an
+/// overshoot of 1e-11 would cut the step length for every variable to almost
+/// zero. Larger violations are left for the acceptance check to reject.
+fn snap_step(
+    step: &mut [f64],
+    step_bounds: &Bounds,
+    variables: &Bounds,
+    tolerance: f64,
+    report: &mut sqp_craft::RunReport,
+) {
+    for (j, p) in step.iter_mut().enumerate() {
+        let (lo, up) = (step_bounds.lower[j], step_bounds.upper[j]);
+        let target = if *p < lo && lo - *p <= tolerance {
+            lo
+        } else if *p > up && *p - up <= tolerance {
+            up
+        } else {
+            continue;
+        };
+        *p = target;
+        if variables.lower[j] == variables.upper[j] {
+            report.fixed_step_corrections += 1;
+        } else {
+            report.bound_step_corrections += 1;
+        }
+    }
+}
+
+/// Largest `α ≤ 1` with `x + αp` inside the variable box.
+fn box_step_limit(bounds: &Bounds, x: &[f64], p: &[f64]) -> f64 {
+    let mut alpha = 1.0_f64;
+    for j in 0..x.len() {
+        if p[j] > 0.0 && bounds.upper[j].is_finite() {
+            alpha = alpha.min((bounds.upper[j] - x[j]) / p[j]);
+        }
+        if p[j] < 0.0 && bounds.lower[j].is_finite() {
+            alpha = alpha.min((bounds.lower[j] - x[j]) / p[j]);
+        }
+    }
+    alpha
+}
+
+/// `x + αp`, where a component that floating-point rounding of this sum
+/// would place beyond a bound (by at most a few ulps) is set to the bound.
+/// A step that lands exactly on a bound, `p_j = u_j − x_j` with `α = 1`, can
+/// otherwise round one ulp outside and fail the box contract.
+fn trial_point(bounds: &Bounds, x: &[f64], p: &[f64], alpha: f64) -> Vec<f64> {
+    x.iter()
+        .zip(p)
+        .enumerate()
+        .map(|(j, (&x, &p))| {
+            let t = x + alpha * p;
+            let rounding = 4.0 * f64::EPSILON * (x.abs() + (alpha * p).abs());
+            let (lo, up) = (bounds.lower[j], bounds.upper[j]);
+            if t > up && t - up <= rounding {
+                up
+            } else if t < lo && lo - t <= rounding {
+                lo
+            } else {
+                t
+            }
+        })
+        .collect()
+}
+
 /// The step QP at `x` with model values `e` and Hessian approximation `b`.
 fn qp_model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, b: &DMatrix<f64>) -> Result<QpModel> {
     let n = spec.n();
@@ -367,6 +440,13 @@ fn store_residuals(spec: &ProblemSpec, r: &mut SolveResult, m: Multipliers) -> R
     r.dual_sign = Some(k.dual_sign);
     r.multipliers = Some(m);
     Ok(())
+}
+
+fn noise_message(predicted: f64, noise: f64) -> String {
+    format!(
+        "the QP step is below the QP solution accuracy (predicted merit decrease \
+         {predicted:.3e}, QP accuracy {noise:.3e}); residuals at the returned point are reported"
+    )
 }
 
 fn status_message(status: Status) -> &'static str {
@@ -449,6 +529,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         let mut penalties = vec![0.0; spec.m()];
         let mut have_penalties = false;
         let mut retry_descent = false;
+        let mut noise_steps = 0_u32;
         let mut notify = true;
         while status.is_none() {
             if let Some(s) = calls.stop() {
@@ -533,6 +614,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     penalties.fill(0.0);
                     have_penalties = false;
                     retry_descent = false;
+                    noise_steps = 0;
                     notify = true;
                     continue;
                 }
@@ -569,16 +651,15 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 }
                 Err(err) => return Err(err),
             };
-            // A fixed variable's step bounds are exactly zero. Remove roundoff of
-            // at most the feasibility tolerance, count it, and recheck below.
-            for j in 0..n {
-                let fixed = spec.variables().lower[j] == spec.variables().upper[j];
-                let p = solution.step[j];
-                if fixed && p != 0.0 && p.abs() <= options.feasibility_tolerance {
-                    solution.step[j] = 0.0;
-                    r.report.fixed_step_corrections += 1;
-                }
-            }
+            // Put tolerance-level overshoots of the step bounds (including the
+            // zero-width bounds of fixed variables) on the bound; recheck below.
+            snap_step(
+                &mut solution.step,
+                &qp.variables,
+                spec.variables(),
+                options.feasibility_tolerance,
+                &mut r.report,
+            );
             let check = qp.accepts(&solution, qp_acceptance)?;
             if !check.accepted {
                 status = Some(Status::QpFailure);
@@ -645,6 +726,16 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 -dot(&e.gradient, p)? + (violation - linear_violation),
                 "predicted decrease",
             )?;
+            if norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x)) {
+                if settings.record_history {
+                    r.report.history.push(record);
+                }
+                status = Some(Status::Stalled);
+                break;
+            }
+            // `Some(accuracy)` when this step is taken although its predicted
+            // decrease is non-positive within the QP's accuracy.
+            let mut noise_step = None;
             if predicted <= 0.0 {
                 // First retry once from B = scale·I: a badly scaled B (for
                 // example nearly zero curvature) can make an accurate step tiny.
@@ -657,60 +748,53 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     notify = false;
                     continue;
                 }
-                if settings.record_history {
-                    r.report.history.push(record);
-                }
                 // With exact QP solutions the predicted decrease is at least
                 // pᵀBp > 0. An interior-point QP leaves active rows a little
                 // short of their bounds, which costs up to the QP's
                 // complementarity residual per entry. A non-positive value
-                // within that accuracy means the step is QP noise.
+                // within that accuracy means the step is at the QP's noise
+                // level. Near a solution the step is then still the right one
+                // (pᵀBp ~ 1e-12 while stationarity is just above tolerance),
+                // so take it if the merit does not rise by more than that
+                // accuracy, a bounded number of times in a row.
                 let qp = check.residuals;
                 let noise = (spec.m() + n) as f64 * qp.complementarity
                     + qp.stationarity * p.iter().map(|v| v.abs()).sum::<f64>()
                     + record.max_penalty * spec.m() as f64 * qp.primal;
-                if -predicted <= noise {
-                    status = Some(Status::Stalled);
-                    r.message = format!(
-                        "the QP step is below the QP solution accuracy (predicted merit \
-                         decrease {predicted:.3e}, QP accuracy {noise:.3e}); residuals at the \
-                         returned point are reported"
-                    );
+                if -predicted <= noise && noise_steps < MAX_NOISE_STEPS {
+                    noise_step = Some(noise);
                 } else {
-                    status = Some(Status::NoDescent);
+                    if settings.record_history {
+                        r.report.history.push(record);
+                    }
+                    if -predicted <= noise {
+                        status = Some(Status::Stalled);
+                        r.message = noise_message(predicted, noise);
+                    } else {
+                        status = Some(Status::NoDescent);
+                    }
+                    break;
                 }
-                break;
-            }
-            if norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x)) {
-                if settings.record_history {
-                    r.report.history.push(record);
-                }
-                status = Some(Status::Stalled);
-                break;
             }
             let merit = finite(e.objective + violation, "merit")?;
-            let mut alpha = 1.0_f64;
-            for j in 0..n {
-                let (lo, up) = (spec.variables().lower[j], spec.variables().upper[j]);
-                if p[j] > 0.0 && up.is_finite() {
-                    alpha = alpha.min((up - x[j]) / p[j]);
-                }
-                if p[j] < 0.0 && lo.is_finite() {
-                    alpha = alpha.min((lo - x[j]) / p[j]);
-                }
-            }
+            let mut alpha = box_step_limit(spec.variables(), x, p);
             if !(alpha.is_finite() && alpha > 0.0) {
                 status = Some(Status::Stalled);
                 r.message = "the QP step leaves the variable box immediately".into();
                 break;
             }
             let mut accepted = None;
-            for _ in 0..=settings.max_backtracks {
+            let max_backtracks = if noise_step.is_some() {
+                0
+            } else {
+                settings.max_backtracks
+            };
+            for _ in 0..=max_backtracks {
                 if let Some(s) = calls.before_call() {
                     status = Some(s);
                     break;
                 }
-                let trial: Vec<f64> = x.iter().zip(p).map(|(&x, &p)| x + alpha * p).collect();
+                let trial = trial_point(spec.variables(), x, p, alpha);
                 if spec.check_point(&trial, "trial").is_err() {
                     // Roundoff pushed the trial out of the box: shorten without a call.
                     alpha *= 0.5;
@@ -732,7 +816,11 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     values.0 + weighted_violation(spec.constraints(), &values.1, &penalties)?,
                     "trial merit",
                 )?;
-                if trial_merit > merit - ARMIJO * alpha * predicted {
+                let threshold = match noise_step {
+                    Some(noise) => merit + noise,
+                    None => merit - ARMIJO * alpha * predicted,
+                };
+                if trial_merit > threshold {
                     r.report.rejected_trials += 1;
                     alpha *= 0.5;
                     continue;
@@ -766,8 +854,18 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 if settings.record_history {
                     r.report.history.push(record);
                 }
-                status = Some(Status::LineSearchFailure);
+                if let Some(noise) = noise_step {
+                    status = Some(Status::Stalled);
+                    r.message = noise_message(predicted, noise);
+                } else {
+                    status = Some(Status::LineSearchFailure);
+                }
                 break;
+            };
+            noise_steps = if noise_step.is_some() {
+                noise_steps + 1
+            } else {
+                0
             };
             record.step_length = Some(alpha);
             if settings.record_history {
@@ -809,5 +907,49 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         r.report.total_seconds = calls.began.elapsed().as_secs_f64();
         r.report.callback_seconds = calls.seconds;
         Ok(r)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_trial_capped_at_a_bound_stays_inside_the_box() {
+        // With α = (u − x)/p, x + αp rounds to one ulp above u here (about 2% of
+        // random cases do); the delivered line search then halved α.
+        let (x, u, p) = (0.11408985987451992, 0.9812160792571979, 2.958067622106532);
+        let bounds = Bounds::new(vec![-1.0], vec![u]);
+        let alpha = box_step_limit(&bounds, &[x], &[p]);
+        assert!(x + alpha * p > u);
+        assert_eq!(trial_point(&bounds, &[x], &[p], alpha), vec![u]);
+        // Interior trials are untouched, and a real overshoot is not hidden.
+        assert_eq!(
+            trial_point(&bounds, &[x], &[p], 0.5 * alpha),
+            vec![x + 0.5 * alpha * p]
+        );
+        assert_eq!(trial_point(&bounds, &[x], &[p], 1.0), vec![x + p]);
+    }
+
+    #[test]
+    fn snapping_moves_only_tolerance_level_overshoots() {
+        let variables = Bounds::new(vec![0.0, 1.0, -5.0], vec![2.0, 1.0, 5.0]);
+        let x = [2.0 - 3e-14, 1.0, 0.0];
+        let room = 2.0 - x[0];
+        let step_bounds = Bounds::new(vec![-1.0, 0.0, -1.0], vec![room, 0.0, 1.0]);
+        let mut report = sqp_craft::RunReport::default();
+        let mut step = vec![room + 1e-11, -2e-12, 1.5];
+        assert!(box_step_limit(&variables, &x, &step) < 0.01);
+        snap_step(&mut step, &step_bounds, &variables, 1e-7, &mut report);
+        assert_eq!(
+            step,
+            vec![room, 0.0, 1.5],
+            "a 0.5 overshoot is left for the QP check"
+        );
+        assert_eq!(
+            (report.bound_step_corrections, report.fixed_step_corrections),
+            (1, 1)
+        );
+        assert_eq!(box_step_limit(&variables, &x, &step), 1.0);
     }
 }

@@ -44,7 +44,8 @@ Pass `method="sqp"` explicitly: the default `"dummy"` only evaluates the start
 point and returns `"stub"`. Callbacks may return lists, tuples or 1-D NumPy
 arrays. `examples/orbit_transfer.py` solves a 164-variable low-thrust
 collocation problem; `examples/compare_baseline.py` compares the solver with
-SciPy's SLSQP under one independent evaluator.
+SciPy's SLSQP under one independent evaluator, and `examples/stress_random.py`
+does the same on random feasible problems from random starts.
 
 ## Layout
 
@@ -77,7 +78,8 @@ examples. `python -m pip install .` builds and installs the package;
 `python -m maturin build --release` builds an abi3 wheel, and
 `--no-default-features` builds one without the native solver. The core crate
 works without Python: `cargo test -p sqp-craft`. For the SLSQP comparison:
-`python -m pip install scipy && python examples/compare_baseline.py --table`.
+`python -m pip install scipy && python examples/compare_baseline.py --table`
+(and `python examples/stress_random.py --table` for the stress test).
 
 ## License
 

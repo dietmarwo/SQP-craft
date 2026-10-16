@@ -3,6 +3,18 @@
 use super::*;
 use sqp_craft::RestorationRecord;
 
+/// A Gauss–Newton step that, without being cut by the trust bound, predicts
+/// less than this fraction of ψ as decrease marks a stationary point of ψ.
+///
+/// Near a feasible point the predicted decrease is of the order of ψ itself
+/// (the ratio is about 2 for a consistent linear model). At an infeasible
+/// stationary point Gauss–Newton converges only linearly, so an absolute test
+/// lets it creep until the step budget is spent and the solve reports
+/// `restoration_limit`, as if more budget could help. The value is small
+/// because the absolute regularization δ scales the ratio down to about
+/// `2σ²/δ` on rows whose Jacobian singular values σ are small.
+const STATIONARY_RATIO: f64 = 1e-8;
+
 fn row_residuals(bounds: &Bounds, values: &[f64]) -> Result<Vec<f64>> {
     values
         .iter()
@@ -122,34 +134,32 @@ pub(super) fn step<B: QpBackend>(
             return Ok(Some(Status::QpFailure));
         }
     };
-    for (i, v) in solution.step.iter_mut().take(spec.n()).enumerate() {
-        if spec.variables().lower[i] == spec.variables().upper[i]
-            && *v != 0.0
-            && v.abs() <= options.feasibility_tolerance
-        {
-            *v = 0.0;
-            result.report.fixed_step_corrections += 1;
-        }
-    }
+    snap_step(
+        &mut solution.step,
+        &q.variables,
+        spec.variables(),
+        options.feasibility_tolerance,
+        &mut result.report,
+    );
     if !q.accepts(&solution, acceptance)?.accepted {
         result.message = "restoration QP failed independent acceptance".into();
         return Ok(Some(Status::QpFailure));
     }
     let p = &solution.step;
     let predicted = finite(-dot(&q.gradient, p)?, "restoration predicted decrease")?;
-    if predicted <= 0.0 || norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x)) {
-        result.message = "restoration has no resolvable feasibility descent; nonlinear infeasibility is not established".into();
+    let trust_limited = norm_inf(p) >= settings.restoration_step_limit * (1.0 - 1e-9);
+    if predicted <= 0.0
+        || norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x))
+        || (!trust_limited && predicted <= STATIONARY_RATIO * before)
+    {
+        result.message = format!(
+            "restoration reached a stationary point of the squared constraint violation \
+             (psi = {before:.3e}, predicted decrease {predicted:.3e}); nonlinear infeasibility \
+             is not established"
+        );
         return Ok(Some(Status::RestorationFailed));
     }
-    let mut alpha = 1.0_f64;
-    for i in 0..spec.n() {
-        if p[i] > 0.0 && spec.variables().upper[i].is_finite() {
-            alpha = alpha.min((spec.variables().upper[i] - x[i]) / p[i]);
-        }
-        if p[i] < 0.0 && spec.variables().lower[i].is_finite() {
-            alpha = alpha.min((spec.variables().lower[i] - x[i]) / p[i]);
-        }
-    }
+    let mut alpha = box_step_limit(spec.variables(), x, p);
     let mut trials = 0;
     for _ in 0..=settings.max_backtracks {
         if let Some(s) = calls.before_call() {
@@ -158,7 +168,7 @@ pub(super) fn step<B: QpBackend>(
         if !(alpha.is_finite() && alpha > 0.0) {
             break;
         }
-        let trial: Vec<_> = x.iter().zip(p).map(|(&x, &p)| x + alpha * p).collect();
+        let trial = trial_point(spec.variables(), x, p, alpha);
         if spec.check_point(&trial, "restoration trial").is_err() {
             alpha *= 0.5;
             result.report.rejected_trials += 1;

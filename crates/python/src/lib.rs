@@ -521,6 +521,7 @@ fn solve_native<'py>(
     report.set_item("undefined_trials", r.report.undefined_trials)?;
     report.set_item("hessian_resets", r.report.hessian_resets)?;
     report.set_item("fixed_step_corrections", r.report.fixed_step_corrections)?;
+    report.set_item("bound_step_corrections", r.report.bound_step_corrections)?;
     report.set_item("step_norm", r.report.step_norm)?;
     report.set_item("total_seconds", r.report.total_seconds)?;
     report.set_item("callback_seconds", r.report.callback_seconds)?;

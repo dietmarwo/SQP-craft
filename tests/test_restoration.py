@@ -134,3 +134,17 @@ def test_options_reject_invalid_settings_before_model_calls(setting):
     for invalid in (0., -1., float('nan'), float('inf')):
         with pytest.raises(ValueError, match=setting):
             run(MustNotRun(), **{setting: invalid})
+
+
+def test_stationary_point_of_the_violation_ends_restoration_promptly():
+    # x = 1 and x = 2 at once: psi = 0.5((x-1)^2 + (x-2)^2) is smallest at x = 1.5.
+    # Restoration must stop there as `restoration_failed`, not creep until the
+    # budget runs out and report `restoration_limit`.
+    for budget in (10, 100):
+        result = run(max_restoration_steps=budget, record_history=True)
+        assert result.status == 'restoration_failed', result.message
+        assert 'stationary point' in result.message
+        assert result.report.restoration_steps == 2
+        assert result.candidate[0] == pytest.approx(1.5, abs=1e-3)
+        assert result.report.restoration_history[-1].merit_after == pytest.approx(0.25, abs=1e-6)
+        assert result.multipliers is None and not result.evaluation.feasible_candidate

@@ -224,6 +224,7 @@ class RunReport:
     undefined_trials: int
     hessian_resets: int
     fixed_step_corrections: int
+    bound_step_corrections: int
     step_norm: Optional[float]
     total_seconds: float
     callback_seconds: float

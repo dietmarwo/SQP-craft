@@ -83,6 +83,64 @@ external failure and call count, are in
 [iteration-2-baseline.json](iteration-2-baseline.json). Single-run wall times
 are recorded only for reproducibility; no speedup claim is made.
 
+## Review of the delivered iteration
+
+The delivery built and passed its 65 Rust tests, doctest and 75 Python tests,
+and the comparison above. The comparison has only one restoration case, so the
+review added a stress test: `examples/stress_random.py` generates problems that
+are feasible by construction (‖x − target‖² on [−2, 2]ⁿ, n = 2–7, with 1–3
+equality and 0–3 inequality rows of the form `a·x + s‖x − y‖²`) from random
+starts, many of which have inconsistent linearizations. The independent
+evaluator judges first-order acceptance. Over four seeds (1,200 problems) it
+found three defects; each is fixed with a test that fails on the delivered code.
+
+1. **Restoration crept towards infeasible stationary points of ψ.** Where no
+   feasible point is reachable locally, Gauss–Newton converges only linearly
+   to a minimizer of ψ with ψ > 0. The absolute test `predicted <= 0` let it
+   creep (ψ unchanged to six digits for several steps) until the budget of 10
+   was spent, so six runs reported `restoration_limit`, suggesting more budget
+   would help. Rerun with a budget of 100, the three from seed 1 ended
+   `restoration_failed` after 10 to 17 steps. Restoration now stops when a step not cut by the
+   direction bound predicts less than `1e-8·ψ`. The two `restoration_limit`
+   results left were still reducing ψ (by roughly 1e-5 relative per step);
+   given the budget, they stop as stationary at steps 12 and 18.
+2. **A step overshooting a nearly active bound stalled the solve.** After a
+   restoration step one variable sat 3e-14 below its upper bound. The
+   interior-point QP step exceeded that room by ~1e-11, the step-length cap
+   `(u − x)/p` cut the whole step to α ≈ 0.006 and then to 0, and the solve
+   ended `stalled` at primal violation 0.06 (SLSQP solves the problem). Step
+   components that exceed their step bound by at most the feasibility
+   tolerance are now moved onto it, generalizing the fixed-variable
+   correction, and a trial component that rounding of `x + αp` places a few
+   ulps beyond a bound is set to it. About 2% of capped trials overshoot that
+   way, and the delivered line search then halved α.
+3. **A step at the QP's noise level stopped the solve just short of
+   convergence.** With stationarity 1.18e-6 (tolerance 1e-6) and `pᵀBp ≈ 1e-12`,
+   the predicted merit decrease (−1.6e-12) was within the QP's complementarity
+   noise, and the solve ended `stalled`. This exit came from the iteration-1
+   review. Such a step is now taken once at full length if the merit does not
+   rise by more than the QP accuracy (at most three in a row); one more step
+   converges.
+
+| Four seeds, 1,200 problems | Delivered | Reviewed |
+| --- | ---: | ---: |
+| Converged, independently accepted | 1184 | 1186 |
+| `restoration_failed` | 8 | 12 |
+| `restoration_limit` | 6 | 2 |
+| `stalled` | 2 | 0 |
+| Restoration off: converged | 969 | 970 |
+| SciPy SLSQP: first-order accepted | 1165 | 1165 |
+
+No run reported `converged` at a point the evaluator rejects, before or after;
+the script now fails if one does. The 13-case comparison is unchanged
+(13 / 13 accepted, identical iteration counts). The 14 remaining failures are
+restoration stopping at, or still approaching, a stationary point of ψ (two of
+them in a corner of the box); SLSQP fails 12 of the same 14. A local
+feasibility method cannot do better there.
+The delivered test that accepted either restoration status for permanently
+inconsistent rows now requires `restoration_failed` after exactly two steps,
+at the minimizer of ψ.
+
 ## Failure behavior and remaining limits
 
 Tests cover truly inconsistent rows, a stationary infeasible zero-Jacobian
@@ -93,8 +151,11 @@ exception after a recovered domain exception, nonfinite output, and overflow
 in the Gauss–Newton matrix. No such case becomes a false convergence or nonlinear
 infeasibility finding. A partial trial leaves the preceding complete point intact.
 
-The local model can fail at an infeasible stationary point of squared violation;
-it has no random escape or global feasibility guarantee. Squared violation is
+The local model stops at an infeasible stationary point of squared violation
+(reported as `restoration_failed`); it has no random escape or global
+feasibility guarantee. The direction bound `restoration_step_limit` and the
+regularization are absolute, so badly scaled variables or rows slow
+restoration down. Squared violation is
 unscaled and can favor some rows over others; its reduction need not reduce
 the maximum row residual on every step. Forming dense `J^T J` can worsen
 conditioning. Regularization and finite checks are safeguards, not a solution

@@ -70,16 +70,14 @@ fn inconsistent_problem_is_not_certified_and_fixed_coordinate_never_moves() {
         false,
         None,
     );
-    assert!(
-        matches!(
-            r.status,
-            Status::RestorationFailed | Status::RestorationLimit
-        ),
-        "{}",
-        r.message
-    );
+    // ψ = ½((x−1)² + (x−2)²) has its minimum 0.25 at x = 1.5. The first step is
+    // cut by the trust bound Δ = 1, the second reaches the minimizer, and the
+    // third attempt recognizes the stationary point instead of creeping on.
+    assert_eq!(r.status, Status::RestorationFailed, "{}", r.message);
+    assert!(r.message.contains("stationary point"), "{}", r.message);
+    assert_eq!(r.report.restoration_steps, 2);
+    assert!((r.candidate.as_ref().unwrap()[0] - 1.5).abs() < 1e-3);
     assert!(!r.evaluation.unwrap().feasible_candidate);
-    assert!(r.report.restoration_steps >= 1);
     assert!(
         r.report
             .restoration_history

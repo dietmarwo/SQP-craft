@@ -66,7 +66,7 @@ jobs:
       - run: python examples/orbit_transfer.py 20
 
   baseline:
-    name: SLSQP comparison
+    name: SLSQP comparison and stress test
     runs-on: ubuntu-latest
     env:
       MATURIN_PEP517_ARGS: --locked
@@ -79,6 +79,12 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: python -m pip install ".[bench]"
       - run: python examples/compare_baseline.py --table >> "$GITHUB_STEP_SUMMARY"
+      - name: Random feasible problems (fails on a false convergence claim)
+        run: |
+          for seed in 1 2 3 4; do
+            python examples/stress_random.py --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
+            echo >> "$GITHUB_STEP_SUMMARY"
+          done
 
   dummy-only:
     name: Python build without the native solver

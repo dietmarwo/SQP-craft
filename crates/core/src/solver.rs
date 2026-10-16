@@ -286,6 +286,9 @@ pub struct RunReport {
     pub hessian_resets: u64,
     /// Explicit corrections of tiny fixed-variable step components.
     pub fixed_step_corrections: u64,
+    /// Step components moved onto a variable bound they exceeded by at most the
+    /// feasibility tolerance (interior-point roundoff near an active bound).
+    pub bound_step_corrections: u64,
     /// Last accepted displacement infinity norm.
     pub step_norm: Option<f64>,
     /// End-to-end elapsed solve time after validation.

@@ -50,7 +50,9 @@ point. A trajectory model typically gets `f` and `c` from one propagation.
 
 - `x` has length `n`, is finite and lies within the variable bounds. The model
   is never evaluated outside the box, so it may rely on, say, a positive mass.
-  A trial point that roundoff would push outside is shortened, never clipped.
+  A trial component that rounding of `x + αp` would place a few ulps beyond a
+  bound is set to that bound; any other trial outside the box is shortened.
+  Points are never projected.
 - `derivatives` is only called at the `x` of the immediately preceding
   `functions` call, so intermediate results may be reused. The native solver
   calls `derivatives` only at accepted points, never at rejected trials.
@@ -125,9 +127,13 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    `lower_c − c(x_k) <= J p <= upper_c − c(x_k)` and
    `lower − x_k <= p <= upper − x_k` (bounds shifted to step coordinates),
    solved by the QP backend and accepted only through `QpModel::accepts`
-   (below). A step component of a fixed variable within the feasibility
-   tolerance of zero is set to exactly zero, counted in
-   `fixed_step_corrections`, and the QP is rechecked.
+   (below). A step component that exceeds its step bound by at most the
+   feasibility tolerance is moved onto the bound and counted
+   (`fixed_step_corrections` for fixed variables, `bound_step_corrections`
+   otherwise) before that check. Interior-point steps satisfy bounds only to
+   their tolerance, and next to an active bound the remaining room can be far
+   smaller (3e-14 in the stress case that exposed this); without the move, the
+   step-length cap `(u − x)/p` cut the whole step to almost zero.
 2. **Convergence test** at `x_k` with the QP's fresh multipliers: `converged`
    only if primal violation, stationarity, complementarity and dual-sign
    residuals are all within their tolerances. A small step, a small objective
@@ -147,10 +153,14 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    and a failed update resets `B` to `scale·I`.
 
 If the predicted decrease is not positive, `B` is reset once and the QP
-retried. If it is still not positive and its magnitude is within the QP's own
+retried. If it is still not positive but its magnitude is within the QP's own
 accuracy (interior-point solutions stop slightly short of active bounds, which
-costs up to the QP complementarity residual per entry), the step is QP noise and
-the solve ends `stalled`; otherwise it ends `no_descent`.
+costs up to the QP complementarity residual per entry), the step is at the QP's
+noise level. Near a solution it is still the right step (`pᵀBp ≈ 1e-12` while
+stationarity is just above tolerance), so it is tried once at full length and
+accepted if the merit does not rise by more than that accuracy; at most three
+such steps in a row. Otherwise the solve ends `stalled` (noise level) or
+`no_descent`.
 
 Bounded local feasibility restoration is described below. There is no elastic-slack
 mode or second-order correction (so the
@@ -166,8 +176,8 @@ optimality certificate.
 | `iteration_limit`, `evaluation_limit`, `time_limit` | Budget exhausted; the last complete point is returned |
 | `cancelled` | Token cancelled or observer stop; the last complete point is returned |
 | `linearization_infeasible` | Inconsistent step QP with restoration disabled; no nonlinear infeasibility claim |
-| `restoration_failed` | Enabled local restoration could not find a decreasing complete step |
-| `restoration_limit` | Enabled restoration step budget exhausted |
+| `restoration_failed` | Restoration reached a stationary point of the squared violation, or found no decreasing complete step |
+| `restoration_limit` | Restoration step budget exhausted while it was still making progress |
 | `line_search_failure` | No acceptable step within `max_backtracks` (including all trials undefined) |
 | `no_descent` | The step is not a merit descent direction, even after a Hessian reset |
 | `stalled` | The step is below the QP's accuracy or cannot change the iterate |
@@ -199,8 +209,8 @@ with the tolerance. Neither is evidence of optimality, and an infeasible
 candidate does not show that the problem is infeasible.
 
 `RunReport` holds the method, QP backend and its last raw status, QP solves and
-iterations, rejected and undefined trials, Hessian resets, fixed-step
-corrections, the last accepted step norm, inclusive phase times (total,
+iterations, rejected and undefined trials, Hessian resets, fixed-step and
+bound-step corrections, the last accepted step norm, inclusive phase times (total,
 callbacks including Python conversion, QP, BFGS; not a pure GIL-wait measure),
 the optional QP trace, and the optional history. Each `IterationRecord`
 describes one iterate where a QP was solved: objective, primal violation,
@@ -389,9 +399,19 @@ violated inequality rows contribute; inactive inequalities contribute zero.
 The original inconsistent linear rows are omitted from this QP. There are no
 extra slack variables, so the 256-variable cap is unchanged.
 
-An independently accepted QP direction is backtracked until it stays within
-the strict variable box and strictly decreases `psi`, with Armijo constant
-`1e-4` and prediction `-g^T p`. It may increase the objective or the maximum
+An independently accepted QP direction (after the same step-bound moves as an
+ordinary step) is backtracked until it stays within the strict variable box and
+strictly decreases `psi`, with Armijo constant `1e-4` and prediction `-g^T p`.
+
+Restoration stops with `restoration_failed` when the direction predicts a
+decrease of at most `1e-8·psi` without being cut by the direction bound: a
+stationary point of `psi` that is not feasible. Gauss–Newton approaches such a
+point only linearly, so an absolute test would creep until the step budget ran
+out. Near a feasible point the ratio is of order one. The threshold is small
+because the absolute regularization scales the ratio down to about
+`2σ²/restoration_regularization` on rows whose Jacobian singular values `σ` are
+small. A run can still end `restoration_limit` while `psi` is decreasing
+slowly towards a stationary value; the restoration history shows the trend. It may increase the objective or the maximum
 individual row violation while decreasing the squared total violation.
 Undefined function/derivative trials backtrack; other exceptions remain fatal.
 Only a complete evaluation can be committed. Arithmetic overflow is an error.
@@ -405,9 +425,10 @@ from the failed-BFGS `hessian_resets` budget.
 
 All accepted steps, including restoration, count toward `max_iterations` and
 observer iteration numbers. Shared callback/time/cancellation budgets apply.
-`restoration_failed` means no resolvable feasibility descent or no acceptable
-complete trial; `restoration_limit` means the enabled accepted-step budget was
-exhausted. `linearization_infeasible` is retained when restoration is disabled.
+`restoration_failed` means a stationary point of `psi`, no resolvable
+feasibility descent or no acceptable complete trial; `restoration_limit` means
+the enabled accepted-step budget was exhausted while restoration was still
+making progress. `linearization_infeasible` is retained when restoration is disabled.
 QP errors/limits retain their existing `qp_failure`/`time_limit` semantics.
 None of these statuses establishes nonlinear infeasibility.
 
