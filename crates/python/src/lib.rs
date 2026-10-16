@@ -239,32 +239,77 @@ impl Cancellation {
     }
 }
 
-/// Adapts the two Python callbacks. The first Python exception is kept so the
-/// caller sees the original type and traceback.
-struct PythonModel {
-    functions: Py<PyAny>,
-    derivatives: Py<PyAny>,
-    error: Option<PyErr>,
+/// A Python exception raised by a callback, kept together with the Rust error
+/// that stood in for it while the solver ran.
+struct Failure {
+    stand_in: Error,
+    error: PyErr,
 }
-impl PythonModel {
-    fn keep(&mut self, err: PyErr) -> Error {
-        let kind = Python::attach(|py| {
-            let message = err.value(py).to_string();
-            if err.is_instance_of::<UndefinedPointError>(py) {
+
+impl Failure {
+    fn new(error: PyErr, observer: bool) -> Self {
+        let stand_in = Python::attach(|py| {
+            let message = error.value(py).to_string();
+            if !observer && error.is_instance_of::<UndefinedPointError>(py) {
                 Error::UndefinedPoint(message)
             } else {
                 Error::Evaluation(message)
             }
         });
-        self.error = Some(err);
-        kind
+        Self { stand_in, error }
     }
 }
-impl NlpProblem for PythonModel {
-    fn discard_undefined(&mut self) {
-        self.error = None;
+
+/// Maps a solver result to Python. If the solver failed with the stand-in of
+/// the exception raised by the most recent callback, that original exception
+/// (type, identity, traceback) is raised. A recorded exception the solver
+/// recovered from, such as an `UndefinedPointError` at a line-search trial,
+/// does not match a successful result or a later error and is dropped.
+fn reraise<T>(
+    result: sqp_craft::Result<T>,
+    failures: impl IntoIterator<Item = Option<Failure>>,
+) -> PyResult<T> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(e) => {
+            for failure in failures.into_iter().flatten() {
+                if failure.stand_in == e {
+                    return Err(failure.error);
+                }
+            }
+            Err(to_py_err(e))
+        }
     }
+}
+
+/// Adapts the two Python callbacks. Each call reattaches to the interpreter on
+/// the calling thread and keeps only the exception of the most recent call.
+struct PythonModel {
+    functions: Py<PyAny>,
+    derivatives: Py<PyAny>,
+    failure: Option<Failure>,
+}
+
+impl PythonModel {
+    fn new(functions: Py<PyAny>, derivatives: Py<PyAny>) -> Self {
+        Self {
+            functions,
+            derivatives,
+            failure: None,
+        }
+    }
+
+    fn fail(&mut self, error: PyErr) -> Error {
+        let failure = Failure::new(error, false);
+        let stand_in = failure.stand_in.clone();
+        self.failure = Some(failure);
+        stand_in
+    }
+}
+
+impl NlpProblem for PythonModel {
     fn functions(&mut self, x: &[f64], constraints: &mut [f64]) -> sqp_craft::Result<f64> {
+        self.failure = None;
         let result = Python::attach(|py| {
             py.check_signals()?;
             let ret = self.functions.bind(py).call1((PyList::new(py, x)?,))?;
@@ -272,14 +317,16 @@ impl NlpProblem for PythonModel {
             copy_exact(&values, constraints, "functions(x) constraint values")?;
             objective.extract::<f64>()
         });
-        result.map_err(|e| self.keep(e))
+        result.map_err(|e| self.fail(e))
     }
+
     fn derivatives(
         &mut self,
         x: &[f64],
         gradient: &mut [f64],
         jacobian: &mut [f64],
     ) -> sqp_craft::Result<()> {
+        self.failure = None;
         let result = Python::attach(|py| {
             py.check_signals()?;
             let ret = self.derivatives.bind(py).call1((PyList::new(py, x)?,))?;
@@ -287,15 +334,20 @@ impl NlpProblem for PythonModel {
             copy_exact(&g, gradient, "derivatives(x) gradient")?;
             copy_exact(&jac, jacobian, "derivatives(x) Jacobian values")
         });
-        result.map_err(|e| self.keep(e))
+        result.map_err(|e| self.fail(e))
     }
 }
+
+/// Calls a Python function `observe(progress: dict) -> bool` whose result
+/// means "stop". The public facade adapts user observers to this form.
 struct PythonObserver {
     callback: Py<PyAny>,
-    error: Option<PyErr>,
+    failure: Option<Failure>,
 }
+
 impl Observer for PythonObserver {
     fn observe(&mut self, p: &Progress) -> sqp_craft::Result<Control> {
+        self.failure = None;
         let result = Python::attach(|py| {
             py.check_signals()?;
             let data = PyDict::new(py);
@@ -308,15 +360,16 @@ impl Observer for PythonObserver {
             Ok(true) => Ok(Control::Stop),
             Ok(false) => Ok(Control::Continue),
             Err(e) => {
-                let message = Python::attach(|py| e.value(py).to_string());
-                self.error = Some(e);
-                Err(Error::Evaluation(message))
+                let failure = Failure::new(e, true);
+                let stand_in = failure.stand_in.clone();
+                self.failure = Some(failure);
+                Err(stand_in)
             }
         }
     }
 }
 
-/// Runs the dummy backend. Use `sqp_craft.solve` instead of calling this directly.
+/// Runs the selected backend (`"dummy"` or `"sqp"`). Use `sqp_craft.solve` instead of calling this directly.
 #[pyfunction]
 #[pyo3(signature = (spec, functions, derivatives, x0, feasibility_tolerance, threads, cancellation, observer=None, method="dummy", method_options=None))]
 #[allow(clippy::too_many_arguments)]
@@ -348,14 +401,10 @@ fn solve_native<'py>(
         feasibility_tolerance,
         threads,
     };
-    let mut model = PythonModel {
-        functions: functions.unbind(),
-        derivatives: derivatives.unbind(),
-        error: None,
-    };
+    let mut model = PythonModel::new(functions.unbind(), derivatives.unbind());
     let mut monitor = observer.map(|callback| PythonObserver {
         callback: callback.unbind(),
-        error: None,
+        failure: None,
     });
     let inner = &spec.get().inner;
     let token = cancellation.get().inner.clone();
@@ -412,6 +461,7 @@ fn solve_native<'py>(
                             "qp_tolerance" => settings.qp_tolerance = value.extract()?,
                             "qp_max_iterations" => settings.qp_max_iterations = value.extract()?,
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
+                            "record_history" => settings.record_history = value.extract()?,
                             _ => {
                                 return Err(PyValueError::new_err(format!(
                                     "unknown SQP setting: {key}"
@@ -444,13 +494,7 @@ fn solve_native<'py>(
         }
         _ => return Err(PyValueError::new_err(format!("unknown method: {method}"))),
     };
-    if let Some(e) = model.error {
-        return Err(e);
-    }
-    if let Some(e) = monitor.and_then(|m| m.error) {
-        return Err(e);
-    }
-    let r = result.map_err(to_py_err)?;
+    let r = reraise(result, [model.failure, monitor.and_then(|m| m.failure)])?;
 
     let out = PyDict::new(py);
     out.set_item("status", r.status.as_str())?;
@@ -493,6 +537,22 @@ fn solve_native<'py>(
         trace.append(d)?;
     }
     report.set_item("qp_trace", trace)?;
+    let history = PyList::empty(py);
+    for h in &r.report.history {
+        let d = PyDict::new(py);
+        d.set_item("iteration", h.iteration)?;
+        d.set_item("objective", h.objective)?;
+        d.set_item("primal_violation", h.primal_violation)?;
+        d.set_item("stationarity", h.stationarity)?;
+        d.set_item("complementarity", h.complementarity)?;
+        d.set_item("qp_step_norm", h.qp_step_norm)?;
+        d.set_item("step_length", h.step_length)?;
+        d.set_item("trials", h.trials)?;
+        d.set_item("max_penalty", h.max_penalty)?;
+        d.set_item("qp_iterations", h.qp_iterations)?;
+        history.append(d)?;
+    }
+    report.set_item("history", history)?;
     out.set_item("report", report)?;
     out.set_item("complementarity", r.complementarity)?;
     out.set_item("message", r.message)?;
@@ -548,21 +608,15 @@ fn check_derivatives<'py>(
         relative_tolerance,
         max_directions,
     };
-    let mut model = PythonModel {
-        functions,
-        derivatives,
-        error: None,
-    };
+    let mut model = PythonModel::new(functions, derivatives);
     let result = py
         .detach(|| sqp_craft::derivative_check::check_derivatives(inner, &mut model, &x, &options));
-    if let Some(e) = model.error {
-        return Err(e);
-    }
-    let r = result.map_err(to_py_err)?;
+    let r = reraise(result, [model.failure])?;
     let out = PyDict::new(py);
     out.set_item("passed", r.passed)?;
     out.set_item("inconclusive", r.inconclusive)?;
     out.set_item("checked", r.checked)?;
+    out.set_item("fixed", r.fixed)?;
     out.set_item("skipped", r.skipped)?;
     let counts = PyDict::new(py);
     counts.set_item("functions", r.counts.functions)?;

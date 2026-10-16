@@ -1,118 +1,141 @@
-# Iteration 1 implementation and validation
+# Iteration 1: native SQP pilot
 
-Version 0.2.0 · 16 October 2026 UTC. [Starting commit](baseline.md) and
-[archived revision 2 implementation plan](iteration-1-plan.md).
+Version 0.2.0 · 16 October 2026. Implements the
+[revision 2 plan](iteration-1-plan.md) on top of the interface draft (`main` at
+`d2d2cf1`). Validation details: [validation.md](validation.md). Contract:
+[api.md](api.md).
 
-## Delivered and bounded scope
+## Scope delivered
 
-| Work area | Implementation |
+| Area | Implementation |
 | --- | --- |
-| Numerical boundaries | Raw bounds checks, finite KKT intermediates and nonfinite QP warm-start validation |
-| Derivative tools | Bound-aware coordinate finite differences with multiple step sizes, grouped cache ordering and explicit inconclusive/skipped coordinates |
-| QP adapter | Clarabel 0.11.1, two-sided-to-conic conversion, signed multipliers, original QP KKT acceptance and active-loop cancellation |
-| Native driver | Shifted step QPs, L1 merit/Armijo backtracking, domain-error retries, consistent-multiplier damped BFGS and bounded Hessian resets |
-| Result/control interfaces | Explicit method selection, first-order termination checks, resource budgets, counters, phase timings and bounded QP trace |
-| Python boundary | Owned callback references; native detach and per-callback reattach on the calling thread; original exception identity/traceback preserved |
-| Acceptance | Rust/Python analytic fixtures, process isolation, derivative faults, undefined trials, strict boxes, callback budgets and independent SLSQP comparison |
+| Numerical hardening | Checked KKT intermediates (an overflow is an error, never a zero residual), `Bounds::checked_violation`, finite QP warm-start validation |
+| Derivative checker | Coordinate finite differences inside the box, several step sizes, every output row compared, fixed variables reported separately |
+| QP adapter | Clarabel 0.11.1: two-sided rows to cones, signed multipliers, scale-aware independent acceptance, cancellation inside the QP |
+| Native driver | Step QPs in shifted coordinates, Powell per-row L1 merit penalties, Armijo backtracking with undefined-point retries, damped BFGS with SPD checks and bounded resets |
+| Results and control | Explicit `method="sqp"`, first-order convergence test, iteration/callback/time budgets, run report, optional QP trace and iteration history |
+| Python | Owned callback references, native phases detached from the interpreter, original exceptions preserved, recovered domain errors dropped |
+| Acceptance | Analytic fixtures, HS071, a 164-variable orbit-transfer collocation, an independent evaluator and SciPy SLSQP on the same models and starts |
 
-The native driver lives in `crates/sqp`, rather than adding nalgebra to
-`crates/core`. This preserves the dependency-free core. It is a dense BFGS
-research pilot capped at 256 variables, even though Jacobian input is sparse.
-Application inputs remain unavailable, so the plan's analytic-pilot restriction
-applies. The complete target-card workload and performance gate remain open.
+The driver lives in `crates/sqp`, so the core crate stays dependency-free. It
+is a dense-BFGS research pilot capped at 256 variables; the Jacobian input is
+sparse but `B` is dense and the QP is re-solved cold each iteration.
 
-## QP choice and capability evidence
+### QP backend choice
 
-A compiled probe against the pinned HiGHS native QP API solved
-`H=[[2,1],[1,2]], g=[-3,-3]` at approximately `[1,1]`, confirming triangular
-storage and the nonzero off-diagonal convention. Inspection of its QP active
-loop (`HiGHS/highs/qpsolver/quass.cpp`) found iteration/time checks but no
-registered user interruption callback. LP/MIP callback support does not imply
-QP callback support.
+A compiled probe of the HiGHS QP API solved `H = [[2,1],[1,2]], g = [-3,-3]` at
+`[1,1]`, confirming its triangular storage. Its QP active-set loop
+(`highs/qpsolver/quass.cpp`) checks iteration and time limits but has no user
+interruption callback, so the plan's fallback applies: Clarabel is the only
+production QP backend in this iteration. There is no active-set or
+factorization reuse, and no second backend ships.
 
-The plan permits Clarabel if a mandatory HiGHS QP capability is missing.
-Iteration 1 therefore uses **Clarabel 0.11.1 only** for production step QPs.
-The adapter converts lower CSR to upper CSC without doubling; split conic
-row duals reverse-map to the checked-in signed convention. Equality and fixed
-variables use zero cones; free sides produce no artificial constraint.
+## Review of the delivered iteration
 
-The adapter requires SPD Hessians and rejects unsupported QP warm-start
-components explicitly. It uses cold starts, reports raw status/iterations and
-rejects reduced-accuracy or limited iterates. An integration unit test injects
-cancellation from iteration 1 inside the real Clarabel callback and verifies
-`CallbackTerminated`; it uses no timing race. There is no active-set or
-factorization reuse claim. A second QP backend is not shipped.
+The delivered code built and passed its 47 Rust and 61 Python tests. Probing it
+beyond its fixtures found four problems, fixed here with tests that fail on the
+delivered code:
 
-## Algorithm and interface decisions
+1. **The merit penalty stalled the line search on the orbit transfer.** The
+   plan's nondecreasing rule `ρ = max(ρ, 1.1‖λ‖∞ + 1)` kept the first QP's
+   multiplier (ρ ≈ 33) while the multipliers settled near 1.6. With a 20×
+   oversized penalty, the curvature-induced constraint violation dominated the
+   merit and most steps were cut to α = 1/32: N = 10 took 357 iterations and
+   1884 rejected trials, N = 20 and N = 40 hit the 500-iteration limit. The plan
+   proposed that rule as "a pilot policy to validate"; it did not validate.
+   Powell's per-row update `μ_i ← max(t_i, ½(μ_i + t_i))`, `t_i = 1.1|λ_i|`
+   (the SLSQP/NLPQL rule, with a 10% margin) converges from the same initial
+   guess in 54 / 86 / 131 iterations with at most one rejected trial.
+2. **Correct QP solutions were rejected.** The adapter required the maximum
+   QP residual below an absolute `1e-7`. Interior-point complementarity is
+   `|multiplier| × gap`; with multipliers near 500 a 1e-9 gap gives 5e-7, so
+   `min (x0+1)² + (x1−3)⁴ + 0.1x0x1, x0 ≥ 0` from `(0, −3)` ended in
+   `qp_failure` at the first iteration. One scale-aware rule,
+   `QpModel::accepts` (dual-side residuals `<= tol·(1 + max(‖g‖, ‖λ‖, ‖z‖))`),
+   now serves the adapter and the driver; it still rejects a flipped multiplier
+   sign.
+3. **The derivative checker failed every model with a fixed variable.** Fixed
+   coordinates made the report `inconclusive`, hence not `passed`, although the
+   solver never moves them. Trajectory models fix their initial state, so a
+   correct orbit model could not pass. Fixed variables are now listed in
+   `fixed` and do not affect `passed`. Also: an undefined perturbed point no
+   longer aborts the check (and no longer leaks an `UndefinedPointError` to
+   Python), and a point just inside a bound uses a full one-sided step instead
+   of a step shrunk to the distance to the bound (1e-13 gave a roundoff error of
+   ~1e3 on a value of 1e6).
+4. **Recovered Python errors depended on a hook in the core trait.** The
+   delivery added `NlpProblem::discard_undefined()`, which every solver had to
+   call after recovering from an undefined point, or the binding would re-raise
+   the stale exception after a successful solve. The derivative checker did
+   not call it. The binding now keeps only the exception of the most recent
+   callback and re-raises it only when the solver failed with exactly the
+   error that stood in for it; the hook is gone from the core trait.
 
-See [api.md](api.md) for formulas, exact defaults and termination semantics.
-Convergence checks fresh original-unit NLP KKT residuals. QP success, a small
-step or a feasible candidate alone is insufficient. Linearized infeasibility
-is reported as `linearization_infeasible`, never NLP infeasibility.
+Also changed: an interior-point QP leaves active rows slightly short of their
+bounds, so near convergence the predicted merit decrease can turn non-positive
+by up to the QP's complementarity residual. After the Hessian-reset retry such
+a step now ends `stalled` with the measured QP accuracy in the message, instead
+of `no_descent`. A `Solved` QP is kept even if the deadline passed during it.
+Statuses have descriptive messages, the API document no longer contradicts
+itself on threading, CI runs debug tests (overflow checks on) and the baseline
+comparison, and the archive's checksums and local logs were dropped in favour of
+CI and this record.
 
-Every callback point passes the strict variable-box contract. A tolerance-sized
-step on a fixed variable may be made exactly zero, with a recorded correction
-and complete QP recheck. Starts are never clipped. Rejected trials use functions
-only; accepted trial derivatives immediately follow functions at the same x.
-Undefined functions/derivatives trials consume counts, clear saved recoverable
-exceptions and retry at a shorter step. Fatal callback/observer errors remain
-errors. Partial trials never replace the last complete accepted evaluation.
+## Comparison with SciPy SLSQP
 
-`max_callback_calls` counts grouped functions plus derivatives. The cooperative
-time budget includes callbacks, QPs and driver work. The QP receives the remaining
-budget. A user callback cannot be forcibly interrupted; use process isolation
-when that is required. The observer reports the initial point as iteration 0
-and completed accepted iterates. Native computations detach from Python;
-callbacks remain serial on the solve's calling thread. Rust model callbacks
-still require neither Send nor Sync.
+`examples/compare_baseline.py` runs both solvers on the same models and starts
+and decides acceptance with one independent NumPy evaluator: primal violation
+`<= 1e-7`, a multiplier certificate with stationarity and complementarity
+`<= 1e-6` and sign residual `<= 1e-8`, and the objective against a reference.
+For sqp-craft the certificate is its own multipliers; SLSQP returns no bound
+multipliers, so its certificate is reconstructed by least squares. Data:
+[iteration-1-baseline.json](iteration-1-baseline.json) (SciPy 1.18.1, one run
+each; timings are not a performance claim).
 
-## Analytic baseline results
+| Case | Start | sqp-craft | Iter. | f / ∇f calls | SLSQP | Iter. | f / ∇f calls |
+| --- | --- | --- | ---: | ---: | --- | ---: | ---: |
+| Quadratic | (0, 0) | accepted | 1 | 3 / 2 | accepted | 2 | 3 / 2 |
+| Quadratic | (−2, 4) | accepted | 1 | 3 / 2 | accepted | 2 | 3 / 2 |
+| Equality | (0, 0) | accepted | 3 | 4 / 4 | accepted | 4 | 4 / 4 |
+| Equality | (4, −3) | accepted | 1 | 3 / 2 | accepted | 2 | 3 / 2 |
+| Circle | (0.4, 0.2) | accepted | 7 | 8 / 8 | accepted | 8 | 8 / 8 |
+| Circle | (0.2, 0.4) | accepted | 5 | 6 / 6 | accepted | 7 | 7 / 7 |
+| Active bound | (1) | accepted | 1 | 2 / 2 | accepted | 2 | 2 / 2 |
+| Rosenbrock | (−1.2, 1) | accepted | 34 | 54 / 35 | accepted | 36 | 49 / 36 |
+| HS071 | (1, 5, 5, 1) | accepted | 5 | 6 / 6 | accepted | 16 | 47 / 12 |
+| HS071 | (2, 2, 2, 2) | accepted | 7 | 8 / 8 | accepted¹ | 15 | 12 / 11 |
+| HS071 | (1, 1, 1, 1) | `linearization_infeasible` | 0 | 1 / 1 | iteration limit | 100 | 350 / 101 |
+| Orbit transfer, N = 20 (n = 84) | crude guess | accepted | 104 | 106 / 105 | accepted | 110 | 112 / 110 |
+| Orbit transfer, N = 40 (n = 164) | crude guess | accepted | 167 | 168 / 168 | accepted | 180 | 181 / 180 |
 
-[iteration-1-baseline.json](iteration-1-baseline.json) contains the actual
-single-run data produced by `examples/compare_baseline.py`, using SciPy SLSQP
-1.18.1 and the same analytic models/starts. Both solvers passed the independent
-objective, primal, stationarity, complementarity and dual-sign acceptance
-checks in all eight cases (16 total solver runs).
+¹ SLSQP reported "Positive directional derivative for linesearch", but the
+point passes the independent check.
 
-| Model and start | Native SQP accepted steps | SLSQP iterations |
-| --- | ---: | ---: |
-| Quadratic `[0,0]` | 1 | 2 |
-| Quadratic `[-2,4]` | 1 | 2 |
-| Equality `[0,0]` | 3 | 4 |
-| Equality `[4,-3]` | 1 | 2 |
-| Circle `[0.4,0.2]` | 1 | 8 |
-| Circle `[0.2,0.4]` | 6 | 7 |
-| Active bound `[1]` | 1 | 2 |
-| Rosenbrock `[-1.2,1]` | 34 | 36 |
+Both solvers fail HS071 from (1, 1, 1, 1): there the linearized rows require
+`Σp ≥ 24` and `Σp = 18`. sqp-craft reports this after one evaluation, as the
+plan requires without a restoration phase; SLSQP spends 100 iterations without
+leaving the start's neighbourhood. On the orbit transfer, QP solves dominate the
+time (3.7 of 4.1 s at N = 40): a cold interior-point solve with a dense
+164 × 164 Hessian each iteration.
 
-The external residual check reconstructs active multipliers by least squares;
-it does not claim they are SLSQP's returned multipliers. Grouped-call counts
-include adapter calls made to keep the callback cache protocol valid; compare
-like-for-like application evaluations before drawing cost conclusions. Timings
-are single runs of tiny cases, with no warmup/performance significance.
+## Limits
 
-## Validation and remaining limits
-
-[validation.md](validation.md) records exact gates and counts. All original 32
-Rust integration tests, doctest and 42 Python contract tests remain. The new
-fixtures test QP off-diagonals and lower/upper/fixed duals, nonlinear and bound
-optima, bad derivatives including omitted Jacobian entries, strict domain boxes,
-undefined starts/trials, exception identity, observer stop, budgets, infeasible
-linearizations, BFGS damping/reset guards and spawned workers.
-
-Deferred: restoration/elastic mode, second-order corrections, automatic model
-scaling, exact/user Hessians, sparse/limited-memory BFGS, QP warm starts, internal
-parallelism and distribution. The pilot can fail on Maratos-effect cases,
-poorly scaled models or infeasible linearizations. First-order stationarity is
-not a global-minimum or second-order certificate. Application/16-core results
-remain unmeasured and the target card is unchanged.
+No restoration or elastic mode (an inconsistent linearization ends the solve),
+no second-order correction (the Maratos example from Nocedal & Wright 15.4
+converges but rejects up to about two trials per iteration), no automatic scaling, no
+exact or limited-memory Hessians, no QP warm starts, no internal parallelism.
+Convergence is first-order only. The application target card is still open; no
+application data were available, so all results are on analytic and textbook
+problems.
 
 ## Next measured task
 
-Obtain one bounded representative trajectory model with a validated Jacobian and
-reference start. Run the derivative checker first, then compare unchanged
-models/starts against SLSQP using original-unit residual acceptance. Enable a
-small QP trace and profile model callbacks, QP work and BFGS separately. If the
-first blocker is infeasible linearization or line-search stagnation, evaluate
-restoration or a second-order correction before expanding the dense size cap.
-No extension should be selected from the tiny-fixture timing numbers alone.
+Run the actual low-thrust model: derivative check first, then sqp-craft and
+SLSQP from the same starts with `record_history=True`, judged by the
+independent evaluator in original units. Profile callbacks, QP and BFGS time
+separately. Then choose the next change by the observed blocker:
+
+- an inconsistent linearization: elastic mode or a feasibility restoration phase;
+- slow tails with many rejected trials: a second-order correction;
+- QP time dominating at larger N: a sparse or structured Hessian with QP warm
+  starts (the HiGHS active-set comparison planned for milestone 3).

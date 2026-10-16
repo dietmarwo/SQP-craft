@@ -1,50 +1,54 @@
-# Completed validation
+# Validation
 
-Validated 16 October 2026 UTC on Linux x86_64, CPython 3.12.14, Rust 1.99.1.
-The declared MSRV Rust 1.85.0 was checked separately. PyO3 is 0.30.1;
-maturin 1.9.4, pytest 9.1.1 and NumPy 2.5.4 were used.
+Version 0.2.0, 16 October 2026. Local runs on Linux x86_64 with Rust 1.97.0,
+CPython 3.13, PyO3 0.30.1, maturin 1.15.0, pytest 9.1.1, NumPy 2.5.4 and
+SciPy 1.18.1. The CI workflow repeats these checks on every pull request,
+including Rust 1.85 (the declared minimum) and Python 3.10 / 3.14 on Linux,
+macOS and Windows.
 
-| Gate | Observed result |
+| Check | Result |
 | --- | --- |
+| `bash scripts/check.sh` from a clean build | Pass |
 | `cargo fmt --all --check` | Pass |
-| `cargo clippy --release --workspace --all-targets --locked -- -D warnings` | Pass |
-| `cargo test --release --workspace --locked` | **47 unit/integration tests + 1 doctest passed** |
-| `cargo +1.85.0 check --release --workspace --all-targets --locked` | Pass, including examples/tests and native backend |
-| Real Rust example | Pass; actual optimizer selected |
-| Native release wheel build | Pass, `cp310-abi3-manylinux_2_34_x86_64` |
-| Clean installed-wheel Python suite | **61 passed**, including original 42 contract tests |
-| Real Python example from installed wheel | Pass |
-| Dummy-only release wheel build | Pass with `--no-default-features` |
-| Dummy-only Python contract suite | **42 passed** |
-| Missing backend request in dummy-only build | `NotImplementedError`; no silent fallback |
-| `git diff --check` | Pass |
+| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Pass |
+| `cargo test --workspace --locked` (debug, overflow checks on) | 57 tests + 1 doctest pass |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | Pass |
+| Rust examples `toy` and `solve` | Pass |
+| Fresh virtual environment, `pip install ".[test]"`, `pytest` | 67 pass |
+| README example, `examples/solve_sqp.py`, `examples/orbit_transfer.py 20` | Pass |
+| Build with `--no-default-features`, `pytest tests/test_contract.py` | 42 pass; `method="sqp"` raises `NotImplementedError` |
+| `mypy --strict` on `python/sqp_craft` | Pass |
+| `examples/compare_baseline.py` | sqp-craft accepted on 12 of 13 cases, SLSQP on 12 of 13; both fail HS071 from (1, 1, 1, 1) |
 
-The clean wheel environment was separate from the editable development install.
-Imports resolved to its `site-packages`, not either source tree. Default/native
-and dummy-only wheels were built into separate directories. Both distributions
-were installed together for the clean-wheel suites.
+## What the tests cover
 
-Representative command sequence from the repository root:
+- **Contracts** (core): problem spec validation, callback order and buffers,
+  the dummy method, the multiplier sign convention on hand-derived cases,
+  overflow in KKT arithmetic, QP warm-start validation.
+- **QP adapter**: off-diagonal Hessian storage, signed lower/upper/fixed
+  multipliers, infeasible rows, iteration limits, cancellation from inside the
+  running Clarabel iteration, warm-start rejection, and scale-aware acceptance
+  with a multiplier near −999 that still rejects a flipped sign.
+- **Driver**: analytic optima with signed multipliers; an inconsistent
+  linearization reported as such; recovered undefined trials; callback budgets
+  that return the last complete point; observer stop and time limit; a quartic
+  with an active bound and large early multipliers; HS071 from three starts;
+  the iteration history; and the N = 20 orbit transfer, which must converge
+  to r(tf) = 1.52206 in under 150 iterations with mostly full steps.
+- **Derivative checker**: injected sign and pattern errors, fixed variables,
+  `max_directions`, undefined perturbations, and a point 1e-13 inside a bound.
+- **Python boundary**: the above through the compiled module, plus exception
+  identity, a non-finite output after a recovered undefined trial, box
+  assertions inside callbacks, observer events per accepted step, and solves in
+  spawned worker processes.
 
-```bash
-cargo fmt --all --check
-cargo clippy --release --workspace --all-targets --locked -- -D warnings
-cargo test --release --workspace --locked
-cargo +1.85.0 check --release --workspace --all-targets --locked
-PYO3_BUILD_EXTENSION_MODULE=1 python -m maturin build --release --locked --out dist
-# In a fresh virtual environment:
-python -m pip install dist/*.whl pytest numpy
-python -m pytest -q tests
-```
+Four of the new tests fail on the delivered iteration-1 code: the QP-acceptance
+case (`qp_failure`), both orbit-transfer tests (iteration limit; derivative
+check not passed because of the fixed initial state) and the Python derivative
+check with an undefined perturbation (raised `UndefinedPointError`).
 
-These wheel tags describe the build host's resulting glibc floor, not a promise
-of older Linux compatibility. The archive ships source only, with Cargo.lock;
-rebuild in the intended deployment/build image. Python 3.10/3.14 and
-macOS/Windows jobs are defined in CI but were not executed here. There was no
-remote push or CI run for these local changes.
+## Not validated
 
-Full solver evidence and limits are in [iteration-1-results.md](iteration-1-results.md).
-The sanitized [validation logs](validation/) preserve exact test results and
-build output. Build warnings from maturin 1.9.4 about the PyO3 extension feature
-are emitted despite the supported `PYO3_BUILD_EXTENSION_MODULE=1` environment
-setting; the resulting wheels were installed and exercised successfully.
+No application model or data (the target card is open), no 16-core or
+multi-process scaling measurement, no free-threaded Python, no timing claims:
+the comparison runs each case once.

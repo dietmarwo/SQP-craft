@@ -1,9 +1,11 @@
 [package]
 name = "sqp-craft-solver"
+description = "Native dense-BFGS SQP driver for the sqp-craft contracts"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
 publish.workspace = true
 [dependencies]
 sqp-craft = { path = "../core" }

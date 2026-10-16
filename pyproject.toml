@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "sqp-craft"
 version = "0.2.0"
-description = "Native dense BFGS SQP pilot in Rust with Clarabel QPs and Python bindings"
+description = "SQP solver in Rust (dense-BFGS pilot with Clarabel QPs) with Python bindings"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -20,7 +20,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10", "numpy>=1.24"]
-bench = ["scipy>=1.15,<2"]
+bench = ["numpy>=1.24", "scipy>=1.15,<2"]
 
 [project.urls]
 Repository = "https://github.com/dietmarwo/SQP-craft"

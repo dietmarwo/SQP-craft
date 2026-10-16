@@ -1,6 +1,6 @@
 [package]
 name = "sqp-craft"
-description = "Problem, solver and result contracts for a sparse SQP solver (interface draft with a dummy backend)"
+description = "Problem, callback, solver and result contracts for a sparse SQP solver, with KKT and derivative checks"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

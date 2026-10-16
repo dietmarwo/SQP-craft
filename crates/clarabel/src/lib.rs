@@ -1,11 +1,27 @@
-//! Cold-start, single-thread convex QP adapter. Strictly positive-definite
-//! Hessians, n <= 256. Unsupported warm-start components are rejected.
+//! [`QpBackend`] adapter for the Clarabel interior-point solver (0.11.1).
+//!
+//! Cold starts only, one thread, strictly positive-definite Hessians and at
+//! most 256 variables. Warm-start data is validated and then rejected as
+//! unsupported rather than silently ignored.
+//!
+//! Conversion: the lower-triangular CSR Hessian becomes Clarabel's upper
+//! triangular CSC without doubling off-diagonal entries. Each finite side of a
+//! two-sided row or variable bound becomes one nonnegative-cone row
+//! (`a·p ≤ u` as `(a, u)`, `a·p ≥ l` as `(−a, −l)`), and equal bounds become a
+//! zero-cone row. Clarabel's duals `z ≥ 0` satisfy `Hp + g + Aᵀz = 0`, so the
+//! public multipliers in the convention `Hp + g = Aᵀλ + z` are
+//! `λ = z_lower − z_upper` (and `−z` for an equality).
+//!
+//! A `Solved` result is returned as [`QpOutcome::Optimal`] only after
+//! [`QpModel::accepts`] passes on the original two-sided model.
 #![forbid(unsafe_code)]
+#![warn(missing_docs)]
 use clarabel::{algebra::CscMatrix, solver::*};
 use nalgebra::DMatrix;
 use sqp_craft::{CancellationToken, Error, Multipliers, Result, qp::*};
 use std::time::Instant;
 
+/// The Clarabel QP backend. Configure it with [`QpBackend::configure`].
 #[derive(Clone, Debug, Default)]
 pub struct ClarabelQp {
     settings: QpOptions,
@@ -166,17 +182,23 @@ impl QpBackend for ClarabelQp {
         let raw = solver.solution.status;
         self.last.raw_status = Some(format!("{raw:?}"));
         self.last.iterations = u64::from(solver.solution.iterations);
-        if cancel.is_cancelled() {
-            return Ok(QpOutcome::Cancelled);
-        }
-        if limit.is_some_and(|s| began.elapsed().as_secs_f64() >= s) || raw == SolverStatus::MaxTime
-        {
-            self.last.limit_reason = Some("time".into());
-            return Ok(QpOutcome::LimitReached(None));
-        }
-        if raw == SolverStatus::MaxIterations {
-            self.last.limit_reason = Some("iterations".into());
-            return Ok(QpOutcome::LimitReached(None));
+        // A completed solve is kept even if the deadline passed meanwhile; the
+        // driver checks its own budget afterwards.
+        if raw != SolverStatus::Solved {
+            if cancel.is_cancelled() {
+                return Ok(QpOutcome::Cancelled);
+            }
+            if raw == SolverStatus::MaxTime
+                || (raw == SolverStatus::CallbackTerminated
+                    && limit.is_some_and(|s| began.elapsed().as_secs_f64() >= s))
+            {
+                self.last.limit_reason = Some("time".into());
+                return Ok(QpOutcome::LimitReached(None));
+            }
+            if raw == SolverStatus::MaxIterations {
+                self.last.limit_reason = Some("iterations".into());
+                return Ok(QpOutcome::LimitReached(None));
+            }
         }
         match raw {
             SolverStatus::PrimalInfeasible => Ok(QpOutcome::Infeasible),
@@ -199,10 +221,11 @@ impl QpBackend for ClarabelQp {
                     active_set: None,
                     iterations: self.last.iterations,
                 };
-                let kkt = model.residuals(&solution)?;
-                if kkt.max() > self.settings.acceptance_tolerance {
+                let check = model.accepts(&solution, self.settings.acceptance_tolerance)?;
+                if !check.accepted {
                     return Err(Error::Backend(format!(
-                        "Clarabel returned unacceptable original-unit residuals: {kkt:?}"
+                        "Clarabel solution failed the independent check (scale {:.3e}): {:?}",
+                        check.scale, check.residuals
                     )));
                 }
                 Ok(QpOutcome::Optimal(solution))

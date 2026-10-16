@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.85"
 license = "MIT"
 repository = "https://github.com/dietmarwo/SQP-craft"
-# Interface draft: names and signatures are provisional. Prevent accidental releases.
+# Pre-release: names and signatures are provisional. Prevent accidental releases.
 publish = false
 
 [profile.release]

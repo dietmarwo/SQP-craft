@@ -1,13 +1,15 @@
 # SQP-craft
 
-A native Rust SQP iteration loop with Python bindings. **Iteration 1 / v0.2.0**
-implements damped dense BFGS, an L1 merit line search, grouped callbacks,
-independent KKT checks and Clarabel QP subproblems.
+A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
+for smooth constrained problems such as trajectory transcriptions.
 
-This is a bounded analytic research pilot: **at most 256 variables**, one
-thread per solve, positive-definite QPs and cold QP starts. Sparse input is
-supported; the BFGS matrix is dense. There is no restoration or automatic
-scaling, and a nonlinear feasible problem can have an infeasible linearization.
+**Version 0.2.0: a research pilot.** Dense damped BFGS, an L1 merit line search
+with per-constraint penalties, Clarabel QP subproblems, grouped model callbacks
+and independent KKT checks. Limits: at most 256 variables, one thread per
+solve, no restoration phase (an inconsistent linearization ends the solve with
+`linearization_infeasible`), no second-order correction, no automatic scaling.
+Convergence means the first-order KKT residuals are within tolerance at the
+returned point, not a global optimum.
 
 ## Use from Python
 
@@ -15,63 +17,59 @@ scaling, and a nonlinear feasible problem can have an infeasible linearization.
 from sqp_craft import ProblemSpec, SqpOptions, check_derivatives, solve
 
 class Toy:
-    def functions(self, x):
-        return (x[0]-1)**2 + (x[1]-2)**2, [x[0]+x[1]]
-    def derivatives(self, x):
-        return [2*(x[0]-1), 2*(x[1]-2)], [1.0, 1.0]
+    """minimize (x0-1)^2 + (x1-2)^2  subject to  x0 + x1 = 3,  0 <= x <= 4"""
+    def functions(self, x):            # -> (objective, constraint values)
+        return (x[0] - 1) ** 2 + (x[1] - 2) ** 2, [x[0] + x[1]]
+    def derivatives(self, x):          # -> (gradient, Jacobian values in CSR order)
+        return [2 * (x[0] - 1), 2 * (x[1] - 2)], [1.0, 1.0]
 
 spec = ProblemSpec(lower=[0, 0], upper=[4, 4],
                    constraint_lower=[3], constraint_upper=[3],
                    jacobian_indptr=[0, 2], jacobian_indices=[0, 1])
 assert check_derivatives(spec, Toy(), [0.5, 0.5]).passed
 result = solve(spec, Toy(), [0.5, 0.5], method="sqp",
-               method_options=SqpOptions(max_iterations=100))
+               method_options=SqpOptions(record_history=True))
 assert result.status == "converged"
-print(result.candidate, result.stationarity, result.report)
+print(result.candidate, result.multipliers, result.stationarity)
 ```
 
-Select `method="sqp"` explicitly. The compatibility default `"dummy"` evaluates
-only the start and returns `"stub"`. Convergence requires all four first-order
-residual tests; it does not establish a global minimum.
+Pass `method="sqp"` explicitly: the default `"dummy"` only evaluates the start
+point and returns `"stub"`. Callbacks may return lists, tuples or 1-D NumPy
+arrays. `examples/orbit_transfer.py` solves a 164-variable low-thrust
+collocation problem; `examples/compare_baseline.py` compares the solver with
+SciPy's SLSQP under one independent evaluator.
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| `crates/core` | Dependency-free contracts, KKT checks, derivative checker and dummy |
-| `crates/clarabel` | Clarabel 0.11.1 QP adapter with signed-dual mapping and cancellation |
-| `crates/sqp` | Native SQP driver, damped BFGS and acceptance tests |
-| `crates/python`, `python/sqp_craft` | Owned PyO3 callbacks, typed facade and stub |
-| `examples/solve_sqp.py`, `crates/sqp/examples/solve.rs` | Real Python and Rust solves |
-| `examples/compare_baseline.py` | Independent analytic comparison against SciPy SLSQP |
-| [docs/api.md](docs/api.md) | Callback, QP, options, result and exception contracts |
-| [docs/iteration-1-results.md](docs/iteration-1-results.md) | Implemented plan, validation and pilot limitations |
+| `crates/core` (`sqp-craft`) | Dependency-free contracts: problem spec, callbacks, solver traits, results, KKT residuals, QP seam, derivative checker, dummy method |
+| `crates/sqp` (`sqp-craft-solver`) | The native SQP driver and damped BFGS |
+| `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter |
+| `crates/python`, `python/sqp_craft` | PyO3 extension and typed Python API |
+| [docs/api.md](docs/api.md) | The contract: conventions, algorithm, options, statuses, errors |
+| [docs/iteration-1-results.md](docs/iteration-1-results.md) | What iteration 1 delivers, review findings, SLSQP comparison, limits |
+| [docs/validation.md](docs/validation.md) | Checks run for this version |
 
 ## Build and test
 
-Requires Rust **1.85+**, Python **3.10+** and a C linker. The selected QP backend
-is Rust code and requires no external optimizer, BLAS, CMake or libclang.
-Cargo.lock pins the dependency graph.
+Requirements: Rust 1.85 or newer, CPython 3.10 or newer, a C linker. The QP
+backend is Rust code; no external optimizer, BLAS or CMake is needed.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install 'maturin>=1.9.4,<2' pytest numpy patchelf
+python3 -m venv .venv && source .venv/bin/activate
+python -m pip install 'maturin>=1.9.4,<2' pytest numpy
 bash scripts/check.sh
-PYO3_BUILD_EXTENSION_MODULE=1 python -m maturin build --release --locked
-# Optional independent analytic comparison
-python -m pip install 'scipy>=1.15,<2'
-python examples/compare_baseline.py > baseline.json
 ```
 
-`scripts/check.sh` runs formatting, Clippy, release tests, Rust examples,
-compiled Python tests and Python examples. `cargo test -p sqp-craft --locked`
-tests the contracts without the solver. For a dummy-only extension add
-`--no-default-features` to maturin. Missing native support raises an explicit error.
-
-CI defines Linux/macOS/Windows Python jobs. This archive was validated on Linux,
-not the complete CI matrix. No package is published (`publish = false`).
+`scripts/check.sh` runs rustfmt, Clippy with warnings denied, the Rust tests,
+both Rust examples, builds the extension, and runs the Python tests and
+examples. `python -m pip install .` builds and installs the package;
+`python -m maturin build --release` builds an abi3 wheel, and
+`--no-default-features` builds one without the native solver. The core crate
+works without Python: `cargo test -p sqp-craft`. For the SLSQP comparison:
+`python -m pip install scipy && python examples/compare_baseline.py --table`.
 
 ## License
 
-Project code is MIT; see [LICENSE](LICENSE) and [docs/dependencies.md](docs/dependencies.md).
+MIT, see [LICENSE](LICENSE) and [docs/dependencies.md](docs/dependencies.md).

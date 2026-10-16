@@ -1,11 +1,10 @@
-//! Provisional seam for the QP subproblem solver.
+//! Seam for the QP subproblem solver.
 //!
-//! No QP engine is implemented, and the dummy NLP backend never calls this
-//! seam. It fixes the data layout, the multiplier convention and the possible
-//! outcomes so that the first real backends (HiGHS active-set QP and an
-//! interior-point candidate such as Clarabel) can be compared on recorded QP
-//! sequences. Capability negotiation and backend-specific warm-start state
-//! will be added with those backends.
+//! It fixes the data layout, the multiplier convention, the possible outcomes
+//! and one independent acceptance rule ([`QpModel::accepts`]). The first
+//! backend is the Clarabel adapter in the `sqp-craft-clarabel` crate; the
+//! dummy NLP backend never calls this seam. Capability negotiation and
+//! backend-specific warm-start state are still to come.
 
 use crate::error::{Error, Result, ensure, first_non_finite};
 use crate::kkt::{KktPoint, KktResiduals, residuals};
@@ -169,6 +168,50 @@ impl QpModel {
             &solution.multipliers,
         )
     }
+
+    /// Accepts or rejects `solution` from the model data alone, with one rule
+    /// shared by every backend and the SQP driver.
+    ///
+    /// The primal residual (bound violation of `p` and `A p`) must not exceed
+    /// `tolerance` in step units. Stationarity, complementarity and dual-sign
+    /// residuals must not exceed `tolerance * scale` with
+    /// `scale = 1 + max(‖g‖∞, ‖λ‖∞, ‖z‖∞)`. The scaling matters for
+    /// interior-point solutions: their complementarity is `|μ| * distance`, so
+    /// a multiplier of 500 with an active bound met to 1e-9 already gives 5e-7.
+    /// An absolute threshold would reject such correct solutions while still
+    /// catching mapping errors (wrong sign, transposition, doubling), which
+    /// produce residuals of the order of `scale` itself.
+    pub fn accepts(&self, solution: &QpSolution, tolerance: f64) -> Result<QpAcceptance> {
+        ensure(tolerance.is_finite() && tolerance > 0.0, || {
+            format!("QP acceptance tolerance must be positive and finite, got {tolerance}")
+        })?;
+        let residuals = self.residuals(solution)?;
+        let norm = |v: &[f64]| v.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+        let scale = 1.0
+            + norm(&self.gradient)
+                .max(norm(&solution.multipliers.constraints))
+                .max(norm(&solution.multipliers.variables));
+        let dual = tolerance * scale;
+        Ok(QpAcceptance {
+            accepted: residuals.primal <= tolerance
+                && residuals.stationarity <= dual
+                && residuals.complementarity <= dual
+                && residuals.dual_sign <= dual,
+            residuals,
+            scale,
+        })
+    }
+}
+
+/// Result of [`QpModel::accepts`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct QpAcceptance {
+    /// Whether every residual is within its threshold.
+    pub accepted: bool,
+    /// The independently recomputed residuals.
+    pub residuals: KktResiduals,
+    /// `1 + max(‖g‖∞, ‖λ‖∞, ‖z‖∞)`, the factor applied to the dual-side thresholds.
+    pub scale: f64,
 }
 
 /// Whether a bound is in the working (active) set.
@@ -328,9 +371,10 @@ impl QpBackend for DummyQp {
 /// Per-call configuration for a convex QP backend.
 #[derive(Clone, Debug, PartialEq)]
 pub struct QpOptions {
-    /// Native feasibility and gap tolerances.
+    /// Native feasibility and gap tolerances, in the backend's own (possibly
+    /// scaled) measure.
     pub tolerance: f64,
-    /// Independent residual acceptance tolerance.
+    /// Tolerance for the independent check [`QpModel::accepts`].
     pub acceptance_tolerance: f64,
     /// Iteration budget.
     pub max_iterations: u32,

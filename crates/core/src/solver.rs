@@ -292,6 +292,35 @@ pub struct RunReport {
     pub bfgs_seconds: f64,
     /// Optional bounded history in original step coordinates.
     pub qp_trace: Vec<crate::qp::QpModel>,
+    /// Optional per-iteration record (empty unless the backend was asked for it).
+    pub history: Vec<IterationRecord>,
+}
+
+/// One SQP iteration: the iterate where a QP was solved and the step taken
+/// from it. Recorded by backends on request.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct IterationRecord {
+    /// Number of accepted steps before this iterate (`0` is the start point).
+    pub iteration: u64,
+    /// Objective at the iterate.
+    pub objective: f64,
+    /// Largest bound violation at the iterate.
+    pub primal_violation: f64,
+    /// Stationarity at the iterate with the QP's multipliers: the value tested
+    /// for convergence.
+    pub stationarity: f64,
+    /// Complementarity at the iterate with the QP's multipliers.
+    pub complementarity: f64,
+    /// `‖p‖∞` of the QP step.
+    pub qp_step_norm: f64,
+    /// Step length `α` of the accepted step; `None` if no step was taken.
+    pub step_length: Option<f64>,
+    /// Trial points evaluated by the line search, including the accepted one.
+    pub trials: u32,
+    /// Largest merit-penalty weight used for the line search (`0` without rows).
+    pub max_penalty: f64,
+    /// Backend iterations of the QP solved at this iterate.
+    pub qp_iterations: u64,
 }
 impl SolveResult {
     /// Empty result before a complete evaluation exists.
