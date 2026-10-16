@@ -1,11 +1,10 @@
-//! Provisional seam for the QP subproblem solver.
+//! Seam for the QP subproblem solver.
 //!
-//! No QP engine is implemented, and the dummy NLP backend never calls this
-//! seam. It fixes the data layout, the multiplier convention and the possible
-//! outcomes so that the first real backends (HiGHS active-set QP and an
-//! interior-point candidate such as Clarabel) can be compared on recorded QP
-//! sequences. Capability negotiation and backend-specific warm-start state
-//! will be added with those backends.
+//! It fixes the data layout, the multiplier convention, the possible outcomes
+//! and one independent acceptance rule ([`QpModel::accepts`]). The first
+//! backend is the Clarabel adapter in the `sqp-craft-clarabel` crate; the
+//! dummy NLP backend never calls this seam. Capability negotiation and
+//! backend-specific warm-start state are still to come.
 
 use crate::error::{Error, Result, ensure, first_non_finite};
 use crate::kkt::{KktPoint, KktResiduals, residuals};
@@ -153,6 +152,9 @@ impl QpModel {
         self.matrix
             .pattern
             .multiply(&self.matrix.values, &solution.step, &mut rows);
+        for &v in gradient.iter().chain(&rows) {
+            crate::error::finite(v, "QP residual arithmetic")?;
+        }
         residuals(
             &KktPoint {
                 x: &solution.step,
@@ -166,6 +168,50 @@ impl QpModel {
             &solution.multipliers,
         )
     }
+
+    /// Accepts or rejects `solution` from the model data alone, with one rule
+    /// shared by every backend and the SQP driver.
+    ///
+    /// The primal residual (bound violation of `p` and `A p`) must not exceed
+    /// `tolerance` in step units. Stationarity, complementarity and dual-sign
+    /// residuals must not exceed `tolerance * scale` with
+    /// `scale = 1 + max(‖g‖∞, ‖λ‖∞, ‖z‖∞)`. The scaling matters for
+    /// interior-point solutions: their complementarity is `|μ| * distance`, so
+    /// a multiplier of 500 with an active bound met to 1e-9 already gives 5e-7.
+    /// An absolute threshold would reject such correct solutions while still
+    /// catching mapping errors (wrong sign, transposition, doubling), which
+    /// produce residuals of the order of `scale` itself.
+    pub fn accepts(&self, solution: &QpSolution, tolerance: f64) -> Result<QpAcceptance> {
+        ensure(tolerance.is_finite() && tolerance > 0.0, || {
+            format!("QP acceptance tolerance must be positive and finite, got {tolerance}")
+        })?;
+        let residuals = self.residuals(solution)?;
+        let norm = |v: &[f64]| v.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+        let scale = 1.0
+            + norm(&self.gradient)
+                .max(norm(&solution.multipliers.constraints))
+                .max(norm(&solution.multipliers.variables));
+        let dual = tolerance * scale;
+        Ok(QpAcceptance {
+            accepted: residuals.primal <= tolerance
+                && residuals.stationarity <= dual
+                && residuals.complementarity <= dual
+                && residuals.dual_sign <= dual,
+            residuals,
+            scale,
+        })
+    }
+}
+
+/// Result of [`QpModel::accepts`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct QpAcceptance {
+    /// Whether every residual is within its threshold.
+    pub accepted: bool,
+    /// The independently recomputed residuals.
+    pub residuals: KktResiduals,
+    /// `1 + max(‖g‖∞, ‖λ‖∞, ‖z‖∞)`, the factor applied to the dual-side thresholds.
+    pub scale: f64,
 }
 
 /// Whether a bound is in the working (active) set.
@@ -209,6 +255,18 @@ pub struct QpWarmStart {
 impl QpWarmStart {
     /// Checks lengths against a QP with `n` variables and `m` rows.
     pub fn validate(&self, n: usize, m: usize) -> Result<()> {
+        for values in [
+            self.step.as_deref(),
+            self.multipliers.as_ref().map(|m| m.variables.as_slice()),
+            self.multipliers.as_ref().map(|m| m.constraints.as_slice()),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            ensure(values.iter().all(|v| v.is_finite()), || {
+                "QP warm start contains nonfinite values".into()
+            })?;
+        }
         if let Some(step) = &self.step {
             ensure(step.len() == n, || {
                 format!(
@@ -269,6 +327,15 @@ pub enum QpOutcome {
 
 /// A QP subproblem solver.
 pub trait QpBackend {
+    /// Configure tolerances and per-call budgets. Unsupported by the dummy.
+    fn configure(&mut self, _options: &QpOptions) -> Result<()> {
+        Err(Error::Unsupported("QP options are not implemented".into()))
+    }
+    /// Engine identity and last termination details.
+    fn report(&self) -> QpReport {
+        QpReport::default()
+    }
+
     /// Solves `model`. [`Error`] is reserved for invalid input and backend
     /// failures; see [`QpOutcome`] for regular outcomes.
     fn solve(
@@ -299,4 +366,57 @@ impl QpBackend for DummyQp {
             "DummyQp is an interface placeholder; no QP backend is implemented".into(),
         ))
     }
+}
+
+/// Per-call configuration for a convex QP backend.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QpOptions {
+    /// Native feasibility and gap tolerances, in the backend's own (possibly
+    /// scaled) measure.
+    pub tolerance: f64,
+    /// Tolerance for the independent check [`QpModel::accepts`].
+    pub acceptance_tolerance: f64,
+    /// Iteration budget.
+    pub max_iterations: u32,
+    /// Remaining cooperative time budget, including setup.
+    pub time_limit_seconds: Option<f64>,
+}
+impl Default for QpOptions {
+    fn default() -> Self {
+        Self {
+            tolerance: 1e-10,
+            acceptance_tolerance: 1e-7,
+            max_iterations: 200,
+            time_limit_seconds: None,
+        }
+    }
+}
+impl QpOptions {
+    /// Validate before backend allocation or cancellation.
+    pub fn validate(&self) -> Result<()> {
+        ensure(
+            self.tolerance.is_finite()
+                && self.tolerance > 0.0
+                && self.acceptance_tolerance.is_finite()
+                && self.acceptance_tolerance > 0.0,
+            || "QP tolerances must be positive and finite".into(),
+        )?;
+        ensure(
+            self.time_limit_seconds
+                .is_none_or(|s| s.is_finite() && s >= 0.0),
+            || "QP time budget must be finite and nonnegative".into(),
+        )
+    }
+}
+/// Details not represented by the backend-neutral outcome enum.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct QpReport {
+    /// Engine and version.
+    pub backend: String,
+    /// Native termination status.
+    pub raw_status: Option<String>,
+    /// If limited, time or iterations.
+    pub limit_reason: Option<String>,
+    /// Iterations including unsuccessful calls.
+    pub iterations: u64,
 }

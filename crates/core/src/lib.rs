@@ -1,10 +1,9 @@
 //! Contracts for a sparse SQP solver: problem specification, model callbacks,
 //! solver and observer traits, typed results, KKT residuals and a QP seam.
 //!
-//! **Interface draft. No optimizer is implemented.** The only backend,
-//! [`DummySolver`], evaluates the start point once and returns it with
-//! [`Status::Stub`]. It exists to exercise the contracts end to end,
-//! including through the Python binding.
+//! **Iteration 1.** This dependency-free core retains [`DummySolver`] as a
+//! contract fixture. The sibling `sqp-craft-solver` crate implements the dense
+//! BFGS pilot with `sqp-craft-clarabel` QPs. Select `method="sqp"` in Python.
 //!
 //! ```
 //! use sqp_craft::{
@@ -43,6 +42,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod derivative_check;
 mod dummy;
 mod error;
 pub mod kkt;
@@ -55,7 +55,7 @@ pub use dummy::DummySolver;
 pub use error::{Error, Result};
 pub use problem::NlpProblem;
 pub use solver::{
-    CancellationToken, Control, Evaluation, EvaluationCounts, Multipliers, Observer, Options,
-    Progress, SolveResult, SqpSolver, Status,
+    CancellationToken, Control, Evaluation, EvaluationCounts, IterationRecord, Multipliers,
+    Observer, Options, Progress, RunReport, SolveResult, SqpSolver, Status,
 };
 pub use spec::{Bounds, CsrMatrix, CsrPattern, ProblemSpec};

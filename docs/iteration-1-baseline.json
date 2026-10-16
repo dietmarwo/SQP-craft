@@ -1,0 +1,628 @@
+{
+  "scipy": "1.18.1",
+  "numpy": "2.5.4",
+  "thresholds": {
+    "primal": 1e-07,
+    "stationarity": 1e-06,
+    "complementarity": 1e-06,
+    "dual_sign": 1e-08
+  },
+  "runs": [
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 1,
+      "seconds": 0.0002582380000148987,
+      "functions": 3,
+      "derivatives": 2,
+      "check": {
+        "objective": 6.162975822039155e-32,
+        "primal": 0.0,
+        "stationarity": 4.440892098500626e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 6.162975822039155e-32,
+        "accepted": true
+      },
+      "case": "quadratic",
+      "start": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 2,
+      "seconds": 0.0012069320000591688,
+      "functions": 3,
+      "derivatives": 2,
+      "check": {
+        "objective": 0.0,
+        "primal": 0.0,
+        "stationarity": 0.0,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 0.0,
+        "accepted": true
+      },
+      "case": "quadratic",
+      "start": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 1,
+      "seconds": 0.00020069299989700085,
+      "functions": 3,
+      "derivatives": 2,
+      "check": {
+        "objective": 1.9721522630525295e-31,
+        "primal": 0.0,
+        "stationarity": 8.881784197001252e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 1.9721522630525295e-31,
+        "accepted": true
+      },
+      "case": "quadratic",
+      "start": [
+        -2.0,
+        4.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 2,
+      "seconds": 0.0005789879999156256,
+      "functions": 3,
+      "derivatives": 2,
+      "check": {
+        "objective": 0.0,
+        "primal": 0.0,
+        "stationarity": 0.0,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 0.0,
+        "accepted": true
+      },
+      "case": "quadratic",
+      "start": [
+        -2.0,
+        4.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 3,
+      "seconds": 0.0002439700001559686,
+      "functions": 4,
+      "derivatives": 4,
+      "check": {
+        "objective": 1.9999999999999998,
+        "primal": 0.0,
+        "stationarity": 4.440892098500626e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 2.220446049250313e-16,
+        "accepted": true
+      },
+      "case": "equality",
+      "start": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 4,
+      "seconds": 0.0006920829998762201,
+      "functions": 4,
+      "derivatives": 4,
+      "check": {
+        "objective": 1.9999999999999996,
+        "primal": 2.220446049250313e-16,
+        "stationarity": 8.881784197001252e-16,
+        "complementarity": 4.440892098500624e-16,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 4.440892098500626e-16,
+        "accepted": true
+      },
+      "case": "equality",
+      "start": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 1,
+      "seconds": 0.00017986700004257727,
+      "functions": 3,
+      "derivatives": 2,
+      "check": {
+        "objective": 2.0,
+        "primal": 0.0,
+        "stationarity": 8.038014698286133e-14,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 0.0,
+        "accepted": true
+      },
+      "case": "equality",
+      "start": [
+        4.0,
+        -3.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 2,
+      "seconds": 0.0005267070000627427,
+      "functions": 3,
+      "derivatives": 2,
+      "check": {
+        "objective": 2.0,
+        "primal": 0.0,
+        "stationarity": 6.661338147750939e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 0.0,
+        "accepted": true
+      },
+      "case": "equality",
+      "start": [
+        4.0,
+        -3.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 7,
+      "seconds": 0.000511062999976275,
+      "functions": 8,
+      "derivatives": 8,
+      "check": {
+        "objective": 0.5000000000033342,
+        "primal": 0.0,
+        "stationarity": 1.821085515780934e-08,
+        "complementarity": 3.3341662764061105e-12,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 3.33422178755427e-12,
+        "accepted": true
+      },
+      "case": "circle",
+      "start": [
+        0.4,
+        0.2
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 8,
+      "seconds": 0.0010001460000239604,
+      "functions": 8,
+      "derivatives": 8,
+      "check": {
+        "objective": 0.4999999999997518,
+        "primal": 4.9649173661237e-13,
+        "stationarity": 1.821084264678035e-08,
+        "complementarity": 2.4824586830606176e-13,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 2.4819035715495374e-13,
+        "accepted": true
+      },
+      "case": "circle",
+      "start": [
+        0.4,
+        0.2
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 5,
+      "seconds": 0.0004067859999850043,
+      "functions": 6,
+      "derivatives": 6,
+      "check": {
+        "objective": 0.49999995354254784,
+        "primal": 9.291490865592777e-08,
+        "stationarity": 9.29223080703423e-08,
+        "complementarity": 4.645745432830775e-08,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 4.645745216302899e-08,
+        "accepted": true
+      },
+      "case": "circle",
+      "start": [
+        0.2,
+        0.4
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 7,
+      "seconds": 0.0008102659999167372,
+      "functions": 7,
+      "derivatives": 7,
+      "check": {
+        "objective": 0.4999999999999989,
+        "primal": 2.220446049250313e-15,
+        "stationarity": 2.4238034333962528e-17,
+        "complementarity": 1.1102230246251542e-15,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 1.1102230246251565e-15,
+        "accepted": true
+      },
+      "case": "circle",
+      "start": [
+        0.2,
+        0.4
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 1,
+      "seconds": 0.0002295439999215887,
+      "functions": 2,
+      "derivatives": 2,
+      "check": {
+        "objective": 1.0000000000569944,
+        "primal": 0.0,
+        "stationarity": 5.4019011486161617e-11,
+        "complementarity": 5.6994631236846754e-11,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 5.6994409192157036e-11,
+        "accepted": true
+      },
+      "case": "bound",
+      "start": [
+        1.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 2,
+      "seconds": 0.0003709909999543015,
+      "functions": 2,
+      "derivatives": 2,
+      "check": {
+        "objective": 1.0,
+        "primal": 0.0,
+        "stationarity": 0.0,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 0.0,
+        "accepted": true
+      },
+      "case": "bound",
+      "start": [
+        1.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 34,
+      "seconds": 0.000977326000111134,
+      "functions": 54,
+      "derivatives": 35,
+      "check": {
+        "objective": 2.7481611169240573e-17,
+        "primal": 0.0,
+        "stationarity": 7.70121744461344e-08,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 2.7481611169240573e-17,
+        "accepted": true
+      },
+      "case": "rosenbrock",
+      "start": [
+        -1.2,
+        1.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 36,
+      "seconds": 0.002097020999826782,
+      "functions": 49,
+      "derivatives": 36,
+      "check": {
+        "objective": 1.5436326816585645e-16,
+        "primal": 0.0,
+        "stationarity": 4.860250410903085e-07,
+        "complementarity": 0.0,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 1.5436326816585645e-16,
+        "accepted": true
+      },
+      "case": "rosenbrock",
+      "start": [
+        -1.2,
+        1.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 5,
+      "seconds": 0.0007525979999627452,
+      "functions": 6,
+      "derivatives": 6,
+      "check": {
+        "objective": 17.01401728914946,
+        "primal": 3.526423597577377e-11,
+        "stationarity": 8.297080356101105e-09,
+        "complementarity": 1.4201978302496025e-11,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 1.0850538245676944e-08,
+        "accepted": true
+      },
+      "case": "hs071",
+      "start": [
+        1.0,
+        5.0,
+        5.0,
+        1.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 16,
+      "seconds": 0.0028045219999057736,
+      "functions": 47,
+      "derivatives": 12,
+      "check": {
+        "objective": 17.014017289155603,
+        "primal": 1.1546319456101628e-12,
+        "stationarity": 3.468336728928989e-13,
+        "complementarity": 6.376959033333307e-13,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 1.0844395603726298e-08,
+        "accepted": true
+      },
+      "case": "hs071",
+      "start": [
+        1.0,
+        5.0,
+        5.0,
+        1.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 7,
+      "seconds": 0.0009692440000890201,
+      "functions": 8,
+      "derivatives": 8,
+      "check": {
+        "objective": 17.01401723898373,
+        "primal": 8.928874706271017e-08,
+        "stationarity": 4.1792351446190423e-07,
+        "complementarity": 3.5783774695547145e-08,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 6.101626937038418e-08,
+        "accepted": true
+      },
+      "case": "hs071",
+      "start": [
+        2.0,
+        2.0,
+        2.0,
+        2.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Positive directional derivative for linesearch",
+      "iterations": 15,
+      "seconds": 0.0015381680000245979,
+      "functions": 12,
+      "derivatives": 11,
+      "check": {
+        "objective": 17.01401728915014,
+        "primal": 1.1016965117960353e-11,
+        "stationarity": 1.7630341631047486e-13,
+        "complementarity": 6.084599988420342e-12,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 1.0849859677364293e-08,
+        "accepted": true
+      },
+      "case": "hs071",
+      "start": [
+        2.0,
+        2.0,
+        2.0,
+        2.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "linearization_infeasible",
+      "iterations": 0,
+      "seconds": 0.00023586599991176627,
+      "functions": 1,
+      "derivatives": 1,
+      "check": {
+        "objective": 4.0,
+        "primal": 36.0,
+        "stationarity": 1.7763568394002505e-15,
+        "complementarity": 42.352941176470615,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 13.014017299999999,
+        "accepted": false
+      },
+      "case": "hs071",
+      "start": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Iteration limit reached",
+      "iterations": 100,
+      "seconds": 0.022130142000150954,
+      "functions": 350,
+      "derivatives": 101,
+      "check": {
+        "objective": 4.000000001822317,
+        "primal": 35.99999999637838,
+        "stationarity": 2.6645352591003757e-15,
+        "complementarity": 42.35294115921805,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 13.01401729817768,
+        "accepted": false
+      },
+      "case": "hs071",
+      "start": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 104,
+      "seconds": 0.6195449330000429,
+      "functions": 106,
+      "derivatives": 105,
+      "check": {
+        "objective": -1.5220604826529938,
+        "primal": 1.4979163742712132e-13,
+        "stationarity": 9.931917608179721e-07,
+        "complementarity": 2.0912721364904025e-11,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 4.826529937940194e-07,
+        "accepted": true
+      },
+      "case": "orbit-20",
+      "start": [
+        1.0,
+        1.025,
+        1.05,
+        1.075
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 110,
+      "seconds": 1.1671534839999822,
+      "functions": 112,
+      "derivatives": 110,
+      "check": {
+        "objective": -1.5220604827155262,
+        "primal": 9.932592942574203e-15,
+        "stationarity": 1.2186792854376738e-07,
+        "complementarity": 1.1598241651090146e-14,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 4.82715526217703e-07,
+        "accepted": true
+      },
+      "case": "orbit-20",
+      "start": [
+        1.0,
+        1.025,
+        1.05,
+        1.075
+      ]
+    },
+    {
+      "solver": "sqp-craft",
+      "status": "converged",
+      "iterations": 167,
+      "seconds": 4.063913147999983,
+      "functions": 168,
+      "derivatives": 168,
+      "check": {
+        "objective": -1.5244872438863954,
+        "primal": 1.171064981098091e-12,
+        "stationarity": 8.772104893214743e-07,
+        "complementarity": 1.8774659469100407e-12,
+        "dual_sign": 0.0,
+        "certificate": "solver",
+        "objective_error": 2.7561136044518264e-06,
+        "accepted": true
+      },
+      "case": "orbit-40",
+      "start": [
+        1.0,
+        1.0125,
+        1.025,
+        1.0375
+      ]
+    },
+    {
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "iterations": 180,
+      "seconds": 7.269502513000134,
+      "functions": 181,
+      "derivatives": 180,
+      "check": {
+        "objective": -1.5244872443139694,
+        "primal": 3.7724164070329635e-14,
+        "stationarity": 3.928618426494307e-07,
+        "complementarity": 5.560977596484952e-14,
+        "dual_sign": 0.0,
+        "certificate": "least-squares",
+        "objective_error": 2.7556860304756015e-06,
+        "accepted": true
+      },
+      "case": "orbit-40",
+      "start": [
+        1.0,
+        1.0125,
+        1.025,
+        1.0375
+      ]
+    }
+  ]
+}

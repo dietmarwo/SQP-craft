@@ -1,8 +1,8 @@
 //! PyO3 binding. The public Python API lives in `python/sqp_craft/__init__.py`;
 //! this module only converts data and runs the Rust solver.
 //!
-//! Model callbacks run serially on the calling thread with the interpreter
-//! attached. No Python object is ever handed to another thread.
+//! Native phases release the interpreter. Grouped callbacks reattach on the
+//! calling thread; each solve owns its callback state.
 
 use pyo3::create_exception;
 use pyo3::exceptions::{PyNotImplementedError, PyRuntimeError, PyTypeError, PyValueError};
@@ -239,38 +239,85 @@ impl Cancellation {
     }
 }
 
-/// Adapts the two Python callbacks. The first Python exception is kept so the
-/// caller sees the original type and traceback.
-struct PythonModel<'py> {
-    functions: Bound<'py, PyAny>,
-    derivatives: Bound<'py, PyAny>,
-    error: Option<PyErr>,
+/// A Python exception raised by a callback, kept together with the Rust error
+/// that stood in for it while the solver ran.
+struct Failure {
+    stand_in: Error,
+    error: PyErr,
 }
 
-impl PythonModel<'_> {
-    fn keep(&mut self, err: PyErr) -> Error {
-        let py = self.functions.py();
-        let message = err.value(py).to_string();
-        let kind = if err.is_instance_of::<UndefinedPointError>(py) {
-            Error::UndefinedPoint(message)
-        } else {
-            Error::Evaluation(message)
-        };
-        self.error = Some(err);
-        kind
+impl Failure {
+    fn new(error: PyErr, observer: bool) -> Self {
+        let stand_in = Python::attach(|py| {
+            let message = error.value(py).to_string();
+            if !observer && error.is_instance_of::<UndefinedPointError>(py) {
+                Error::UndefinedPoint(message)
+            } else {
+                Error::Evaluation(message)
+            }
+        });
+        Self { stand_in, error }
     }
 }
 
-impl NlpProblem for PythonModel<'_> {
+/// Maps a solver result to Python. If the solver failed with the stand-in of
+/// the exception raised by the most recent callback, that original exception
+/// (type, identity, traceback) is raised. A recorded exception the solver
+/// recovered from, such as an `UndefinedPointError` at a line-search trial,
+/// does not match a successful result or a later error and is dropped.
+fn reraise<T>(
+    result: sqp_craft::Result<T>,
+    failures: impl IntoIterator<Item = Option<Failure>>,
+) -> PyResult<T> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(e) => {
+            for failure in failures.into_iter().flatten() {
+                if failure.stand_in == e {
+                    return Err(failure.error);
+                }
+            }
+            Err(to_py_err(e))
+        }
+    }
+}
+
+/// Adapts the two Python callbacks. Each call reattaches to the interpreter on
+/// the calling thread and keeps only the exception of the most recent call.
+struct PythonModel {
+    functions: Py<PyAny>,
+    derivatives: Py<PyAny>,
+    failure: Option<Failure>,
+}
+
+impl PythonModel {
+    fn new(functions: Py<PyAny>, derivatives: Py<PyAny>) -> Self {
+        Self {
+            functions,
+            derivatives,
+            failure: None,
+        }
+    }
+
+    fn fail(&mut self, error: PyErr) -> Error {
+        let failure = Failure::new(error, false);
+        let stand_in = failure.stand_in.clone();
+        self.failure = Some(failure);
+        stand_in
+    }
+}
+
+impl NlpProblem for PythonModel {
     fn functions(&mut self, x: &[f64], constraints: &mut [f64]) -> sqp_craft::Result<f64> {
-        let py = self.functions.py();
-        let result = (|| {
-            let ret = self.functions.call1((PyList::new(py, x)?,))?;
+        self.failure = None;
+        let result = Python::attach(|py| {
+            py.check_signals()?;
+            let ret = self.functions.bind(py).call1((PyList::new(py, x)?,))?;
             let (objective, values) = pair(&ret, "functions(x)")?;
             copy_exact(&values, constraints, "functions(x) constraint values")?;
             objective.extract::<f64>()
-        })();
-        result.map_err(|e| self.keep(e))
+        });
+        result.map_err(|e| self.fail(e))
     }
 
     fn derivatives(
@@ -279,51 +326,54 @@ impl NlpProblem for PythonModel<'_> {
         gradient: &mut [f64],
         jacobian: &mut [f64],
     ) -> sqp_craft::Result<()> {
-        let py = self.derivatives.py();
-        let result = (|| {
-            let ret = self.derivatives.call1((PyList::new(py, x)?,))?;
+        self.failure = None;
+        let result = Python::attach(|py| {
+            py.check_signals()?;
+            let ret = self.derivatives.bind(py).call1((PyList::new(py, x)?,))?;
             let (g, jac) = pair(&ret, "derivatives(x)")?;
             copy_exact(&g, gradient, "derivatives(x) gradient")?;
             copy_exact(&jac, jacobian, "derivatives(x) Jacobian values")
-        })();
-        result.map_err(|e| self.keep(e))
+        });
+        result.map_err(|e| self.fail(e))
     }
 }
 
 /// Calls a Python function `observe(progress: dict) -> bool` whose result
 /// means "stop". The public facade adapts user observers to this form.
-struct PythonObserver<'py> {
-    callback: Bound<'py, PyAny>,
-    error: Option<PyErr>,
+struct PythonObserver {
+    callback: Py<PyAny>,
+    failure: Option<Failure>,
 }
 
-impl Observer for PythonObserver<'_> {
+impl Observer for PythonObserver {
     fn observe(&mut self, p: &Progress) -> sqp_craft::Result<Control> {
-        let py = self.callback.py();
-        let result = (|| {
+        self.failure = None;
+        let result = Python::attach(|py| {
+            py.check_signals()?;
             let data = PyDict::new(py);
             data.set_item("iteration", p.iteration)?;
             data.set_item("objective", p.objective)?;
             data.set_item("primal_violation", p.primal_violation)?;
-            self.callback.call1((data,))?.extract::<bool>()
-        })();
+            self.callback.bind(py).call1((data,))?.extract::<bool>()
+        });
         match result {
             Ok(true) => Ok(Control::Stop),
             Ok(false) => Ok(Control::Continue),
             Err(e) => {
-                let message = e.value(py).to_string();
-                self.error = Some(e);
-                Err(Error::Evaluation(format!("observer failed: {message}")))
+                let failure = Failure::new(e, true);
+                let stand_in = failure.stand_in.clone();
+                self.failure = Some(failure);
+                Err(stand_in)
             }
         }
     }
 }
 
-/// Runs the dummy backend. Use `sqp_craft.solve` instead of calling this directly.
+/// Runs the selected backend (`"dummy"` or `"sqp"`). Use `sqp_craft.solve` instead of calling this directly.
 #[pyfunction]
-#[pyo3(signature = (spec, functions, derivatives, x0, feasibility_tolerance, threads, cancellation, observer=None))]
+#[pyo3(signature = (spec, functions, derivatives, x0, feasibility_tolerance, threads, cancellation, observer=None, method="dummy", method_options=None))]
 #[allow(clippy::too_many_arguments)]
-fn solve_dummy<'py>(
+fn solve_native<'py>(
     py: Python<'py>,
     spec: &Bound<'py, PyProblemSpec>,
     functions: Bound<'py, PyAny>,
@@ -333,6 +383,8 @@ fn solve_dummy<'py>(
     threads: usize,
     cancellation: &Bound<'py, Cancellation>,
     observer: Option<Bound<'py, PyAny>>,
+    method: &str,
+    method_options: Option<&Bound<'py, PyDict>>,
 ) -> PyResult<Bound<'py, PyDict>> {
     for (name, f) in [("functions", &functions), ("derivatives", &derivatives)] {
         if !f.is_callable() {
@@ -349,36 +401,159 @@ fn solve_dummy<'py>(
         feasibility_tolerance,
         threads,
     };
-    let mut model = PythonModel {
-        functions,
-        derivatives,
-        error: None,
-    };
+    let mut model = PythonModel::new(functions.unbind(), derivatives.unbind());
     let mut monitor = observer.map(|callback| PythonObserver {
-        callback,
-        error: None,
+        callback: callback.unbind(),
+        failure: None,
     });
-    let result = DummySolver.solve(
-        &spec.get().inner,
-        &mut model,
-        &x0,
-        &options,
-        &cancellation.get().inner,
-        monitor.as_mut().map(|m| m as &mut dyn Observer),
-    );
-    if let Some(e) = model.error {
-        return Err(e);
-    }
-    if let Some(e) = monitor.and_then(|m| m.error) {
-        return Err(e);
-    }
-    let r = result.map_err(to_py_err)?;
+    let inner = &spec.get().inner;
+    let token = cancellation.get().inner.clone();
+    let result = match method {
+        "dummy" => {
+            if method_options.is_some_and(|d| !d.is_empty()) {
+                return Err(PyNotImplementedError::new_err(
+                    "dummy does not support SQP settings",
+                ));
+            }
+            py.detach(|| {
+                DummySolver.solve(
+                    inner,
+                    &mut model,
+                    &x0,
+                    &options,
+                    &token,
+                    monitor.as_mut().map(|m| m as &mut dyn Observer),
+                )
+            })
+        }
+        "sqp" => {
+            #[cfg(feature = "sqp")]
+            {
+                let mut settings = sqp_craft_solver::SqpOptions::default();
+                if let Some(d) = method_options {
+                    for (key, value) in d.iter() {
+                        let key: String = key.extract()?;
+                        match key.as_str() {
+                            "max_iterations" => settings.max_iterations = value.extract()?,
+                            "max_backtracks" => settings.max_backtracks = value.extract()?,
+                            "max_callback_calls" => {
+                                settings.max_callback_calls = value.extract()?
+                            }
+                            "time_limit_seconds" => {
+                                settings.time_limit_seconds = value.extract()?
+                            }
+                            "stationarity_tolerance" => {
+                                settings.stationarity_tolerance = value.extract()?
+                            }
+                            "complementarity_tolerance" => {
+                                settings.complementarity_tolerance = value.extract()?
+                            }
+                            "dual_sign_tolerance" => {
+                                settings.dual_sign_tolerance = value.extract()?
+                            }
+                            "dense_size_limit" => settings.dense_size_limit = value.extract()?,
+                            "initial_hessian_scale" => {
+                                settings.initial_hessian_scale = value.extract()?
+                            }
+                            "max_hessian_resets" => {
+                                settings.max_hessian_resets = value.extract()?
+                            }
+                            "qp_tolerance" => settings.qp_tolerance = value.extract()?,
+                            "qp_max_iterations" => settings.qp_max_iterations = value.extract()?,
+                            "record_qp_limit" => settings.record_qp_limit = value.extract()?,
+                            "record_history" => settings.record_history = value.extract()?,
+                            _ => {
+                                return Err(PyValueError::new_err(format!(
+                                    "unknown SQP setting: {key}"
+                                )));
+                            }
+                        }
+                    }
+                }
+                py.detach(|| {
+                    let mut solver = sqp_craft_solver::NativeSqp {
+                        qp: sqp_craft_clarabel::ClarabelQp::default(),
+                        settings,
+                    };
+                    solver.solve(
+                        inner,
+                        &mut model,
+                        &x0,
+                        &options,
+                        &token,
+                        monitor.as_mut().map(|m| m as &mut dyn Observer),
+                    )
+                })
+            }
+            #[cfg(not(feature = "sqp"))]
+            {
+                return Err(PyNotImplementedError::new_err(
+                    "native SQP was not compiled",
+                ));
+            }
+        }
+        _ => return Err(PyValueError::new_err(format!("unknown method: {method}"))),
+    };
+    let r = reraise(result, [model.failure, monitor.and_then(|m| m.failure)])?;
 
     let out = PyDict::new(py);
     out.set_item("status", r.status.as_str())?;
     out.set_item("candidate", r.candidate)?;
     out.set_item("iterations", r.iterations)?;
     out.set_item("stationarity", r.stationarity)?;
+    out.set_item("dual_sign", r.dual_sign)?;
+    let report = PyDict::new(py);
+    report.set_item("method", &r.report.method)?;
+    report.set_item("qp_backend", &r.report.qp_backend)?;
+    report.set_item("qp_status", &r.report.qp_status)?;
+    report.set_item("qp_solves", r.report.qp_solves)?;
+    report.set_item("qp_iterations", r.report.qp_iterations)?;
+    report.set_item("rejected_trials", r.report.rejected_trials)?;
+    report.set_item("undefined_trials", r.report.undefined_trials)?;
+    report.set_item("hessian_resets", r.report.hessian_resets)?;
+    report.set_item("fixed_step_corrections", r.report.fixed_step_corrections)?;
+    report.set_item("step_norm", r.report.step_norm)?;
+    report.set_item("total_seconds", r.report.total_seconds)?;
+    report.set_item("callback_seconds", r.report.callback_seconds)?;
+    report.set_item("qp_seconds", r.report.qp_seconds)?;
+    report.set_item("bfgs_seconds", r.report.bfgs_seconds)?;
+    let trace = PyList::empty(py);
+    for q in &r.report.qp_trace {
+        let d = PyDict::new(py);
+        d.set_item("gradient", &q.gradient)?;
+        d.set_item("lower", &q.variables.lower)?;
+        d.set_item("upper", &q.variables.upper)?;
+        d.set_item("row_lower", &q.rows.lower)?;
+        d.set_item("row_upper", &q.rows.upper)?;
+        for (name, a) in [("hessian_lower", &q.hessian_lower), ("matrix", &q.matrix)] {
+            let m = PyDict::new(py);
+            m.set_item("rows", a.pattern.rows)?;
+            m.set_item("cols", a.pattern.cols)?;
+            m.set_item("indptr", &a.pattern.indptr)?;
+            m.set_item("indices", &a.pattern.indices)?;
+            m.set_item("values", &a.values)?;
+            d.set_item(name, m)?;
+        }
+        trace.append(d)?;
+    }
+    report.set_item("qp_trace", trace)?;
+    let history = PyList::empty(py);
+    for h in &r.report.history {
+        let d = PyDict::new(py);
+        d.set_item("iteration", h.iteration)?;
+        d.set_item("objective", h.objective)?;
+        d.set_item("primal_violation", h.primal_violation)?;
+        d.set_item("stationarity", h.stationarity)?;
+        d.set_item("complementarity", h.complementarity)?;
+        d.set_item("qp_step_norm", h.qp_step_norm)?;
+        d.set_item("step_length", h.step_length)?;
+        d.set_item("trials", h.trials)?;
+        d.set_item("max_penalty", h.max_penalty)?;
+        d.set_item("qp_iterations", h.qp_iterations)?;
+        history.append(d)?;
+    }
+    report.set_item("history", history)?;
+    out.set_item("report", report)?;
     out.set_item("complementarity", r.complementarity)?;
     out.set_item("message", r.message)?;
     let counts = PyDict::new(py);
@@ -410,6 +585,94 @@ fn solve_dummy<'py>(
     Ok(out)
 }
 
+/// Bound-aware derivative check using the same grouped Python callback adapter.
+#[pyfunction]
+#[pyo3(signature=(spec, functions, derivatives, x, steps, absolute_tolerance, relative_tolerance, max_directions))]
+#[allow(clippy::too_many_arguments)]
+fn check_derivatives<'py>(
+    py: Python<'py>,
+    spec: &Bound<'py, PyProblemSpec>,
+    functions: Py<PyAny>,
+    derivatives: Py<PyAny>,
+    x: &Bound<'py, PyAny>,
+    steps: Vec<f64>,
+    absolute_tolerance: f64,
+    relative_tolerance: f64,
+    max_directions: usize,
+) -> PyResult<Bound<'py, PyDict>> {
+    let x = floats(x, "x")?;
+    let inner = &spec.get().inner;
+    let options = sqp_craft::derivative_check::DerivativeOptions {
+        steps,
+        absolute_tolerance,
+        relative_tolerance,
+        max_directions,
+    };
+    let mut model = PythonModel::new(functions, derivatives);
+    let result = py
+        .detach(|| sqp_craft::derivative_check::check_derivatives(inner, &mut model, &x, &options));
+    let r = reraise(result, [model.failure])?;
+    let out = PyDict::new(py);
+    out.set_item("passed", r.passed)?;
+    out.set_item("inconclusive", r.inconclusive)?;
+    out.set_item("checked", r.checked)?;
+    out.set_item("fixed", r.fixed)?;
+    out.set_item("skipped", r.skipped)?;
+    let counts = PyDict::new(py);
+    counts.set_item("functions", r.counts.functions)?;
+    counts.set_item("derivatives", r.counts.derivatives)?;
+    out.set_item("counts", counts)?;
+    let issues = PyList::empty(py);
+    for issue in r.issues {
+        let d = PyDict::new(py);
+        d.set_item("variable", issue.variable)?;
+        d.set_item("output", issue.output)?;
+        d.set_item("analytic", issue.analytic)?;
+        d.set_item("estimated", issue.estimated)?;
+        d.set_item("scaled_error", issue.scaled_error)?;
+        issues.append(d)?;
+    }
+    out.set_item("issues", issues)?;
+    Ok(out)
+}
+/// Independent original-unit NLP KKT residuals.
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn kkt_residuals<'py>(
+    py: Python<'py>,
+    spec: &Bound<'py, PyProblemSpec>,
+    x: Vec<f64>,
+    objective: f64,
+    constraints: Vec<f64>,
+    gradient: Vec<f64>,
+    jacobian_values: Vec<f64>,
+    row_multipliers: Vec<f64>,
+    variable_multipliers: Vec<f64>,
+) -> PyResult<Bound<'py, PyDict>> {
+    let inner = &spec.get().inner;
+    let e = sqp_craft::Evaluation {
+        objective,
+        constraints,
+        gradient,
+        jacobian_values,
+        primal_violation: 0.0,
+        feasible_candidate: false,
+    };
+    let m = sqp_craft::Multipliers {
+        constraints: row_multipliers,
+        variables: variable_multipliers,
+    };
+    let r = py
+        .detach(|| sqp_craft::kkt::nlp_residuals(inner, &x, &e, &m))
+        .map_err(to_py_err)?;
+    let d = PyDict::new(py);
+    d.set_item("primal", r.primal)?;
+    d.set_item("stationarity", r.stationarity)?;
+    d.set_item("complementarity", r.complementarity)?;
+    d.set_item("dual_sign", r.dual_sign)?;
+    Ok(d)
+}
+
 #[pymodule]
 fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
@@ -417,6 +680,8 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cancellation>()?;
     m.add("EvaluationError", py.get_type::<EvaluationError>())?;
     m.add("UndefinedPointError", py.get_type::<UndefinedPointError>())?;
-    m.add_function(wrap_pyfunction!(solve_dummy, m)?)?;
+    m.add_function(wrap_pyfunction!(solve_native, m)?)?;
+    m.add_function(wrap_pyfunction!(check_derivatives, m)?)?;
+    m.add_function(wrap_pyfunction!(kkt_residuals, m)?)?;
     Ok(())
 }
