@@ -5,35 +5,53 @@ Version 0.4.0 · 16 October 2026 UTC. Base: reviewed `main` at
 Historical evidence: [iteration 2](iteration-2-validation.md).
 Current [results](iteration-3-results.md) and [plan](iteration-3-plan.md).
 
-Local runs used Linux x86_64, Rust 1.99.1 (and Rust 1.85 for the minimum-version
-check), CPython 3.12.14, PyO3 0.30.1, maturin 1.9.4, NumPy 2.5.4 and SciPy 1.18.1.
-The native release wheel was installed in a fresh virtual environment; tests
-imported `sqp_craft` from that environment's `site-packages`. The dummy-only
-wheel was installed into a separate import directory. No prebuilt binary is
-included in the source ZIP.
+## Review, local
+
+Linux x86_64 (2-core VM), Rust 1.97.0, CPython 3.13, PyO3 0.30.1,
+maturin 1.15.0, pytest 9.1.1, NumPy 2.5.4, SciPy 1.18.1. The pull request's
+CI repeats the checks on Linux, macOS and Windows with Python 3.10 and 3.14,
+plus Rust 1.85 and the dummy-only build.
 
 | Check | Result |
 | --- | --- |
-| Reviewed base, before changes | 70 Rust tests + 1 doctest; 76 compiled Python tests pass |
-| `cargo fmt --all --check` | Pass |
-| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Pass |
-| `cargo test --workspace --locked` (debug, overflow checks on) | **79 tests + 1 doctest pass** |
-| `cargo +1.85.0 check --workspace --all-targets --locked` | Pass |
+| Delivered iteration 3, `bash scripts/check.sh` | Pass: 79 Rust tests + 1 doctest, 85 Python tests |
+| Reviewed, `bash scripts/check.sh` from a clean build (fmt, Clippy `-D warnings`, debug tests, examples) | Pass: **82 Rust tests + 1 doctest, 85 Python tests** |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` | Pass |
-| Both Rust examples (`toy`, `solve`) | Pass |
-| `python -m maturin build --release --locked`, install resulting wheel, `pytest -q` | **85 pass** |
 | `mypy --strict python/sqp_craft` | Pass |
-| Python demo, SQP and restoration examples | Pass; HS071 recovers in 8 outer steps with 1 restoration step |
-| `--no-default-features` wheel, `pytest tests/test_contract.py` | **42 pass**; native SQP raises `NotImplementedError` |
-| Existing 13-case comparison | SQP 13/13 accepted; SLSQP 12/13 |
-| Cold/reuse comparison (`--repeats 5`) | Both modes 13/13; all repeated orbit runs accepted |
-| Random stress, seeds 1–4, 300 problems per seed, both modes | Both accept 1,186/1,200 with restoration, 970/1,200 without; no false convergence |
+| Release wheel in a fresh virtual environment (imports from `site-packages`), `pytest` | **85 pass** |
+| `--no-default-features` wheel in a fresh virtual environment, `pytest tests/test_contract.py` | **42 pass**; `method="sqp"` raises `NotImplementedError` |
+| New time-limit test against the delivered adapter | Fails (Clarabel's clock exceeds the call's own engine time); passes with the fix |
+| `examples/compare_baseline.py` | sqp-craft 13/13 accepted, SLSQP 12/13 |
+| `examples/stress_random.py`, seeds 1–4, cold and reuse | Both: 1,186/1,200 with restoration, 970/1,200 without, no false convergence |
+| `examples/compare_workspace.py --repeats 1` | All cases and timed orbit runs accepted |
+| `examples/restore_hs071.py` | Converges in 8 iterations, 1 restoration step |
+| Delivered vs reviewed release builds, orbit cases, alternating and balanced orders | Bit-identical objectives and iteration counts; conversion time about 0.145 → 0.075 s (164 variables); engine time within the ±5% code-layout variation (a no-op build moved it 3–4%) |
 
-The current source adds nine Rust tests and nine collected Python cases. The
-original reviewed suite remains intact. Adapter fallback tests deliberately
-invalidate an internal matrix pattern after setup or inject rejection after a
-real reused solve, so both error routes are exercised deterministically.
-Cancellation tests use an engine-iteration hook rather than timing sleeps.
+The three new Rust tests are:
+
+- the direct CSC conversion equals the sorted triplet conversion bit for bit
+  on 300 random models;
+- Clarabel's time-limit clock on a reused workspace counts only the current
+  call, over 300 reused solves;
+- the entry-wise BFGS update is bit-identical to the matrix expression, at
+  sizes 1–64 with damping.
+
+The option measurements in the results (the `faer-sparse` factorizer,
+refinement off, `qp_tolerance = 1e-8`) used throwaway builds and Clarabel's
+internal timers printed after each solve. They are not part of the shipped
+code.
+
+## Delivered record
+
+The delivery's own run used Rust 1.99.1 (and 1.85 for the minimum-version
+check), CPython 3.12.14, maturin 1.9.4 (with `PYO3_BUILD_EXTENSION_MODULE=1`)
+and the same NumPy/SciPy. It reported 79 Rust tests + 1 doctest, 85 Python
+tests and 42 dummy-only contract tests. The JSON files
+[baseline](iteration-3-baseline.json),
+[cold/reuse measurements](iteration-3-workspace-results.json) and
+[stress totals](iteration-3-stress-results.json) are from that run and host.
+The review changes leave every trajectory bit-identical, so their outcomes
+still hold; their timings are not re-measured on the delivery's host.
 
 ## Reproduce
 
@@ -42,11 +60,10 @@ From a checkout with Rust >=1.85 and CPython >=3.10:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install 'maturin>=1.9.4,<2' pytest numpy scipy mypy
+python -m pip install maturin pytest numpy scipy mypy
 bash scripts/check.sh
 mypy --strict python/sqp_craft
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked
-cargo +1.85.0 check --workspace --all-targets --locked
 python examples/compare_workspace.py --repeats 5 > workspace-results.json
 python examples/compare_baseline.py --table
 for seed in 1 2 3 4; do
@@ -55,23 +72,15 @@ for seed in 1 2 3 4; do
 done
 ```
 
-The local native-wheel check used a release build plus explicit install instead
-of the script's editable `maturin develop` step. With maturin 1.9.4/PyO3 0.30.1,
-`PYO3_BUILD_EXTENSION_MODULE=1` was supplied when building the wheels.
-The feature-disabled wheel was separately built with `--no-default-features`,
-installed in isolation and tested against the same contract suite.
-
-Raw numerical evidence: [baseline](iteration-3-baseline.json),
-[cold/reuse measurements](iteration-3-workspace-results.json),
-[stress totals](iteration-3-stress-results.json). Build logs are intentionally
-not checked in. The existing CI matrix covers Python 3.10/3.14 on Linux,
-macOS and Windows; this delivery extends its baseline job to both workspace
-modes. Those remote jobs were not executed locally or on GitHub during this task.
+Build logs are intentionally not checked in.
 
 ## Limits of the evidence
 
-The orbit measurements are five local repetitions per mode and size, with
-alternating order. They show setup savings for these fixtures, not a universal
-speedup or a multi-core result. No real target application, free-threaded Python,
-or adversarial conditioning campaign was tested. The random family checks
+The orbit measurements are local repetitions with alternating order on a
+shared VM, where wall time varied by about ±5%. Different builds of the same
+engine code also differ by up to about 5% in engine time, from code layout
+alone. They show setup and
+conversion savings for these fixtures, not a universal speedup or a
+multi-core result. No real target application, free-threaded Python or
+adversarial conditioning campaign was tested. The random family checks
 first-order acceptance and does not certify global optimality.

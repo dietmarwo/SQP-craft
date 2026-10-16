@@ -337,8 +337,12 @@ status including infeasibility, gets at most one fresh setup/solve. Thus a reuse
 infeasibility status alone cannot trigger restoration. Cancellation and
 time/iteration limits stop immediately. Both attempts share the per-call QP
 iteration budget and remaining cooperative time budget, including conversion,
-setup and updates. Settings and the cancellation/deadline callback are replaced
-before every engine call, and no callback is retained after it. Unsuccessful
+setup and updates. Clarabel's own time-limit clock is the sum of its root
+timers, and Clarabel resets only the solve timer per call. The adapter resets
+the setup and post-processing timers before every engine call, so a reused
+workspace is not charged for earlier calls. Settings and the
+cancellation/deadline callback are replaced before every engine call, and no
+callback is retained after it. Unsuccessful
 solves are not cached. An accepted result retains the existing solved-at-deadline
 semantics described above.
 

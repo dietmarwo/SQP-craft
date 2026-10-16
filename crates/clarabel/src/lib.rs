@@ -90,88 +90,137 @@ impl Converted {
     }
 }
 
-fn convert(model: &QpModel) -> Result<Converted> {
+impl Structure {
+    /// Same comparison as `*self == data.structure()`, without the copies.
+    fn matches(&self, data: &Converted) -> bool {
+        self.n == data.p.n
+            && self.original_rows == data.original_rows
+            && self.p_columns == data.p.colptr
+            && self.p_rows == data.p.rowval
+            && self.a_columns == data.a.colptr
+            && self.a_rows == data.a.rowval
+            && self.mapping == data.mapping
+            && self.equalities.len() == data.cones.len()
+            && self
+                .equalities
+                .iter()
+                .zip(&data.cones)
+                .all(|(&e, c)| e == matches!(c, ZeroConeT(_)))
+    }
+}
+
+/// The conic rows of one bounded row or variable: `(scale, rhs, dual sign,
+/// equality)` per finite side, an equal pair as one equality row.
+fn sides(lower: f64, upper: f64) -> impl Iterator<Item = (f64, f64, f64, bool)> {
+    let equal = lower == upper;
+    let lower_side = (!equal && lower.is_finite()).then_some((-1.0, -lower, 1.0, false));
+    let upper_side = (equal || upper.is_finite()).then_some((1.0, upper, -1.0, equal));
+    lower_side.into_iter().chain(upper_side)
+}
+
+fn positive_definite(model: &QpModel) -> bool {
     let n = model.n();
-    let mut dense = DMatrix::zeros(n, n);
-    let mut hi = vec![];
-    let mut hj = vec![];
-    let mut hv = vec![];
     let h = &model.hessian_lower;
+    let mut dense = DMatrix::zeros(n, n);
     for i in 0..n {
         for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
             let j = h.pattern.indices[k];
-            let v = h.values[k];
-            dense[(i, j)] = v;
-            dense[(j, i)] = v;
-            hi.push(j);
-            hj.push(i);
-            hv.push(v);
+            dense[(i, j)] = h.values[k];
+            dense[(j, i)] = h.values[k];
         }
     }
-    if dense.cholesky().is_none() {
+    dense.cholesky().is_some()
+}
+
+/// Builds Clarabel's data directly in canonical CSC form, in O(nnz).
+///
+/// The validated lower-triangle CSR Hessian (strictly increasing columns per
+/// row, none above the diagonal) is exactly the upper-triangle CSC that
+/// Clarabel expects. `A` is filled column by column in conic-row order, so
+/// row indices are sorted without a sort. Explicit zeros are kept, as before.
+fn convert(model: &QpModel) -> Result<Converted> {
+    if !positive_definite(model) {
         return Err(Error::Unsupported(
             "QP pilot requires a positive-definite Hessian".into(),
         ));
     }
-    let p = CscMatrix::new_from_triplets(n, n, hi, hj, hv);
-    // Map each conic row to (variable?, original index, signed-dual factor).
+    let n = model.n();
+    let h = &model.hessian_lower;
+    let p = CscMatrix::new(
+        n,
+        n,
+        h.pattern.indptr.clone(),
+        h.pattern.indices.clone(),
+        h.values.clone(),
+    );
+    // Conic rows: each original row's sides, then each variable's sides.
+    // `mapping` sends a conic dual to (variable?, original index, sign).
     let mut mapping = Vec::new();
-    let mut ai = vec![];
-    let mut aj = vec![];
-    let mut av = vec![];
-    let mut b = vec![];
-    let mut cones = vec![];
-    let mut add =
-        |variable: bool, index: usize, entries: Vec<(usize, f64)>, lower: f64, upper: f64| {
-            let sides = if lower == upper {
-                vec![(1.0, upper, -1.0, true)]
+    let mut b = Vec::new();
+    let mut cones = Vec::new();
+    let mut row_start = Vec::with_capacity(model.m() + n + 1);
+    let mut scales = Vec::new();
+    let mut push = |variable: bool, index: usize, lower: f64, upper: f64| {
+        row_start.push(b.len());
+        for (scale, rhs, dual_sign, equality) in sides(lower, upper) {
+            scales.push(scale);
+            b.push(rhs);
+            mapping.push((variable, index, dual_sign));
+            cones.push(if equality {
+                ZeroConeT(1)
             } else {
-                let mut sides = vec![];
-                if lower.is_finite() {
-                    sides.push((-1.0, -lower, 1.0, false));
-                }
-                if upper.is_finite() {
-                    sides.push((1.0, upper, -1.0, false));
-                }
-                sides
-            };
-            for (scale, rhs, dual_sign, equality) in sides {
-                let row = b.len();
-                for &(j, v) in &entries {
-                    ai.push(row);
-                    aj.push(j);
-                    av.push(scale * v);
-                }
-                b.push(rhs);
-                mapping.push((variable, index, dual_sign));
-                cones.push(if equality {
-                    ZeroConeT(1)
-                } else {
-                    NonnegativeConeT(1)
-                });
-            }
-        };
+                NonnegativeConeT(1)
+            });
+        }
+    };
     for i in 0..model.m() {
-        let a = &model.matrix;
-        let entries = (a.pattern.indptr[i]..a.pattern.indptr[i + 1])
-            .map(|k| (a.pattern.indices[k], a.values[k]))
-            .collect();
-        add(false, i, entries, model.rows.lower[i], model.rows.upper[i]);
+        push(false, i, model.rows.lower[i], model.rows.upper[i]);
     }
     for j in 0..n {
-        add(
-            true,
-            j,
-            vec![(j, 1.0)],
-            model.variables.lower[j],
-            model.variables.upper[j],
-        );
+        push(true, j, model.variables.lower[j], model.variables.upper[j]);
     }
-    let a = CscMatrix::new_from_triplets(b.len(), n, ai, aj, av);
+    row_start.push(b.len());
+    // (first conic row, number of conic rows) of each original row, then of
+    // each variable.
+    let spans: Vec<(usize, usize)> = row_start.windows(2).map(|w| (w[0], w[1] - w[0])).collect();
+    let (row_spans, variable_spans) = spans.split_at(model.m());
+    let a = &model.matrix;
+    let row_entries = |i: usize| a.pattern.indptr[i]..a.pattern.indptr[i + 1];
+    let mut colptr = vec![0; n + 1];
+    for (i, &(_, width)) in row_spans.iter().enumerate() {
+        for &j in &a.pattern.indices[row_entries(i)] {
+            colptr[j + 1] += width;
+        }
+    }
+    for (j, &(_, width)) in variable_spans.iter().enumerate() {
+        colptr[j + 1] += width;
+    }
+    for j in 0..n {
+        colptr[j + 1] += colptr[j];
+    }
+    let nnz = colptr[n];
+    let mut next = colptr.clone();
+    let mut rowval = vec![0; nnz];
+    let mut nzval = vec![0.0; nnz];
+    let mut place = |j: usize, (first, width): (usize, usize), value: f64| {
+        for (r, scale) in scales.iter().enumerate().skip(first).take(width) {
+            rowval[next[j]] = r;
+            nzval[next[j]] = scale * value;
+            next[j] += 1;
+        }
+    };
+    for (i, &span) in row_spans.iter().enumerate() {
+        for k in row_entries(i) {
+            place(a.pattern.indices[k], span, a.values[k]);
+        }
+    }
+    for (j, &span) in variable_spans.iter().enumerate() {
+        place(j, span, 1.0);
+    }
     Ok(Converted {
         original_rows: model.m(),
         p,
-        a,
+        a: CscMatrix::new(b.len(), n, colptr, rowval, nzval),
         b,
         cones,
         mapping,
@@ -268,9 +317,10 @@ impl QpBackend for ClarabelQp {
         let converted = convert(model);
         self.last.conversion_seconds = t.elapsed().as_secs_f64();
         let data = converted?;
-        let key = data.structure();
         let mut reusable = previous.filter(|w| {
-            self.settings.reuse_workspace && w.key == key && w.solver.is_data_update_allowed()
+            self.settings.reuse_workspace
+                && w.key.matches(&data)
+                && w.solver.is_data_update_allowed()
         });
         if let Some(w) = reusable.as_mut() {
             let t = Instant::now();
@@ -323,12 +373,15 @@ impl QpBackend for ClarabelQp {
                 .solver
                 .update_settings(self.engine_settings(began))
                 .map_err(|e| Error::Backend(format!("Clarabel settings: {e}")))?;
-            // Clarabel includes its retained setup timer in time-limit checks.
-            // Our remaining budget already deducts setup/update elapsed time.
-            // Reset that timer on both paths to avoid charging it twice (or
-            // charging a previous call's setup to a reused workspace).
+            // Clarabel's time-limit check uses the sum of its root timers:
+            // "setup", "solve" and "post-process". It resets only "solve"
+            // per call. Our remaining budget already deducts setup/update
+            // time, so reset the other two: otherwise setup is charged twice,
+            // and a reused workspace carries every earlier call's
+            // post-processing time into its time-limit check.
             if let Some(timers) = workspace.solver.timers.as_mut() {
                 timers.reset_timer("setup");
+                timers.reset_timer("post-process");
             }
             let token = cancel.clone();
             let limit = self.settings.time_limit_seconds;
@@ -455,6 +508,7 @@ fn extract(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clarabel::algebra::TriangularMatrixChecks;
     use sqp_craft::{Bounds, CsrMatrix, CsrPattern};
 
     fn reusable() -> (ClarabelQp, QpModel) {
@@ -483,6 +537,181 @@ mod tests {
             QpOutcome::Optimal(_)
         ));
         (b, model)
+    }
+
+    /// The previous conversion through Clarabel's sorting triplet constructor.
+    fn convert_by_triplets(model: &QpModel) -> Converted {
+        let n = model.n();
+        let h = &model.hessian_lower;
+        let (mut hi, mut hj, mut hv) = (vec![], vec![], vec![]);
+        for i in 0..n {
+            for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                hi.push(h.pattern.indices[k]);
+                hj.push(i);
+                hv.push(h.values[k]);
+            }
+        }
+        let (mut mapping, mut b, mut cones) = (vec![], vec![], vec![]);
+        let (mut ai, mut aj, mut av) = (vec![], vec![], vec![]);
+        let mut add = |variable: bool, index: usize, entries: Vec<(usize, f64)>, lo, up| {
+            for (scale, rhs, dual_sign, equality) in sides(lo, up) {
+                for &(j, v) in &entries {
+                    ai.push(b.len());
+                    aj.push(j);
+                    av.push(scale * v);
+                }
+                b.push(rhs);
+                mapping.push((variable, index, dual_sign));
+                cones.push(if equality {
+                    ZeroConeT(1)
+                } else {
+                    NonnegativeConeT(1)
+                });
+            }
+        };
+        let a = &model.matrix;
+        for i in 0..model.m() {
+            let entries = (a.pattern.indptr[i]..a.pattern.indptr[i + 1])
+                .map(|k| (a.pattern.indices[k], a.values[k]))
+                .collect();
+            add(false, i, entries, model.rows.lower[i], model.rows.upper[i]);
+        }
+        for j in 0..n {
+            let (lo, up) = (model.variables.lower[j], model.variables.upper[j]);
+            add(true, j, vec![(j, 1.0)], lo, up);
+        }
+        Converted {
+            original_rows: model.m(),
+            p: CscMatrix::new_from_triplets(n, n, hi, hj, hv),
+            a: CscMatrix::new_from_triplets(b.len(), n, ai, aj, av),
+            b,
+            cones,
+            mapping,
+        }
+    }
+
+    #[test]
+    fn direct_conversion_equals_the_sorted_triplet_conversion() {
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut next = move |k: u64| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state % k
+        };
+        let inf = f64::INFINITY;
+        for _ in 0..300 {
+            let (n, m) = (1 + next(9) as usize, next(7) as usize);
+            let mut side = |lower: bool| match next(5) {
+                0 => -1.5,
+                1 => 2.0,
+                2 => 0.0,
+                _ if lower => -inf,
+                _ => inf,
+            };
+            let bounds = |count: usize, side: &mut dyn FnMut(bool) -> f64| {
+                let (mut lower, mut upper) = (vec![], vec![]);
+                for _ in 0..count {
+                    let (l, u) = (side(true), side(false));
+                    let (l, u) = if l <= u { (l, u) } else { (u, u) };
+                    lower.push(l);
+                    upper.push(u);
+                }
+                Bounds::new(lower, upper)
+            };
+            let rows = bounds(m, &mut side);
+            let variables = bounds(n, &mut side);
+            // Dense, positive-definite lower triangle with one explicit zero.
+            let (mut indptr, mut indices, mut values) = (vec![0], vec![], vec![]);
+            for i in 0..n {
+                for j in 0..=i {
+                    indices.push(j);
+                    values.push(if i == j {
+                        2.0 + n as f64
+                    } else if j == 0 {
+                        0.0
+                    } else {
+                        0.5
+                    });
+                }
+                indptr.push(indices.len());
+            }
+            let (mut aptr, mut aidx, mut aval) = (vec![0], vec![], vec![]);
+            for _ in 0..m {
+                for j in 0..n {
+                    if next(2) == 0 {
+                        aidx.push(j);
+                        aval.push([0.0, -1.0, 3.5][next(3) as usize]);
+                    }
+                }
+                aptr.push(aidx.len());
+            }
+            let model = QpModel {
+                hessian_lower: CsrMatrix {
+                    pattern: CsrPattern {
+                        rows: n,
+                        cols: n,
+                        indptr,
+                        indices,
+                    },
+                    values,
+                },
+                gradient: vec![1.0; n],
+                variables,
+                matrix: CsrMatrix {
+                    pattern: CsrPattern {
+                        rows: m,
+                        cols: n,
+                        indptr: aptr,
+                        indices: aidx,
+                    },
+                    values: aval,
+                },
+                rows,
+            };
+            model.validate().unwrap();
+            let (direct, sorted) = (convert(&model).unwrap(), convert_by_triplets(&model));
+            for (x, y) in [(&direct.p, &sorted.p), (&direct.a, &sorted.a)] {
+                assert_eq!((x.m, x.n), (y.m, y.n));
+                assert_eq!((&x.colptr, &x.rowval), (&y.colptr, &y.rowval));
+                assert_eq!(
+                    x.nzval.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                    y.nzval.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+                );
+            }
+            assert!(direct.a.check_format().is_ok() && direct.p.is_triu());
+            assert_eq!((&direct.b, &direct.mapping), (&sorted.b, &sorted.mapping));
+            assert!(direct.structure() == sorted.structure());
+            assert!(direct.structure().matches(&sorted));
+        }
+    }
+
+    #[test]
+    fn reused_workspace_time_limit_counts_only_the_current_call() {
+        // Clarabel compares the sum of its root timers with the time limit
+        // and resets only "solve" per call. Every call's own engine time is
+        // measured around `solve()`, so with the stale timers reset their sum
+        // cannot exceed it; accumulated post-processing would.
+        let (mut b, model) = reusable();
+        for _ in 0..300 {
+            b.solve(&model, None, &CancellationToken::default())
+                .unwrap();
+            assert_eq!(b.last.updates, 1);
+            let timers = b
+                .workspace
+                .as_ref()
+                .unwrap()
+                .solver
+                .timers
+                .as_ref()
+                .unwrap();
+            assert!(
+                timers.total_time().as_secs_f64() <= b.last.solve_seconds,
+                "{:?} > {}",
+                timers.total_time(),
+                b.last.solve_seconds
+            );
+        }
     }
 
     #[test]
