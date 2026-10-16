@@ -28,6 +28,10 @@ pub enum Status {
     QpFailure,
     /// Native SQP termination: linearization_infeasible.
     LinearizationInfeasible,
+    /// Local feasibility restoration could not find an acceptable step.
+    RestorationFailed,
+    /// The enabled restoration step budget was exhausted.
+    RestorationLimit,
     /// Native SQP termination: line_search_failure.
     LineSearchFailure,
     /// Native SQP termination: no_descent.
@@ -50,6 +54,8 @@ impl Status {
             Status::TimeLimit => "time_limit",
             Status::QpFailure => "qp_failure",
             Status::LinearizationInfeasible => "linearization_infeasible",
+            Status::RestorationFailed => "restoration_failed",
+            Status::RestorationLimit => "restoration_limit",
             Status::LineSearchFailure => "line_search_failure",
             Status::NoDescent => "no_descent",
             Status::Stalled => "stalled",
@@ -229,7 +235,7 @@ pub struct SolveResult {
     pub multipliers: Option<Multipliers>,
     /// Model calls made, including calls whose results were discarded.
     pub counts: EvaluationCounts,
-    /// Completed SQP iterations.
+    /// Accepted steps, including feasibility-restoration steps.
     pub iterations: u64,
     /// `‖grad f - J^T λ - z‖∞` at the candidate, when multipliers exist.
     pub stationarity: Option<f64>,
@@ -280,6 +286,9 @@ pub struct RunReport {
     pub hessian_resets: u64,
     /// Explicit corrections of tiny fixed-variable step components.
     pub fixed_step_corrections: u64,
+    /// Step components moved onto a variable bound they exceeded by at most the
+    /// feasibility tolerance (interior-point roundoff near an active bound).
+    pub bound_step_corrections: u64,
     /// Last accepted displacement infinity norm.
     pub step_norm: Option<f64>,
     /// End-to-end elapsed solve time after validation.
@@ -294,6 +303,14 @@ pub struct RunReport {
     pub qp_trace: Vec<crate::qp::QpModel>,
     /// Optional per-iteration record (empty unless the backend was asked for it).
     pub history: Vec<IterationRecord>,
+    /// Number of entries into feasibility restoration, including failures.
+    pub restoration_attempts: u64,
+    /// Accepted feasibility steps; also included in `SolveResult::iterations`.
+    pub restoration_steps: u64,
+    /// Inclusive restoration time, overlapping QP and callback phase timings.
+    pub restoration_seconds: f64,
+    /// Accepted restoration steps, populated when iteration history is enabled.
+    pub restoration_history: Vec<RestorationRecord>,
 }
 
 /// One SQP iteration: the iterate where a QP was solved and the step taken
@@ -339,4 +356,30 @@ impl SolveResult {
             report: RunReport::default(),
         }
     }
+}
+
+/// One accepted feasibility-restoration step. Multipliers are intentionally
+/// absent: restoration-QP duals are not NLP multipliers.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RestorationRecord {
+    /// Accepted-step count before this restoration step.
+    pub iteration: u64,
+    /// Objective at the preceding complete point.
+    pub objective_before: f64,
+    /// Objective at the accepted point; it may increase during restoration.
+    pub objective_after: f64,
+    /// Original-unit maximum violation before the step.
+    pub primal_before: f64,
+    /// Original-unit maximum violation after the step.
+    pub primal_after: f64,
+    /// Half the squared row-violation norm before the step.
+    pub merit_before: f64,
+    /// Half the squared row-violation norm after the step.
+    pub merit_after: f64,
+    /// Accepted step length.
+    pub step_length: f64,
+    /// Number of trial function evaluations, including undefined ones.
+    pub trials: u32,
+    /// Iterations of this restoration QP.
+    pub qp_iterations: u64,
 }

@@ -156,7 +156,15 @@ fn hs071_converges_and_reports_an_inconsistent_linearization_honestly() {
     // At (1,1,1,1) the linearized rows need Σp ≥ 24 and Σp = 18: inconsistent,
     // although the nonlinear problem is feasible. Without a restoration phase
     // this must be reported as such, never as infeasibility or convergence.
-    let r = run(&hs071(), &mut Hs071, &[1.0; 4]);
+    let r = run_with(
+        &hs071(),
+        &mut Hs071,
+        &[1.0; 4],
+        SqpOptions {
+            max_restoration_steps: 0,
+            ..Default::default()
+        },
+    );
     assert_eq!(r.status, Status::LinearizationInfeasible);
     assert!(r.message.contains("may still be feasible"), "{}", r.message);
     assert_eq!(r.candidate, Some(vec![1.0; 4]));
@@ -190,4 +198,49 @@ fn history_records_each_iterate() {
     // Without the option nothing is recorded.
     let r = run(&hs071(), &mut Hs071, &[1.0, 5.0, 5.0, 1.0]);
     assert!(r.report.history.is_empty());
+}
+
+#[test]
+fn hs071_restoration_recovers_the_previously_inconsistent_start() {
+    let spec = hs071();
+    let r = run_with(
+        &spec,
+        &mut Hs071,
+        &[1.0; 4],
+        SqpOptions {
+            record_history: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(r.status, Status::Converged, "{}: {:?}", r.message, r.report);
+    assert!((r.evaluation.as_ref().unwrap().objective - 17.0140173).abs() < 1e-6);
+    let kkt = sqp_craft::kkt::nlp_residuals(
+        &spec,
+        r.candidate.as_ref().unwrap(),
+        r.evaluation.as_ref().unwrap(),
+        r.multipliers.as_ref().unwrap(),
+    )
+    .unwrap();
+    assert!(
+        kkt.primal <= 1e-7
+            && kkt.stationarity <= 1e-6
+            && kkt.complementarity <= 1e-6
+            && kkt.dual_sign <= 1e-8,
+        "{kkt:?}"
+    );
+    assert!(r.report.restoration_steps > 0);
+    assert_eq!(
+        r.report.restoration_history.len() as u64,
+        r.report.restoration_steps
+    );
+    assert!(
+        r.report
+            .restoration_history
+            .iter()
+            .all(|h| h.merit_after < h.merit_before)
+    );
+    assert_eq!(
+        (r.report.history.len() + r.report.restoration_history.len()) as u64,
+        r.iterations + 1
+    );
 }

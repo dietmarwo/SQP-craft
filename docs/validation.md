@@ -1,54 +1,46 @@
-# Validation
+# Validation — iteration 2
 
-Version 0.2.0, 16 October 2026. Local runs on Linux x86_64 with Rust 1.97.0,
-CPython 3.13, PyO3 0.30.1, maturin 1.15.0, pytest 9.1.1, NumPy 2.5.4 and
-SciPy 1.18.1. The CI workflow repeats these checks on every pull request,
-including Rust 1.85 (the declared minimum) and Python 3.10 / 3.14 on Linux,
-macOS and Windows.
+Version 0.3.0, 16 October 2026. Base: `main` at `2becc56` (the squash merge of
+the reviewed iteration 1, same tree as `e627721`). Earlier evidence:
+[iteration-1-validation.md](iteration-1-validation.md).
+
+Local runs on Linux x86_64 with Rust 1.97.0, CPython 3.13, PyO3 0.30.1,
+maturin 1.15.0, pytest 9.1.1, NumPy 2.5.4 and SciPy 1.18.1. The CI workflow
+repeats these checks on every pull request, including Rust 1.85 (the declared
+minimum) and Python 3.10 / 3.14 on Linux, macOS and Windows.
 
 | Check | Result |
 | --- | --- |
-| `bash scripts/check.sh` from a clean build | Pass |
-| `cargo fmt --all --check` | Pass |
-| `cargo clippy --workspace --all-targets --locked -- -D warnings` | Pass |
-| `cargo test --workspace --locked` (debug, overflow checks on) | 57 tests + 1 doctest pass |
-| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | Pass |
-| Rust examples `toy` and `solve` | Pass |
-| Fresh virtual environment, `pip install ".[test]"`, `pytest` | 67 pass |
-| README example, `examples/solve_sqp.py`, `examples/orbit_transfer.py 20` | Pass |
+| Delivered iteration 2, `bash scripts/check.sh` | Pass: 65 Rust tests + 1 doctest, 75 Python tests |
+| Reviewed, `bash scripts/check.sh` from a clean build | Pass |
+| `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` | Pass |
+| `cargo test --workspace --locked` (debug, overflow checks on) | **70 tests + 1 doctest pass** |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --locked` | Pass |
+| Fresh virtual environment, `pip install ".[test]"`, `pytest` (imported from `site-packages`) | **76 pass** |
+| `mypy --strict python/sqp_craft` | Pass |
+| `examples/restore_hs071.py` | Restoration off: `linearization_infeasible`; on: converged in 8 iterations (1 restoration step) |
 | Build with `--no-default-features`, `pytest tests/test_contract.py` | 42 pass; `method="sqp"` raises `NotImplementedError` |
-| `mypy --strict` on `python/sqp_craft` | Pass |
-| `examples/compare_baseline.py` | sqp-craft accepted on 12 of 13 cases, SLSQP on 12 of 13; both fail HS071 from (1, 1, 1, 1) |
+| `examples/compare_baseline.py` | sqp-craft 13 / 13 accepted, SLSQP 12 / 13; unchanged from the delivery |
+| `examples/stress_random.py`, seeds 1–4, 300 problems each | 1186 / 1200 converged and accepted (delivered: 1184); no convergence claim rejected by the evaluator |
 
-## What the tests cover
+## New tests in the review
 
-- **Contracts** (core): problem spec validation, callback order and buffers,
-  the dummy method, the multiplier sign convention on hand-derived cases,
-  overflow in KKT arithmetic, QP warm-start validation.
-- **QP adapter**: off-diagonal Hessian storage, signed lower/upper/fixed
-  multipliers, infeasible rows, iteration limits, cancellation from inside the
-  running Clarabel iteration, warm-start rejection, and scale-aware acceptance
-  with a multiplier near −999 that still rejects a flipped sign.
-- **Driver**: analytic optima with signed multipliers; an inconsistent
-  linearization reported as such; recovered undefined trials; callback budgets
-  that return the last complete point; observer stop and time limit; a quartic
-  with an active bound and large early multipliers; HS071 from three starts;
-  the iteration history; and the N = 20 orbit transfer, which must converge
-  to r(tf) = 1.52206 in under 150 iterations with mostly full steps.
-- **Derivative checker**: injected sign and pattern errors, fixed variables,
-  `max_directions`, undefined perturbations, and a point 1e-13 inside a bound.
-- **Python boundary**: the above through the compiled module, plus exception
-  identity, a non-finite output after a recovered undefined trial, box
-  assertions inside callbacks, observer events per accepted step, and solves in
-  spawned worker processes.
-
-Four of the new tests fail on the delivered iteration-1 code: the QP-acceptance
-case (`qp_failure`), both orbit-transfer tests (iteration limit; derivative
-check not passed because of the fixed initial state) and the Python derivative
-check with an undefined perturbation (raised `UndefinedPointError`).
+- `crates/sqp/tests/random_instances.rs`: the three stress instances the
+  delivered code mishandled — a step overshooting a nearly active bound
+  (`stalled` before), a step at the QP noise level (`stalled` at stationarity
+  1.18e-6 before) and an infeasible stationary point of ψ
+  (`restoration_limit` before). All three fail on the delivered code with
+  exactly those statuses, and pass now with independent KKT checks and the
+  SLSQP objectives.
+- Unit tests for the trial-point rounding (a real case where `x + αp` lands
+  one ulp above the bound) and for snapping only tolerance-level overshoots.
+- The permanently inconsistent restoration fixture now requires
+  `restoration_failed` after exactly two steps at the minimizer of ψ, in Rust
+  and through Python, instead of accepting either restoration status.
 
 ## Not validated
 
 No application model or data (the target card is open), no 16-core or
-multi-process scaling measurement, no free-threaded Python, no timing claims:
-the comparison runs each case once.
+multi-process scaling measurement, no free-threaded Python, no timing claims.
+The stress problems are one random family; they exercise inconsistent
+linearizations and active bounds, not trajectory structure.
