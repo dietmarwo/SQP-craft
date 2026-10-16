@@ -1,9 +1,9 @@
 //! Native SQP driver: dense damped BFGS, convex QP subproblems behind
 //! [`QpBackend`], and an L1 merit line search with per-constraint penalties.
 //!
-//! A bounded research pilot, not a general solver: at most 256 variables, no
-//! restoration or elastic mode (an inconsistent linearization ends the solve
-//! with [`Status::LinearizationInfeasible`]), no second-order correction and no
+//! A bounded research pilot, not a general solver: at most 256 variables,
+//! local Gauss–Newton restoration for inconsistent linearizations (disable it
+//! with `max_restoration_steps = 0`), no second-order correction and no
 //! automatic scaling. Convergence means the first-order KKT residuals at the
 //! returned point are within the declared tolerances; it is not a global or
 //! second-order optimality certificate.
@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 mod bfgs;
+mod restoration;
 
 use std::time::Instant;
 
@@ -79,6 +80,12 @@ pub struct SqpOptions {
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
     pub record_history: bool,
+    /// Accepted restoration steps allowed across the solve; zero disables it.
+    pub max_restoration_steps: u64,
+    /// Infinity-norm trust bound on each restoration direction, in x units.
+    pub restoration_step_limit: f64,
+    /// Positive diagonal regularization of the restoration Gauss–Newton model.
+    pub restoration_regularization: f64,
 }
 
 impl Default for SqpOptions {
@@ -98,6 +105,9 @@ impl Default for SqpOptions {
             qp_max_iterations: 200,
             record_qp_limit: 0,
             record_history: false,
+            max_restoration_steps: 10,
+            restoration_step_limit: 1.0,
+            restoration_regularization: 1e-4,
         }
     }
 }
@@ -111,6 +121,11 @@ impl SqpOptions {
             ("dual_sign_tolerance", self.dual_sign_tolerance),
             ("initial_hessian_scale", self.initial_hessian_scale),
             ("qp_tolerance", self.qp_tolerance),
+            ("restoration_step_limit", self.restoration_step_limit),
+            (
+                "restoration_regularization",
+                self.restoration_regularization,
+            ),
         ];
         for (name, value) in positive {
             if !(value.is_finite() && value > 0.0) {
@@ -363,8 +378,12 @@ fn status_message(status: Status) -> &'static str {
         Status::Cancelled => "cancelled",
         Status::LinearizationInfeasible => {
             "the linearized constraints are inconsistent at this point; the nonlinear problem \
-             may still be feasible (no restoration phase in this pilot)"
+             may still be feasible (restoration is disabled)"
         }
+        Status::RestorationFailed => {
+            "local restoration failed; nonlinear infeasibility is not established"
+        }
+        Status::RestorationLimit => "feasibility restoration step budget exhausted",
         Status::LineSearchFailure => "no acceptable step length within the backtracking limit",
         Status::NoDescent => "QP step is not a descent direction for the merit function",
         Status::Stalled => "QP step too small to change the iterate",
@@ -492,8 +511,30 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             let mut solution: QpSolution = match outcome {
                 Ok(QpOutcome::Optimal(s)) => s,
                 Ok(QpOutcome::Infeasible) => {
-                    status = Some(Status::LinearizationInfeasible);
-                    break;
+                    if settings.max_restoration_steps == 0 {
+                        status = Some(Status::LinearizationInfeasible);
+                        break;
+                    }
+                    if r.report.restoration_steps >= settings.max_restoration_steps {
+                        status = Some(Status::RestorationLimit);
+                        break;
+                    }
+                    let began = Instant::now();
+                    let restored =
+                        restoration::step(&mut self.qp, spec, model, &mut calls, &mut r, options);
+                    r.report.restoration_seconds += began.elapsed().as_secs_f64();
+                    status = restored?;
+                    if status.is_some() {
+                        break;
+                    }
+                    // Feasibility steps do not carry an NLP multiplier estimate.
+                    // Restart curvature/penalties without spending the BFGS failure budget.
+                    b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                    penalties.fill(0.0);
+                    have_penalties = false;
+                    retry_descent = false;
+                    notify = true;
+                    continue;
                 }
                 Ok(QpOutcome::Cancelled) => {
                     status = Some(Status::Cancelled);

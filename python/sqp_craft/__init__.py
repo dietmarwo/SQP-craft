@@ -33,7 +33,7 @@ from ._native import check_derivatives as _check_derivatives
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "Cancellation",
@@ -43,6 +43,7 @@ __all__ = [
     "EvaluationCounts",
     "EvaluationError",
     "IterationRecord",
+    "RestorationRecord",
     "KktResiduals",
     "Model",
     "Multipliers",
@@ -68,6 +69,8 @@ Status = Literal[
     "time_limit",
     "qp_failure",
     "linearization_infeasible",
+    "restoration_failed",
+    "restoration_limit",
     "line_search_failure",
     "no_descent",
     "stalled",
@@ -128,8 +131,14 @@ class SqpOptions:
     """Iteration cap per QP."""
     record_qp_limit: int = 0
     """Number of step QPs to keep in ``report.qp_trace`` (at most 16)."""
+    max_restoration_steps: int = 10
+    """Accepted restoration steps allowed; zero keeps the old infeasible-QP stop."""
+    restoration_step_limit: float = 1.0
+    """Infinity-norm trust bound on restoration directions in variable units."""
+    restoration_regularization: float = 1e-4
+    """Positive diagonal regularization of the Gauss–Newton feasibility model."""
     record_history: bool = False
-    """Keep one ``IterationRecord`` per iteration in ``report.history``."""
+    """Keep normal records in ``history`` and feasibility steps in ``restoration_history``."""
 
 
 @dataclass(frozen=True)
@@ -187,6 +196,22 @@ class IterationRecord:
 
 
 @dataclass(frozen=True)
+class RestorationRecord:
+    """Accepted feasibility step; its QP duals are not NLP multipliers."""
+
+    iteration: int
+    objective_before: float
+    objective_after: float
+    primal_before: float
+    primal_after: float
+    merit_before: float
+    merit_after: float
+    step_length: float
+    trials: int
+    qp_iterations: int
+
+
+@dataclass(frozen=True)
 class RunReport:
     """Diagnostics. Times are inclusive elapsed seconds per phase."""
 
@@ -206,6 +231,10 @@ class RunReport:
     bfgs_seconds: float
     qp_trace: list[dict[str, Any]]
     history: list[IterationRecord]
+    restoration_attempts: int
+    restoration_steps: int
+    restoration_seconds: float
+    restoration_history: list[RestorationRecord]
 
 
 @dataclass(frozen=True)
@@ -283,6 +312,7 @@ def solve(
     multipliers = raw["multipliers"]
     report = raw["report"]
     report["history"] = [IterationRecord(**h) for h in report["history"]]
+    report["restoration_history"] = [RestorationRecord(**h) for h in report["restoration_history"]]
     return SolveResult(
         status=raw["status"],
         candidate=raw["candidate"],

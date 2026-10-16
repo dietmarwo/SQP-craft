@@ -62,6 +62,7 @@ jobs:
       - run: python -m pytest -q
       - run: python examples/demo.py
       - run: python examples/solve_sqp.py
+      - run: python examples/restore_hs071.py
       - run: python examples/orbit_transfer.py 20
 
   baseline:

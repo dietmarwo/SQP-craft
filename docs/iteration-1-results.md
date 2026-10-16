@@ -1,8 +1,10 @@
+> Historical iteration-1 record. Current results: [iteration-2-results.md](iteration-2-results.md).
+
 # Iteration 1: native SQP pilot
 
 Version 0.2.0 · 16 October 2026. Implements the
 [revision 2 plan](iteration-1-plan.md) on top of the interface draft (`main` at
-`d2d2cf1`). Validation details: [validation.md](validation.md). Contract:
+`d2d2cf1`). Validation details: [iteration-1-validation.md](iteration-1-validation.md). Contract:
 [api.md](api.md).
 
 ## Scope delivered

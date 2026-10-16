@@ -228,7 +228,10 @@ def run_sqp_craft(case: Case) -> dict:
     seconds = perf_counter() - began
     check = evaluate(case, r.candidate, r.multipliers) if r.candidate is not None else None
     return dict(solver="sqp-craft", status=r.status, iterations=r.iterations, seconds=seconds,
-                functions=model.functions_calls, derivatives=model.derivatives_calls, check=check)
+                functions=model.functions_calls, derivatives=model.derivatives_calls,
+                restoration_steps=r.report.restoration_steps,
+                restoration_attempts=r.report.restoration_attempts,
+                qp_solves=r.report.qp_solves, check=check)
 
 
 def run_slsqp(case: Case) -> dict:

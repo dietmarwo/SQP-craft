@@ -462,6 +462,15 @@ fn solve_native<'py>(
                             "qp_max_iterations" => settings.qp_max_iterations = value.extract()?,
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
                             "record_history" => settings.record_history = value.extract()?,
+                            "max_restoration_steps" => {
+                                settings.max_restoration_steps = value.extract()?
+                            }
+                            "restoration_step_limit" => {
+                                settings.restoration_step_limit = value.extract()?
+                            }
+                            "restoration_regularization" => {
+                                settings.restoration_regularization = value.extract()?
+                            }
                             _ => {
                                 return Err(PyValueError::new_err(format!(
                                     "unknown SQP setting: {key}"
@@ -553,6 +562,25 @@ fn solve_native<'py>(
         history.append(d)?;
     }
     report.set_item("history", history)?;
+    report.set_item("restoration_attempts", r.report.restoration_attempts)?;
+    report.set_item("restoration_steps", r.report.restoration_steps)?;
+    report.set_item("restoration_seconds", r.report.restoration_seconds)?;
+    let restoration = PyList::empty(py);
+    for h in &r.report.restoration_history {
+        let d = PyDict::new(py);
+        d.set_item("iteration", h.iteration)?;
+        d.set_item("objective_before", h.objective_before)?;
+        d.set_item("objective_after", h.objective_after)?;
+        d.set_item("primal_before", h.primal_before)?;
+        d.set_item("primal_after", h.primal_after)?;
+        d.set_item("merit_before", h.merit_before)?;
+        d.set_item("merit_after", h.merit_after)?;
+        d.set_item("step_length", h.step_length)?;
+        d.set_item("trials", h.trials)?;
+        d.set_item("qp_iterations", h.qp_iterations)?;
+        restoration.append(d)?;
+    }
+    report.set_item("restoration_history", restoration)?;
     out.set_item("report", report)?;
     out.set_item("complementarity", r.complementarity)?;
     out.set_item("message", r.message)?;

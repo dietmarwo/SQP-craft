@@ -500,11 +500,11 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "sqp-craft"
-version = "0.2.0"
+version = "0.3.0"
 
 [[package]]
 name = "sqp-craft-clarabel"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clarabel",
  "nalgebra",
@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "sqp-craft-python"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "pyo3",
  "sqp-craft",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "sqp-craft-solver"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "nalgebra",
  "sqp-craft",

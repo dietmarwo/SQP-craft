@@ -128,7 +128,9 @@ fn infeasible_linearization_is_not_nonlinear_infeasibility() {
             None,
         )
         .unwrap();
-    assert_eq!(r.status, Status::LinearizationInfeasible);
+    assert_eq!(r.status, Status::RestorationFailed);
+    assert_eq!(r.candidate, Some(vec![0.0]));
+    assert_eq!(r.report.restoration_steps, 0);
 }
 #[test]
 fn undefined_trial_is_recovered() {

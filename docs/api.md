@@ -1,6 +1,6 @@
 # Contract: problem, callbacks, solver, results
 
-Version 0.2.0. Interfaces are pre-release; `publish = false` prevents
+Version 0.3.0. Interfaces are pre-release; `publish = false` prevents
 accidental releases.
 
 ## The problem
@@ -115,7 +115,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `qp_tolerance` | `1e-10` | Clarabel's native tolerances |
 | `qp_max_iterations` | `200` | Per QP |
 | `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
-| `record_history` | `false` | One `IterationRecord` per iteration in `report.history` |
+| `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
 ## The native SQP method
 
@@ -152,7 +152,8 @@ accuracy (interior-point solutions stop slightly short of active bounds, which
 costs up to the QP complementarity residual per entry), the step is QP noise and
 the solve ends `stalled`; otherwise it ends `no_descent`.
 
-There is no restoration or elastic mode, no second-order correction (so the
+Bounded local feasibility restoration is described below. There is no elastic-slack
+mode or second-order correction (so the
 Maratos effect can cost backtracking steps), no automatic scaling, and no
 exact-Hessian option. First-order convergence is not a global or second-order
 optimality certificate.
@@ -164,7 +165,9 @@ optimality certificate.
 | `converged` | All four first-order residuals within tolerance at the returned point |
 | `iteration_limit`, `evaluation_limit`, `time_limit` | Budget exhausted; the last complete point is returned |
 | `cancelled` | Token cancelled or observer stop; the last complete point is returned |
-| `linearization_infeasible` | The step QP's linearized rows are inconsistent; the nonlinear problem may still be feasible |
+| `linearization_infeasible` | Inconsistent step QP with restoration disabled; no nonlinear infeasibility claim |
+| `restoration_failed` | Enabled local restoration could not find a decreasing complete step |
+| `restoration_limit` | Enabled restoration step budget exhausted |
 | `line_search_failure` | No acceptable step within `max_backtracks` (including all trials undefined) |
 | `no_descent` | The step is not a merit descent direction, even after a Hessian reset |
 | `stalled` | The step is below the QP's accuracy or cannot change the iterate |
@@ -364,3 +367,63 @@ and Jacobian with finite differences of `functions` along each coordinate:
 
 `passed` requires at least one checked coordinate, no issues and nothing
 skipped. Checker calls are counted separately from any solve.
+
+
+## Iteration 2: feasibility restoration
+
+When an ordinary SQP subproblem is infeasible, the driver attempts a local
+feasibility step before retrying it. This path does not change the ordinary
+merit-penalty update, QP acceptance rule or NLP convergence tolerances.
+
+| Additional `SqpOptions` field | Default | Meaning |
+| --- | --- | --- |
+| `max_restoration_steps` | `10` | Total accepted restoration-step budget; zero disables restoration |
+| `restoration_step_limit` | `1.0` | Positive finite infinity-norm direction bound in variable units |
+| `restoration_regularization` | `1e-4` | Positive finite diagonal regularization of the Gauss–Newton Hessian |
+
+Let `r_i=c_i-proj_[lower_i,upper_i](c_i)` and `psi=0.5*sum(r_i^2)`.
+The restoration QP uses `g=J_active^T r` and
+`H=J_active^T J_active + restoration_regularization*I`, with variable step
+bounds intersected with the direction bound. All equality rows and currently
+violated inequality rows contribute; inactive inequalities contribute zero.
+The original inconsistent linear rows are omitted from this QP. There are no
+extra slack variables, so the 256-variable cap is unchanged.
+
+An independently accepted QP direction is backtracked until it stays within
+the strict variable box and strictly decreases `psi`, with Armijo constant
+`1e-4` and prediction `-g^T p`. It may increase the objective or the maximum
+individual row violation while decreasing the squared total violation.
+Undefined function/derivative trials backtrack; other exceptions remain fatal.
+Only a complete evaluation can be committed. Arithmetic overflow is an error.
+
+After an accepted feasibility step, B is reset to its initial diagonal,
+penalties are cleared and NLP multipliers/residuals become absent. Restoration
+QP duals are never published as NLP multipliers. The next ordinary QP supplies
+fresh estimates, and only the unchanged original-unit NLP KKT checks can
+report convergence. These restarts are counted by `restoration_steps`, separately
+from the failed-BFGS `hessian_resets` budget.
+
+All accepted steps, including restoration, count toward `max_iterations` and
+observer iteration numbers. Shared callback/time/cancellation budgets apply.
+`restoration_failed` means no resolvable feasibility descent or no acceptable
+complete trial; `restoration_limit` means the enabled accepted-step budget was
+exhausted. `linearization_infeasible` is retained when restoration is disabled.
+QP errors/limits retain their existing `qp_failure`/`time_limit` semantics.
+None of these statuses establishes nonlinear infeasibility.
+
+`RunReport` adds `restoration_attempts`, `restoration_steps`,
+`restoration_seconds` and `restoration_history`. Restoration time includes
+callbacks and QP time and therefore overlaps those phase totals. Overall QP
+counts include both phases. The optional `qp_trace` remains scoped to ordinary
+SQP step models. With `record_history=True`, ordinary `IterationRecord` entries
+stay in `history`; `RestorationRecord` entries describe accepted feasibility
+steps in `restoration_history`. Their shared `iteration` numbers count all
+preceding accepted steps, so ordinary history may contain gaps. Failed
+restoration attempts are counted but have no accepted-step record.
+
+A restoration record contains `iteration`, `objective_before/after`,
+`primal_before/after`, `merit_before/after`, `step_length`, `trials` and
+`qp_iterations`. No NLP residual is fabricated for these entries. With history
+disabled both history vectors remain empty. A zero-Jacobian infeasible point
+can remain stationary for this local restoration model; random perturbation,
+second-order escape, scaling and global feasibility search are not implemented.

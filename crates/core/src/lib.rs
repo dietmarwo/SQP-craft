@@ -56,6 +56,6 @@ pub use error::{Error, Result};
 pub use problem::NlpProblem;
 pub use solver::{
     CancellationToken, Control, Evaluation, EvaluationCounts, IterationRecord, Multipliers,
-    Observer, Options, Progress, RunReport, SolveResult, SqpSolver, Status,
+    Observer, Options, Progress, RestorationRecord, RunReport, SolveResult, SqpSolver, Status,
 };
 pub use spec::{Bounds, CsrMatrix, CsrPattern, ProblemSpec};

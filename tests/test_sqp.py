@@ -158,8 +158,8 @@ def test_inconsistent_linearization_is_not_reported_as_infeasibility():
             return [2 * (x[0] - 2)], [2 * x[0]]
 
     r = solve(free(1, [1.0], [1.0]), Square(), [0.0], method="sqp")
-    assert r.status == "linearization_infeasible"
-    assert "may still be feasible" in r.message
+    assert r.status == "restoration_failed"
+    assert "infeasibility is not established" in r.message
     assert r.candidate == [0.0]
 
 

@@ -17,3 +17,4 @@ python -m pytest -q
 python examples/demo.py
 python examples/solve_sqp.py
 python examples/orbit_transfer.py 20
+python examples/restore_hs071.py
