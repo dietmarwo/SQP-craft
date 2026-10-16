@@ -47,7 +47,7 @@ class Cancellation:
     @property
     def cancelled(self) -> bool: ...
 
-def solve_dummy(
+def solve_native(
     spec: ProblemSpec,
     functions: Callable[[list[float]], Any],
     derivatives: Callable[[list[float]], Any],
@@ -56,4 +56,9 @@ def solve_dummy(
     threads: int,
     cancellation: Cancellation,
     observer: Optional[Callable[[dict[str, Any]], bool]] = None,
+    method: str = "dummy",
+    method_options: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]: ...
+
+def check_derivatives(spec: ProblemSpec, functions: Any, derivatives: Any, x: Iterable[float], steps: list[float], absolute_tolerance: float, relative_tolerance: float, max_directions: int) -> dict[str, Any]: ...
+def kkt_residuals(spec: ProblemSpec, x: list[float], objective: float, constraints: list[float], gradient: list[float], jacobian_values: list[float], row_multipliers: list[float], variable_multipliers: list[float]) -> dict[str, float]: ...

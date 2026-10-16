@@ -16,6 +16,26 @@ pub enum Status {
     Stub,
     /// Stopped by the cancellation token or by an observer.
     Cancelled,
+    /// Native SQP termination: converged.
+    Converged,
+    /// Native SQP termination: iteration_limit.
+    IterationLimit,
+    /// Native SQP termination: evaluation_limit.
+    EvaluationLimit,
+    /// Native SQP termination: time_limit.
+    TimeLimit,
+    /// Native SQP termination: qp_failure.
+    QpFailure,
+    /// Native SQP termination: linearization_infeasible.
+    LinearizationInfeasible,
+    /// Native SQP termination: line_search_failure.
+    LineSearchFailure,
+    /// Native SQP termination: no_descent.
+    NoDescent,
+    /// Native SQP termination: stalled.
+    Stalled,
+    /// Native SQP termination: numerical_failure.
+    NumericalFailure,
 }
 
 impl Status {
@@ -24,6 +44,16 @@ impl Status {
         match self {
             Status::Stub => "stub",
             Status::Cancelled => "cancelled",
+            Status::Converged => "converged",
+            Status::IterationLimit => "iteration_limit",
+            Status::EvaluationLimit => "evaluation_limit",
+            Status::TimeLimit => "time_limit",
+            Status::QpFailure => "qp_failure",
+            Status::LinearizationInfeasible => "linearization_infeasible",
+            Status::LineSearchFailure => "line_search_failure",
+            Status::NoDescent => "no_descent",
+            Status::Stalled => "stalled",
+            Status::NumericalFailure => "numerical_failure",
         }
     }
 }
@@ -185,6 +215,10 @@ where
 /// Outcome of a solve that was not aborted by an error.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SolveResult {
+    /// Run metadata, diagnostics and optional bounded QP trace.
+    pub report: RunReport,
+    /// Sign residual of the current multipliers.
+    pub dual_sign: Option<f64>,
     /// How the solve ended.
     pub status: Status,
     /// The returned point. `None` if no complete evaluation happened.
@@ -223,4 +257,57 @@ pub trait SqpSolver {
         cancel: &CancellationToken,
         observer: Option<&mut dyn Observer>,
     ) -> Result<SolveResult>;
+}
+
+/// Native-loop statistics. Timings are elapsed inclusive phase times, not pure GIL wait.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct RunReport {
+    /// Selected method.
+    pub method: String,
+    /// QP engine and version.
+    pub qp_backend: String,
+    /// Last raw QP status.
+    pub qp_status: Option<String>,
+    /// Number of QP calls including retries.
+    pub qp_solves: u64,
+    /// Total iterations of all QP calls.
+    pub qp_iterations: u64,
+    /// Number of rejected merit/domain trials.
+    pub rejected_trials: u64,
+    /// Recoverable undefined evaluations.
+    pub undefined_trials: u64,
+    /// Positive-diagonal Hessian resets.
+    pub hessian_resets: u64,
+    /// Explicit corrections of tiny fixed-variable step components.
+    pub fixed_step_corrections: u64,
+    /// Last accepted displacement infinity norm.
+    pub step_norm: Option<f64>,
+    /// End-to-end elapsed solve time after validation.
+    pub total_seconds: f64,
+    /// Callback boundary execution and conversion time.
+    pub callback_seconds: f64,
+    /// QP conversion, solve and check time.
+    pub qp_seconds: f64,
+    /// BFGS and positive-definiteness-check time.
+    pub bfgs_seconds: f64,
+    /// Optional bounded history in original step coordinates.
+    pub qp_trace: Vec<crate::qp::QpModel>,
+}
+impl SolveResult {
+    /// Empty result before a complete evaluation exists.
+    pub fn empty(status: Status, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            candidate: None,
+            evaluation: None,
+            multipliers: None,
+            counts: EvaluationCounts::default(),
+            iterations: 0,
+            stationarity: None,
+            complementarity: None,
+            dual_sign: None,
+            message: message.into(),
+            report: RunReport::default(),
+        }
+    }
 }

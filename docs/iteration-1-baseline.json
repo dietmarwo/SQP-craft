@@ -1,0 +1,357 @@
+{
+  "scipy": "1.18.1",
+  "numpy": "2.5.4",
+  "note": "Small analytic fixtures, one run each; no performance conclusion. SLSQP residuals use independently reconstructed active multipliers.",
+  "runs": [
+    {
+      "case": "quadratic",
+      "start": [
+        0.0,
+        0.0
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 0.0002761549985734746,
+      "functions": 3,
+      "derivatives": 2,
+      "iterations": 1,
+      "residuals": {
+        "objective": 6.162975822039155e-32,
+        "primal": 0.0,
+        "stationarity": 4.440892098500626e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 0.0,
+      "accepted": true
+    },
+    {
+      "case": "quadratic",
+      "start": [
+        0.0,
+        0.0
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.001074765001249034,
+      "functions": 5,
+      "derivatives": 2,
+      "iterations": 2,
+      "residuals": {
+        "objective": 0.0,
+        "primal": 0.0,
+        "stationarity": 0.0,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 0.0,
+      "accepted": true
+    },
+    {
+      "case": "quadratic",
+      "start": [
+        -2.0,
+        4.0
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 6.953499905648641e-05,
+      "functions": 3,
+      "derivatives": 2,
+      "iterations": 1,
+      "residuals": {
+        "objective": 1.9721522630525295e-31,
+        "primal": 0.0,
+        "stationarity": 8.881784197001252e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 0.0,
+      "accepted": true
+    },
+    {
+      "case": "quadratic",
+      "start": [
+        -2.0,
+        4.0
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.000230305999139091,
+      "functions": 5,
+      "derivatives": 2,
+      "iterations": 2,
+      "residuals": {
+        "objective": 0.0,
+        "primal": 0.0,
+        "stationarity": 0.0,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 0.0,
+      "accepted": true
+    },
+    {
+      "case": "equality",
+      "start": [
+        0.0,
+        0.0
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 0.0001402810012223199,
+      "functions": 4,
+      "derivatives": 4,
+      "iterations": 3,
+      "residuals": {
+        "objective": 1.9999999999999998,
+        "primal": 0.0,
+        "stationarity": 4.440892098500626e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 2.0,
+      "accepted": true
+    },
+    {
+      "case": "equality",
+      "start": [
+        0.0,
+        0.0
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.0003391799982637167,
+      "functions": 17,
+      "derivatives": 8,
+      "iterations": 4,
+      "residuals": {
+        "objective": 1.9999999999999996,
+        "primal": 2.220446049250313e-16,
+        "stationarity": 8.881784197001252e-16,
+        "complementarity": 4.440892098500624e-16,
+        "dual_sign": 0.0
+      },
+      "target": 2.0,
+      "accepted": true
+    },
+    {
+      "case": "equality",
+      "start": [
+        4.0,
+        -3.0
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 7.530400034738705e-05,
+      "functions": 3,
+      "derivatives": 2,
+      "iterations": 1,
+      "residuals": {
+        "objective": 2.0,
+        "primal": 0.0,
+        "stationarity": 8.038014698286133e-14,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 2.0,
+      "accepted": true
+    },
+    {
+      "case": "equality",
+      "start": [
+        4.0,
+        -3.0
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.00028454800121835433,
+      "functions": 11,
+      "derivatives": 4,
+      "iterations": 2,
+      "residuals": {
+        "objective": 2.0,
+        "primal": 0.0,
+        "stationarity": 6.661338147750939e-16,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 2.0,
+      "accepted": true
+    },
+    {
+      "case": "circle",
+      "start": [
+        0.4,
+        0.2
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 0.0001262199984921608,
+      "functions": 3,
+      "derivatives": 2,
+      "iterations": 1,
+      "residuals": {
+        "objective": 0.500000000001557,
+        "primal": 0.0,
+        "stationarity": 2.8836932841613816e-12,
+        "complementarity": 1.5568657474411945e-12,
+        "dual_sign": 0.0
+      },
+      "target": 0.5,
+      "accepted": true
+    },
+    {
+      "case": "circle",
+      "start": [
+        0.4,
+        0.2
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.00041124800191028044,
+      "functions": 33,
+      "derivatives": 16,
+      "iterations": 8,
+      "residuals": {
+        "objective": 0.4999999999997518,
+        "primal": 4.9649173661237e-13,
+        "stationarity": 1.821084264678035e-08,
+        "complementarity": 2.4824586830606176e-13,
+        "dual_sign": 0.0
+      },
+      "target": 0.5,
+      "accepted": true
+    },
+    {
+      "case": "circle",
+      "start": [
+        0.2,
+        0.4
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 0.00024203399880207144,
+      "functions": 8,
+      "derivatives": 7,
+      "iterations": 6,
+      "residuals": {
+        "objective": 0.4999999756603037,
+        "primal": 4.867941205688453e-08,
+        "stationarity": 1.9045761384396383e-07,
+        "complementarity": 2.4339705983480674e-08,
+        "dual_sign": 0.0
+      },
+      "target": 0.5,
+      "accepted": true
+    },
+    {
+      "case": "circle",
+      "start": [
+        0.2,
+        0.4
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.00035400200067670085,
+      "functions": 29,
+      "derivatives": 14,
+      "iterations": 7,
+      "residuals": {
+        "objective": 0.4999999999999989,
+        "primal": 2.220446049250313e-15,
+        "stationarity": 2.4238034333962528e-17,
+        "complementarity": 1.1102230246251542e-15,
+        "dual_sign": 0.0
+      },
+      "target": 0.5,
+      "accepted": true
+    },
+    {
+      "case": "bound",
+      "start": [
+        1.0
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 8.525799785275012e-05,
+      "functions": 2,
+      "derivatives": 2,
+      "iterations": 1,
+      "residuals": {
+        "objective": 1.0000000000569944,
+        "primal": 0.0,
+        "stationarity": 5.4019011486161617e-11,
+        "complementarity": 5.6994631236846754e-11,
+        "dual_sign": 0.0
+      },
+      "target": 1.0,
+      "accepted": true
+    },
+    {
+      "case": "bound",
+      "start": [
+        1.0
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.00022326600083033554,
+      "functions": 4,
+      "derivatives": 2,
+      "iterations": 2,
+      "residuals": {
+        "objective": 1.0,
+        "primal": 0.0,
+        "stationarity": 0.0,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 1.0,
+      "accepted": true
+    },
+    {
+      "case": "rosenbrock",
+      "start": [
+        -1.2,
+        1.0
+      ],
+      "solver": "sqp-craft",
+      "status": "converged",
+      "seconds": 0.00041735700142453425,
+      "functions": 54,
+      "derivatives": 35,
+      "iterations": 34,
+      "residuals": {
+        "objective": 2.7481611169240573e-17,
+        "primal": 0.0,
+        "stationarity": 7.70121744461344e-08,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 0.0,
+      "accepted": true
+    },
+    {
+      "case": "rosenbrock",
+      "start": [
+        -1.2,
+        1.0
+      ],
+      "solver": "scipy-SLSQP",
+      "status": "Optimization terminated successfully",
+      "seconds": 0.0009475940023548901,
+      "functions": 85,
+      "derivatives": 36,
+      "iterations": 36,
+      "residuals": {
+        "objective": 1.5436326816585645e-16,
+        "primal": 0.0,
+        "stationarity": 4.860250410903085e-07,
+        "complementarity": 0.0,
+        "dual_sign": 0.0
+      },
+      "target": 0.0,
+      "accepted": true
+    }
+  ]
+}

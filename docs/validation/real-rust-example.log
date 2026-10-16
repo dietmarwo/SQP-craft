@@ -1,0 +1,8 @@
+    Finished `release` profile [optimized] target(s) in 0.02s
+     Running `validation/build-target/release/examples/solve`
+observer: Progress { iteration: 0, objective: 3.2000000000000006, primal_violation: 0.0 }
+observer: Progress { iteration: 1, objective: 0.8199999998046328, primal_violation: 0.0 }
+observer: Progress { iteration: 2, objective: 0.5245242427426979, primal_violation: 0.0 }
+observer: Progress { iteration: 3, objective: 0.5000000000212744, primal_violation: 0.0 }
+status: Converged (converged)
+KKT residuals with hand-computed multipliers: KktResiduals { primal: 0.0, stationarity: 4.1523673388610405e-11, complementarity: 2.12745376870771e-11, dual_sign: 0.0 }

@@ -1,7 +1,6 @@
 # Contract: problem, callbacks, results
 
-Interface draft v0.1.0. Names and signatures are provisional until the first
-real backend is integrated; `publish = false` prevents accidental releases.
+Iteration 1 v0.2.0. Interfaces remain pre-release; `publish = false` prevents accidental releases.
 
 ## The problem
 
@@ -75,7 +74,10 @@ independent model instances (see design notes).
 ## Solving
 
 Rust: `SqpSolver::solve(&mut self, spec, problem, x0, options, cancel, observer)`.
-Python: `solve(spec, model, x0, *, options=None, cancellation=None, observer=None)`.
+Python: `solve(spec, model, x0, *, options=None, cancellation=None, observer=None, method="dummy", method_options=None)`.
+
+`method="sqp"` selects `NativeSqp<ClarabelQp>`. `method_options` is a
+`SqpOptions` value and is rejected for the dummy.
 
 The start point `x0` must be finite and inside the variable bounds; it is
 rejected, never projected or repaired. Input errors are reported before any
@@ -83,21 +85,20 @@ model call and take precedence over a pending cancellation.
 
 `Options` exposes only settings a backend honours: `feasibility_tolerance`
 (absolute, unscaled; default `1e-7`) and `threads` (only `1`; anything else is
-`Unsupported`/`NotImplementedError`). Iteration limits, scaling, Hessian
-choices and evaluation budgets will arrive with the backend that implements
-them, so no setting is silently ignored.
+`Unsupported`/`NotImplementedError`). Native iteration, callback and time budgets live in `SqpOptions`, below.
+There is no automatic model scaling, user Hessian or parallel callback mode.
 
 ## Results
 
 | Field | Meaning |
 | --- | --- |
-| `status` | `stub` or `cancelled` (more with real backends; `Status` is `#[non_exhaustive]`) |
+| `status` | `stub`, `cancelled`, `converged`, limits and explicit pilot failure statuses (below) |
 | `candidate` | the returned point, or `None` if no complete evaluation happened |
 | `evaluation` | `f`, `c`, `grad f`, Jacobian values, `primal_violation` and `feasible_candidate` at the candidate |
 | `multipliers` | estimates in the convention below, when the backend computes them |
 | `counts` | `functions` and `derivatives` calls, including discarded ones |
 | `iterations` | completed SQP iterations |
-| `stationarity`, `complementarity` | residuals at the candidate, when multipliers exist |
+| `stationarity`, `complementarity`, `dual_sign` | residuals at the candidate, when multipliers exist |
 | `message` | explanation of the status |
 
 `primal_violation` is the largest bound violation over variables and
@@ -155,6 +156,7 @@ flipped-sign cases.
 | `Evaluation` | `sqp_craft.EvaluationError` (a `RuntimeError`) | non-finite or wrongly sized model output |
 | `UndefinedPoint` | `sqp_craft.UndefinedPointError` (an `EvaluationError`) | model not defined at the point |
 | `Unsupported` | `NotImplementedError` | valid but unimplemented request |
+| `Backend` | `RuntimeError` | backend setup/execution failure outside numerical driver handling |
 | — | `TypeError` | wrongly typed callback results (not a 2-tuple, text, `None`, ...) |
 
 Exceptions raised by Python callbacks or the observer are re-raised unchanged,
@@ -193,7 +195,7 @@ before calling a convex backend.
 A `QpBackend` returns a `QpOutcome`: `Optimal(solution)`, `Infeasible`,
 `Unbounded`, `LimitReached(last iterate)` or `Cancelled`. Infeasibility and
 unboundedness are outcomes, not errors, because the SQP driver reacts to them
-(elastic mode or restoration; Hessian regularization). A `QpSolution` carries the
+(iteration 1 stops explicitly; restoration is deferred). A `QpSolution` carries the
 step, multipliers in the shared convention, an optional working set
 (`ActiveSet` of `Activity` per variable and row) and the iteration count.
 `QpWarmStart` may carry a step, multipliers and/or a working set; each backend
@@ -209,3 +211,80 @@ object to another thread. Data crosses the boundary by copy; this is a
 correctness-first binding, not a zero-copy array API. Its overhead should be
 measured on the real model before deciding on NumPy buffers, batched
 evaluation or process isolation.
+
+## Native method controls and behavior (0.2.0)
+
+| `SqpOptions` | Default | Meaning |
+| --- | --- | --- |
+| `max_iterations` | `100` | Accepted SQP step cap |
+| `max_backtracks` | `25` | Halvings after the first trial |
+| `max_callback_calls` | `2000` | Sum of grouped functions and derivatives calls, including failures/rejections |
+| `time_limit_seconds` | `None` | Cooperative whole-call budget after input validation |
+| `stationarity_tolerance`, `complementarity_tolerance` | `1e-6`, `1e-6` | Separate unscaled KKT thresholds |
+| `dual_sign_tolerance` | `1e-8` | Sign/residual threshold |
+| `dense_size_limit` | `256` | Configurable cap from 1 through 256 variables |
+| `initial_hessian_scale` | `1` | Positive diagonal initialization/reset scale |
+| `max_hessian_resets` | `3` | Total bounded curvature/descent resets |
+| `qp_tolerance` | `1e-10` | Clarabel solve tolerance |
+| `qp_max_iterations` | `200` | QP iteration cap per subproblem |
+| `record_qp_limit` | `0` | Opt-in original step-QP trace, at most 16 models |
+
+Tolerance/scale fields must be positive and finite; time is nonnegative and
+finite. Zero outer iterations evaluates the start but returns `iteration_limit`;
+zero callback budget performs no callback. The core `Options` feasibility
+tolerance remains the primal KKT threshold.
+
+The loop builds shifted step bounds, solves and checks the QP, and recomputes
+current NLP KKT residuals with fresh multipliers. It accepts `converged` only
+when primal, stationarity, complementarity and dual-sign tests all pass.
+The L1 merit penalty is nondecreasing, at least `1.1*norm_inf(lambda)+1`;
+Armijo constant is `1e-4` and trial steps halve. BFGS uses the same new signed
+multipliers at both endpoints, Powell damping and an SPD check. A non-descent
+prediction permits one Hessian reset/retry within the global reset budget.
+
+Statuses: `iteration_limit`, `evaluation_limit`, `time_limit`, `qp_failure`,
+`linearization_infeasible`, `line_search_failure`, `no_descent`, `stalled`,
+`numerical_failure`. Observer stop remains `cancelled`. An infeasible step QP
+does not prove NLP infeasibility. A small step alone never proves convergence.
+
+Trials stay strictly inside variable bounds. Fixed-variable step roundoff may
+be set to exact zero only within feasibility tolerance; this is counted and the
+entire QP is checked again. Other out-of-box steps are shortened or fail.
+An undefined trial consumes a call and backtracks, clearing any saved recoverable
+Python exception. Fatal exceptions preserve object identity/type/traceback.
+If a budget stops a partial trial, results keep the previous fully evaluated
+accepted point. Callbacks themselves cannot be forcibly interrupted.
+
+`RunReport` adds method/backend/raw QP status, QP solves/iterations,
+rejected/undefined trials, Hessian resets, fixed-step corrections, last accepted
+step norm, total/callback/QP/BFGS times and optional bounded QP trace. Phase
+measurements do not cover every miscellaneous driver operation. The termination
+`message` supplies the reason; unavailable residuals remain `None`.
+
+Clarabel 0.11.1 accepts SPD Hessians up to the dense cap. Lower CSR Hessian
+entries convert once to upper CSC without doubling. Lower/upper/equality cone
+rows reverse-map to the public signed multipliers. Its iteration callback polls
+cancellation and the remaining deadline. Reduced-accuracy and limited iterates
+are not accepted as steps. Supplied primal/dual/active-set QP warm starts are
+validated then rejected as unsupported; the driver intentionally starts cold.
+
+The Python adapter owns callback references, detaches for native computation,
+and reattaches on the same calling thread for each grouped callback/observer.
+No Python-bound reference spans a detached computation, and no Send/Sync bound
+is imposed on a user's Rust `NlpProblem`. Separate process workers are supported.
+
+## Derivative and residual tools
+
+`check_derivatives(spec, model, x, *, steps=(1e-4,1e-5,1e-6),
+absolute_tolerance=1e-5, relative_tolerance=1e-4, max_directions=256)` checks
+coordinate directions using central differences inside the box and one-sided
+differences at a boundary. It compares the objective and every row, including
+entries omitted from the declared Jacobian pattern. It retains the best
+resolvable estimate across step sizes and reports component errors. Fixed,
+unrepresentable and unvisited coordinates are skipped explicitly and make the
+report inconclusive, not passed. Checker callback counts are separate from
+solve counts. Domain errors during a derivative check propagate.
+
+`kkt_residuals(spec, x, evaluation, multipliers)` exposes the independent
+original-unit Rust checker. No callback is invoked by it. `Bounds.checked_violation`
+and all KKT products/differences reject nonfinite intermediate arithmetic.

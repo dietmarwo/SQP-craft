@@ -1,0 +1,134 @@
+    Finished `release` profile [optimized] target(s) in 0.02s
+     Running unittests src/lib.rs (validation/build-target/release/deps/sqp_craft-8d4a3afaef4c7434)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/derivative_check.rs (validation/build-target/release/deps/derivative_check-86e94f217fa4da71)
+
+running 2 tests
+test fixed_and_unvisited_coordinates_are_inconclusive ... ok
+test grouped_cache_order_and_injected_derivative_error ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dummy_contract.rs (validation/build-target/release/deps/dummy_contract-8fe7de3763261128)
+
+running 12 tests
+test cancellation_before_start_makes_no_call ... ok
+test cancellation_between_calls_returns_no_partial_candidate ... ok
+test cancellation_after_complete_evaluation_keeps_it_and_skips_observer ... ok
+test constraint_violation_is_reported_not_repaired ... ok
+test evaluates_start_once_in_order_and_claims_nothing ... ok
+test input_errors_take_precedence_over_cancellation ... ok
+test malformed_start_and_options_are_rejected ... ok
+test observer_error_aborts ... ok
+test model_failures_abort_with_their_kind ... ok
+test unwritten_output_entries_are_detected ... ok
+test observer_sees_start_and_can_stop ... ok
+test start_outside_variable_bounds_is_rejected_before_any_call ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/kkt_residuals.rs (validation/build-target/release/deps/kkt_residuals-27de3b28d7f2ffbb)
+
+running 5 tests
+test equality_constraint_with_correct_and_flipped_sign ... ok
+test lower_bound_activity_requires_positive_multiplier ... ok
+test upper_bound_activity_requires_negative_multiplier ... ok
+test variable_bound_multipliers_and_complementarity ... ok
+test primal_residual_and_input_checks ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/numerical_boundaries.rs (validation/build-target/release/deps/numerical_boundaries-1a1002d6fe410ed2)
+
+running 2 tests
+test raw_bounds_and_nonfinite_qp_starts_are_rejected ... ok
+test overflowing_kkt_product_does_not_disappear ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/qp_seam.rs (validation/build-target/release/deps/qp_seam-a10a4c82288174d9)
+
+running 5 tests
+test dummy_backend_never_fabricates_a_step ... ok
+test lower_triangle_expands_symmetrically ... ok
+test bound_constrained_solution_has_zero_residuals ... ok
+test validation_rejects_upper_triangle_and_shape_errors ... ok
+test row_constrained_solution_and_wrong_sign ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/spec_validation.rs (validation/build-target/release/deps/spec_validation-69eaeca7f38800d8)
+
+running 10 tests
+test accepts_free_one_sided_and_equality_rows ... ok
+test accepts_zero_constraints ... ok
+test check_point_requires_finite_in_bounds_points ... ok
+test csr_products ... ok
+test error_display_has_category ... ok
+test bound_errors_name_the_offending_entry ... ok
+test csr_invariants ... ok
+test jacobian_shape_must_match_bounds ... ok
+test rejects_zero_variables ... ok
+test violation_measures_largest_excess ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (validation/build-target/release/deps/sqp_craft_clarabel-6ef2261df0cf1705)
+
+running 1 test
+test tests::cancels_from_inside_the_running_qp_callback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/qp.rs (validation/build-target/release/deps/qp-9a419cca35ce340a)
+
+running 4 tests
+test cancellation_and_warm_start_validation ... ok
+test off_diagonal_storage_is_not_doubled ... ok
+test impossible_rows_and_zero_iteration_limit ... ok
+test signed_lower_upper_and_fixed_duals ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (validation/build-target/release/deps/sqp_craft_solver-008f3d1410fdd2c2)
+
+running 1 test
+test bfgs::tests::damping_preserves_positive_definiteness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/acceptance.rs (validation/build-target/release/deps/acceptance-738932029e27934b)
+
+running 5 tests
+test budgets_never_return_partial_trial ... ok
+test undefined_trial_is_recovered ... ok
+test observers_cancellation_and_limits ... ok
+test analytic_suite_and_signed_multipliers ... ok
+test infeasible_linearization_is_not_nonlinear_infeasibility ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sqp_craft
+
+running 1 test
+test crates/core/src/lib.rs - (line 8) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.14s; merged doctests compilation took 0.13s
+   Doc-tests sqp_craft_clarabel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sqp_craft_solver
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,68 +1,77 @@
 # SQP-craft
 
-Building blocks for a sparse sequential quadratic programming (SQP) solver in
-Rust, with Python bindings.
+A native Rust SQP iteration loop with Python bindings. **Iteration 1 / v0.2.0**
+implements damped dense BFGS, an L1 merit line search, grouped callbacks,
+independent KKT checks and Clarabel QP subproblems.
 
-> **Status: interface draft. No optimizer is implemented yet.**
-> The only backend evaluates the start point once and returns it with
-> `status == "stub"`. It exists so the problem, callback, result and
-> cancellation contracts can be exercised end to end, from Rust and from
-> Python, before a real SQP backend is integrated.
+This is a bounded analytic research pilot: **at most 256 variables**, one
+thread per solve, positive-definite QPs and cold QP starts. Sparse input is
+supported; the BFGS matrix is dense. There is no restoration or automatic
+scaling, and a nonlinear feasible problem can have an infeasible linearization.
 
-## What is here
-
-| Component | Purpose |
-| --- | --- |
-| `crates/core` (`sqp-craft`) | Dependency-free Rust contracts: validated `ProblemSpec`, the `NlpProblem` callback trait, `SqpSolver`/`Observer` traits, typed results, KKT residuals, a provisional QP-subproblem seam, and `DummySolver` |
-| `crates/python` | PyO3 extension module `sqp_craft._native` |
-| `python/sqp_craft` | Typed Python API (`solve`, `ProblemSpec`, `Options`, result dataclasses) |
-| `docs/api.md` | The contract: data conventions, callback guarantees, statuses, errors |
-| `docs/design-notes.md` | Decisions, what is deferred, and the next steps |
-| `docs/target-card.md` | Application inputs still to be supplied (left TBD on purpose) |
-
-## Python example
+## Use from Python
 
 ```python
-from sqp_craft import ProblemSpec, solve
+from sqp_craft import ProblemSpec, SqpOptions, check_derivatives, solve
 
 class Toy:
-    """minimize (x0-1)^2 + (x1-2)^2  subject to  x0 + x1 = 3,  0 <= x <= 4"""
-    def functions(self, x):            # -> (objective, constraint values)
-        return (x[0] - 1) ** 2 + (x[1] - 2) ** 2, [x[0] + x[1]]
-    def derivatives(self, x):          # -> (gradient, Jacobian values in CSR order)
-        return [2 * (x[0] - 1), 2 * (x[1] - 2)], [1.0, 1.0]
+    def functions(self, x):
+        return (x[0]-1)**2 + (x[1]-2)**2, [x[0]+x[1]]
+    def derivatives(self, x):
+        return [2*(x[0]-1), 2*(x[1]-2)], [1.0, 1.0]
 
 spec = ProblemSpec(lower=[0, 0], upper=[4, 4],
                    constraint_lower=[3], constraint_upper=[3],
                    jacobian_indptr=[0, 2], jacobian_indices=[0, 1])
-result = solve(spec, Toy(), [1.0, 2.0], observer=print)
-assert result.status == "stub"          # never a convergence claim
+assert check_derivatives(spec, Toy(), [0.5, 0.5]).passed
+result = solve(spec, Toy(), [0.5, 0.5], method="sqp",
+               method_options=SqpOptions(max_iterations=100))
+assert result.status == "converged"
+print(result.candidate, result.stationarity, result.report)
 ```
 
-Callbacks may return lists, tuples or 1-D NumPy arrays. The Rust equivalent is
-in the crate documentation (`cargo doc --open -p sqp-craft`) and in
-`crates/core/examples/toy.rs`.
+Select `method="sqp"` explicitly. The compatibility default `"dummy"` evaluates
+only the start and returns `"stub"`. Convergence requires all four first-order
+residual tests; it does not establish a global minimum.
+
+## Layout
+
+| Path | Role |
+| --- | --- |
+| `crates/core` | Dependency-free contracts, KKT checks, derivative checker and dummy |
+| `crates/clarabel` | Clarabel 0.11.1 QP adapter with signed-dual mapping and cancellation |
+| `crates/sqp` | Native SQP driver, damped BFGS and acceptance tests |
+| `crates/python`, `python/sqp_craft` | Owned PyO3 callbacks, typed facade and stub |
+| `examples/solve_sqp.py`, `crates/sqp/examples/solve.rs` | Real Python and Rust solves |
+| `examples/compare_baseline.py` | Independent analytic comparison against SciPy SLSQP |
+| [docs/api.md](docs/api.md) | Callback, QP, options, result and exception contracts |
+| [docs/iteration-1-results.md](docs/iteration-1-results.md) | Implemented plan, validation and pilot limitations |
 
 ## Build and test
 
-Requirements: stable Rust (edition 2024, 1.85 or newer), a C linker, and
-CPython 3.10 or newer. No external optimization libraries are needed.
+Requires Rust **1.85+**, Python **3.10+** and a C linker. The selected QP backend
+is Rust code and requires no external optimizer, BLAS, CMake or libclang.
+Cargo.lock pins the dependency graph.
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-python -m pip install 'maturin>=1.9.4,<2' pytest numpy
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install 'maturin>=1.9.4,<2' pytest numpy patchelf
 bash scripts/check.sh
+PYO3_BUILD_EXTENSION_MODULE=1 python -m maturin build --release --locked
+# Optional independent analytic comparison
+python -m pip install 'scipy>=1.15,<2'
+python examples/compare_baseline.py > baseline.json
 ```
 
-`scripts/check.sh` runs `cargo fmt --check`, `cargo clippy -D warnings`,
-`cargo test`, builds the extension with `maturin develop`, then runs `pytest`
-and both examples. `python -m pip install .` builds and installs the package;
-`python -m maturin build --release` builds an abi3 wheel. The core crate is
-usable without Python: `cargo test -p sqp-craft`.
+`scripts/check.sh` runs formatting, Clippy, release tests, Rust examples,
+compiled Python tests and Python examples. `cargo test -p sqp-craft --locked`
+tests the contracts without the solver. For a dummy-only extension add
+`--no-default-features` to maturin. Missing native support raises an explicit error.
 
-The binding crate has no Rust test executable (it would need to link
-libpython); it is tested through pytest against the compiled module.
+CI defines Linux/macOS/Windows Python jobs. This archive was validated on Linux,
+not the complete CI matrix. No package is published (`publish = false`).
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Project code is MIT; see [LICENSE](LICENSE) and [docs/dependencies.md](docs/dependencies.md).

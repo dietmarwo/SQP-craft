@@ -44,6 +44,11 @@ impl SqpSolver for DummySolver {
         spec.check_point(x0, "start point")?;
 
         let mut result = SolveResult {
+            report: crate::RunReport {
+                method: "dummy".into(),
+                ..Default::default()
+            },
+            dual_sign: None,
             status: Status::Cancelled,
             candidate: None,
             evaluation: None,
@@ -76,8 +81,8 @@ impl SqpSolver for DummySolver {
 
         let primal_violation = spec
             .variables()
-            .violation(x0)
-            .max(spec.constraints().violation(&constraints));
+            .checked_violation(x0)?
+            .max(spec.constraints().checked_violation(&constraints)?);
         result.candidate = Some(x0.to_vec());
         result.evaluation = Some(Evaluation {
             objective,

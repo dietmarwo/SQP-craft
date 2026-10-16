@@ -153,6 +153,9 @@ impl QpModel {
         self.matrix
             .pattern
             .multiply(&self.matrix.values, &solution.step, &mut rows);
+        for &v in gradient.iter().chain(&rows) {
+            crate::error::finite(v, "QP residual arithmetic")?;
+        }
         residuals(
             &KktPoint {
                 x: &solution.step,
@@ -209,6 +212,18 @@ pub struct QpWarmStart {
 impl QpWarmStart {
     /// Checks lengths against a QP with `n` variables and `m` rows.
     pub fn validate(&self, n: usize, m: usize) -> Result<()> {
+        for values in [
+            self.step.as_deref(),
+            self.multipliers.as_ref().map(|m| m.variables.as_slice()),
+            self.multipliers.as_ref().map(|m| m.constraints.as_slice()),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            ensure(values.iter().all(|v| v.is_finite()), || {
+                "QP warm start contains nonfinite values".into()
+            })?;
+        }
         if let Some(step) = &self.step {
             ensure(step.len() == n, || {
                 format!(
@@ -269,6 +284,15 @@ pub enum QpOutcome {
 
 /// A QP subproblem solver.
 pub trait QpBackend {
+    /// Configure tolerances and per-call budgets. Unsupported by the dummy.
+    fn configure(&mut self, _options: &QpOptions) -> Result<()> {
+        Err(Error::Unsupported("QP options are not implemented".into()))
+    }
+    /// Engine identity and last termination details.
+    fn report(&self) -> QpReport {
+        QpReport::default()
+    }
+
     /// Solves `model`. [`Error`] is reserved for invalid input and backend
     /// failures; see [`QpOutcome`] for regular outcomes.
     fn solve(
@@ -299,4 +323,56 @@ impl QpBackend for DummyQp {
             "DummyQp is an interface placeholder; no QP backend is implemented".into(),
         ))
     }
+}
+
+/// Per-call configuration for a convex QP backend.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QpOptions {
+    /// Native feasibility and gap tolerances.
+    pub tolerance: f64,
+    /// Independent residual acceptance tolerance.
+    pub acceptance_tolerance: f64,
+    /// Iteration budget.
+    pub max_iterations: u32,
+    /// Remaining cooperative time budget, including setup.
+    pub time_limit_seconds: Option<f64>,
+}
+impl Default for QpOptions {
+    fn default() -> Self {
+        Self {
+            tolerance: 1e-10,
+            acceptance_tolerance: 1e-7,
+            max_iterations: 200,
+            time_limit_seconds: None,
+        }
+    }
+}
+impl QpOptions {
+    /// Validate before backend allocation or cancellation.
+    pub fn validate(&self) -> Result<()> {
+        ensure(
+            self.tolerance.is_finite()
+                && self.tolerance > 0.0
+                && self.acceptance_tolerance.is_finite()
+                && self.acceptance_tolerance > 0.0,
+            || "QP tolerances must be positive and finite".into(),
+        )?;
+        ensure(
+            self.time_limit_seconds
+                .is_none_or(|s| s.is_finite() && s >= 0.0),
+            || "QP time budget must be finite and nonnegative".into(),
+        )
+    }
+}
+/// Details not represented by the backend-neutral outcome enum.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct QpReport {
+    /// Engine and version.
+    pub backend: String,
+    /// Native termination status.
+    pub raw_status: Option<String>,
+    /// If limited, time or iterations.
+    pub limit_reason: Option<String>,
+    /// Iterations including unsuccessful calls.
+    pub iterations: u64,
 }

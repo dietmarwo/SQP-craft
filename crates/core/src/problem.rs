@@ -38,6 +38,9 @@ use crate::error::Result;
 /// is mutable and local to one solve. Parallel strategies run independent
 /// solves with independent model instances.
 pub trait NlpProblem {
+    /// A line search consumed an UndefinedPoint error; release its pending exception state.
+    fn discard_undefined(&mut self) {}
+
     /// Evaluates the objective `f(x)`, returned, and the constraints `c(x)`,
     /// written to `constraints` (length `m`).
     fn functions(&mut self, x: &[f64], constraints: &mut [f64]) -> Result<f64>;

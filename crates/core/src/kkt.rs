@@ -100,8 +100,8 @@ pub fn residuals(point: &KktPoint<'_>, multipliers: &Multipliers) -> Result<KktR
 
     let primal = point
         .variable_bounds
-        .violation(point.x)
-        .max(point.row_bounds.violation(point.rows));
+        .checked_violation(point.x)?
+        .max(point.row_bounds.checked_violation(point.rows)?);
 
     let mut jt_lambda = vec![0.0; n];
     point.jacobian.multiply_transpose(
@@ -109,9 +109,16 @@ pub fn residuals(point: &KktPoint<'_>, multipliers: &Multipliers) -> Result<KktR
         &multipliers.constraints,
         &mut jt_lambda,
     );
-    let stationarity = (0..n)
-        .map(|j| (point.gradient[j] - jt_lambda[j] - multipliers.variables[j]).abs())
-        .fold(0.0_f64, f64::max);
+    let mut stationarity = 0.0_f64;
+    for (j, &jt) in jt_lambda.iter().enumerate() {
+        crate::error::finite(jt, "transpose product")?;
+        let value = crate::error::finite(
+            crate::error::finite(point.gradient[j] - jt, "stationarity")?
+                - multipliers.variables[j],
+            "stationarity",
+        )?;
+        stationarity = stationarity.max(value.abs());
+    }
 
     let mut complementarity = 0.0_f64;
     let mut dual_sign = 0.0_f64;
@@ -123,13 +130,19 @@ pub fn residuals(point: &KktPoint<'_>, multipliers: &Multipliers) -> Result<KktR
             let (v, l, u, mu) = (values[i], bounds.lower[i], bounds.upper[i], mu[i]);
             if mu > 0.0 {
                 if l.is_finite() {
-                    complementarity = complementarity.max(mu * (v - l).abs());
+                    complementarity = complementarity.max(crate::error::finite(
+                        mu * crate::error::finite(v - l, "lower complementarity distance")?.abs(),
+                        "complementarity",
+                    )?);
                 } else {
                     dual_sign = dual_sign.max(mu);
                 }
             } else if mu < 0.0 {
                 if u.is_finite() {
-                    complementarity = complementarity.max(-mu * (u - v).abs());
+                    complementarity = complementarity.max(crate::error::finite(
+                        -mu * crate::error::finite(u - v, "upper complementarity distance")?.abs(),
+                        "complementarity",
+                    )?);
                 } else {
                     dual_sign = dual_sign.max(-mu);
                 }

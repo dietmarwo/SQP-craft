@@ -23,6 +23,8 @@ pub enum Error {
     UndefinedPoint(String),
     /// A well-formed request that this component does not implement.
     Unsupported(String),
+    /// Native backend setup or execution failed.
+    Backend(String),
 }
 
 impl fmt::Display for Error {
@@ -32,6 +34,7 @@ impl fmt::Display for Error {
             Error::Evaluation(m) => write!(f, "evaluation failed: {m}"),
             Error::UndefinedPoint(m) => write!(f, "model undefined at point: {m}"),
             Error::Unsupported(m) => write!(f, "unsupported: {m}"),
+            Error::Backend(m) => write!(f, "backend failed: {m}"),
         }
     }
 }
@@ -45,7 +48,8 @@ impl Error {
             Error::InvalidInput(m)
             | Error::Evaluation(m)
             | Error::UndefinedPoint(m)
-            | Error::Unsupported(m) => m,
+            | Error::Unsupported(m)
+            | Error::Backend(m) => m,
         }
     }
 }
@@ -69,4 +73,15 @@ pub(crate) fn first_non_finite(values: &[f64]) -> Option<(usize, f64)> {
         .copied()
         .enumerate()
         .find(|(_, v)| !v.is_finite())
+}
+
+/// Rejects nonfinite intermediate arithmetic before it can disappear in a maximum.
+pub(crate) fn finite(value: f64, what: &str) -> Result<f64> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(Error::Evaluation(format!(
+            "{what} overflowed or became nonfinite"
+        )))
+    }
 }
