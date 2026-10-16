@@ -1,7 +1,7 @@
 """Random feasible problems: sqp-craft with and without restoration, and SciPy SLSQP.
 
     pip install '.[bench]'
-    python examples/stress_random.py [--seed S] [--count N] [--table]
+    python examples/stress_random.py [--seed S] [--count N] [--reuse-workspace] [--table]
 
 Each problem minimizes ||x - target||^2 on [-2, 2]^n (n = 2..7) subject to
 1-3 equality rows and 0-3 upper-bounded rows of the form
@@ -61,16 +61,17 @@ def first_order_ok(check) -> bool:
                 and check["complementarity"] <= cb.COMPLEMENTARITY and check["dual_sign"] <= cb.SIGN)
 
 
-def run(seed: int, count: int):
+def run(seed: int, count: int, reuse_workspace: bool = False):
     rng = np.random.default_rng(seed)
     tally = collections.Counter()
     false_claims = []
     for k in range(count):
         spec, model, start = problem(rng)
         case = cb.Case("random", spec, model, start, 0.0, math.inf)
-        for label, settings in (("sqp-craft", SqpOptions(max_iterations=300)),
+        for label, settings in (("sqp-craft", SqpOptions(max_iterations=300, qp_reuse_workspace=reuse_workspace)),
                                 ("sqp-craft, restoration off",
-                                 SqpOptions(max_iterations=300, max_restoration_steps=0))):
+                                 SqpOptions(max_iterations=300, max_restoration_steps=0,
+                                            qp_reuse_workspace=reuse_workspace))):
             r = solve(spec, model(), start, method="sqp", method_options=settings)
             ok = first_order_ok(cb.evaluate(case, r.candidate, r.multipliers)
                                 if r.candidate is not None else None)
@@ -86,11 +87,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--count", type=int, default=300)
+    parser.add_argument("--reuse-workspace", action="store_true")
     parser.add_argument("--table", action="store_true", help="print a Markdown table")
     args = parser.parse_args()
-    tally, false_claims = run(args.seed, args.count)
+    tally, false_claims = run(args.seed, args.count, args.reuse_workspace)
     if args.table:
-        print(f"Seed {args.seed}, {args.count} problems.\n")
+        print(f"Seed {args.seed}, {args.count} problems, workspace reuse {'on' if args.reuse_workspace else 'off'}.\n")
         print("| Solver | Status | Independently accepted | Count |")
         print("| --- | --- | :---: | ---: |")
     for (solver, status, ok), n in sorted(tally.items(), key=lambda kv: (kv[0][0], -kv[1])):

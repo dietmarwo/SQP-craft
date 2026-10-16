@@ -79,6 +79,8 @@ pub struct SqpOptions {
     pub qp_tolerance: f64,
     /// Iteration cap per QP.
     pub qp_max_iterations: u32,
+    /// Opt in to compatible QP workspace reuse (not a primal/dual warm start).
+    pub qp_reuse_workspace: bool,
     /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
@@ -106,6 +108,7 @@ impl Default for SqpOptions {
             max_hessian_resets: 3,
             qp_tolerance: 1e-10,
             qp_max_iterations: 200,
+            qp_reuse_workspace: false,
             record_qp_limit: 0,
             record_history: false,
             max_restoration_steps: 10,
@@ -187,6 +190,20 @@ fn dot(a: &[f64], b: &[f64]) -> Result<f64> {
 
 fn norm_inf(v: &[f64]) -> f64 {
     v.iter().fold(0.0_f64, |a, b| a.max(b.abs()))
+}
+
+fn record_qp_work(run: &mut sqp_craft::RunReport, qp: &sqp_craft::qp::QpReport) {
+    run.qp_setups += qp.setups;
+    run.qp_updates += qp.updates;
+    run.qp_cold_retries += qp.cold_retries;
+    if qp.retry_reason.is_some() {
+        run.qp_retry_reason.clone_from(&qp.retry_reason);
+    }
+    run.qp_conversion_seconds += qp.conversion_seconds;
+    run.qp_setup_seconds += qp.setup_seconds;
+    run.qp_update_seconds += qp.update_seconds;
+    run.qp_solve_seconds += qp.solve_seconds;
+    run.qp_check_seconds += qp.check_seconds;
 }
 
 /// `Σ weights_i · (max(0, lower_i − v_i) + max(0, v_i − upper_i))` over finite sides.
@@ -571,6 +588,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 .time_limit_seconds
                 .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0));
             self.qp.configure(&QpOptions {
+                reuse_workspace: settings.qp_reuse_workspace,
                 tolerance: settings.qp_tolerance,
                 acceptance_tolerance: qp_acceptance,
                 max_iterations: settings.qp_max_iterations,
@@ -581,6 +599,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             let outcome = self.qp.solve(&qp, None, cancel);
             r.report.qp_seconds += t.elapsed().as_secs_f64();
             let report = self.qp.report();
+            record_qp_work(&mut r.report, &report);
             r.report.qp_backend = report.backend;
             r.report.qp_status = report.raw_status;
             r.report.qp_iterations += report.iterations;

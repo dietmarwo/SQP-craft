@@ -1,6 +1,6 @@
 # Contract: problem, callbacks, solver, results
 
-Version 0.3.0. Interfaces are pre-release; `publish = false` prevents
+Version 0.4.0. Interfaces are pre-release; `publish = false` prevents
 accidental releases.
 
 ## The problem
@@ -115,7 +115,8 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `initial_hessian_scale` | `1` | `B = scale·I` initially and after a reset |
 | `max_hessian_resets` | `3` | Total resets (failed BFGS updates and non-descent retries) |
 | `qp_tolerance` | `1e-10` | Clarabel's native tolerances |
-| `qp_max_iterations` | `200` | Per QP |
+| `qp_max_iterations` | `200` | Per QP, shared across a reused attempt and its cold retry |
+| `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below |
 | `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
@@ -270,7 +271,8 @@ both symmetric positions and is not doubled. Validation checks structure, not
 positive semidefiniteness.
 
 A `QpBackend` is configured per call with `QpOptions` (native tolerance,
-acceptance tolerance, iteration cap, remaining time) and returns a `QpOutcome`:
+acceptance tolerance, iteration cap, remaining time and `reuse_workspace`)
+and returns a `QpOutcome`:
 `Optimal(solution)`, `Infeasible`, `Unbounded`, `LimitReached(last iterate)` or
 `Cancelled`; `report()` gives the backend name, raw status, limit kind and
 iterations. Infeasibility and unboundedness are outcomes, not errors. A
@@ -305,6 +307,64 @@ deadline. A `Solved` result is kept even if the deadline passed during the
 solve; reduced-accuracy (`AlmostSolved`) and limited iterates are never used as
 steps. HiGHS was probed first (see the results document); it lacks a user
 interruption callback in its QP solver.
+
+### QP workspace reuse
+
+Set `SqpOptions.qp_reuse_workspace=True` in Python (`true` in Rust), or
+`QpOptions.reuse_workspace=true` at the backend seam. Both default to false.
+This retains one compatible workspace per `ClarabelQp` instance. Python
+`solve` creates a fresh backend for each NLP solve; Rust callers may reuse
+their backend across solves. A cloned backend starts with an empty cache.
+There is no shared global cache.
+
+Compatibility requires identical dimensions (including original row count),
+P/A CSC index patterns, ordered cone types and signed original-row/variable
+mapping. Numeric P, q, A and b are replaced completely on every hit, including
+explicit structural zeros. Equality, finite-side, sparsity and dimension
+changes rebuild the workspace. The ordinary/restoration transition usually
+changes that key. A solver whose presolve changed its structure is not cached;
+the adapter keeps Clarabel's existing presolve and equilibration defaults.
+
+Reuse retains allocations, symbolic structure and the initial equilibration.
+Clarabel still resets its primal/dual starting point and recomputes numerical
+factors; supplied warm starts remain unsupported. Retained equilibration can
+change conditioning and iteration trajectories, so enabling reuse does not
+promise identical results or faster execution on every problem.
+
+A failed numeric update discards the possibly partially updated workspace.
+A reused result that fails the independent QP check, or returns an unsuccessful
+status including infeasibility, gets at most one fresh setup/solve. Thus a reused
+infeasibility status alone cannot trigger restoration. Cancellation and
+time/iteration limits stop immediately. Both attempts share the per-call QP
+iteration budget and remaining cooperative time budget, including conversion,
+setup and updates. Settings and the cancellation/deadline callback are replaced
+before every engine call, and no callback is retained after it. Unsuccessful
+solves are not cached. An accepted result retains the existing solved-at-deadline
+semantics described above.
+
+`QpReport` exposes per-call diagnostics; `RunReport` aggregates ordinary and
+restoration calls under these names (the Python report has the same fields):
+
+| `RunReport` field | Meaning |
+| --- | --- |
+| `qp_setups` | Fresh engine setup attempts, including cold retries |
+| `qp_updates` | Successful complete numeric updates; a later stop can precede the engine solve |
+| `qp_cold_retries` | Fresh retry setups actually started after a failed update or reused result |
+| `qp_retry_reason` | Most recent reason requesting a cold retry, even if the remaining budget prevented it; otherwise `None` |
+| `qp_conversion_seconds` | Matrix/cone conversion and positive-definiteness check |
+| `qp_setup_seconds` | Fresh engine construction |
+| `qp_update_seconds` | Numeric updates, including failed updates |
+| `qp_solve_seconds` | Engine solve time across all attempts |
+| `qp_check_seconds` | Backend solution extraction and independent acceptance checking |
+
+Per-QP names omit the `qp_` prefix (`setups`, `updates`, and so on).
+`qp_solves` still counts backend calls; `qp_iterations` and the final
+`QpSolution.iterations` include both engine attempts. `qp_status` is the most
+recent native status; `qp_retry_reason` preserves why a retry was requested.
+The new phase timers are disjoint subsets of inclusive `qp_seconds`; input
+validation, structural matching and other overhead explain their difference.
+Dummy reports have zero counters/times and no retry reason. Timing is diagnostic,
+not a deterministic API guarantee.
 
 ## Errors
 

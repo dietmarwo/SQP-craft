@@ -219,11 +219,12 @@ def evaluate(case: Case, x, multipliers=None) -> dict:
                 objective_error=float(objective_error), accepted=bool(accepted))
 
 
-def run_sqp_craft(case: Case) -> dict:
+def run_sqp_craft(case: Case, *, reuse_workspace: bool = False) -> dict:
     model = Counted(case.make_model())
     began = perf_counter()
     r = solve(case.spec, model, case.start, method="sqp",
               method_options=SqpOptions(max_iterations=case.max_iterations,
+                                        qp_reuse_workspace=reuse_workspace,
                                         max_callback_calls=20 * case.max_iterations + 100))
     seconds = perf_counter() - began
     check = evaluate(case, r.candidate, r.multipliers) if r.candidate is not None else None
@@ -231,7 +232,13 @@ def run_sqp_craft(case: Case) -> dict:
                 functions=model.functions_calls, derivatives=model.derivatives_calls,
                 restoration_steps=r.report.restoration_steps,
                 restoration_attempts=r.report.restoration_attempts,
-                qp_solves=r.report.qp_solves, check=check)
+                qp_solves=r.report.qp_solves, qp_iterations=r.report.qp_iterations,
+                qp_setups=r.report.qp_setups, qp_updates=r.report.qp_updates,
+                qp_cold_retries=r.report.qp_cold_retries,
+                phases={name: getattr(r.report, name) for name in (
+                    "total_seconds", "callback_seconds", "bfgs_seconds", "qp_seconds",
+                    "qp_conversion_seconds", "qp_setup_seconds", "qp_update_seconds",
+                    "qp_solve_seconds", "qp_check_seconds")}, check=check)
 
 
 def run_slsqp(case: Case) -> dict:

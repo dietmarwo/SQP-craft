@@ -297,6 +297,24 @@ pub struct RunReport {
     pub callback_seconds: f64,
     /// QP conversion, solve and check time.
     pub qp_seconds: f64,
+    /// Fresh QP engine setup attempts.
+    pub qp_setups: u64,
+    /// Successful numeric QP workspace updates.
+    pub qp_updates: u64,
+    /// Fresh retries after a failed update or reused solve.
+    pub qp_cold_retries: u64,
+    /// Last reason requesting a QP cold retry, even if its budget was exhausted.
+    pub qp_retry_reason: Option<String>,
+    /// QP conversion and positive-definiteness validation time.
+    pub qp_conversion_seconds: f64,
+    /// Fresh QP engine setup time.
+    pub qp_setup_seconds: f64,
+    /// QP numeric data update time.
+    pub qp_update_seconds: f64,
+    /// QP engine solve time, including retries.
+    pub qp_solve_seconds: f64,
+    /// Independent backend QP acceptance-check time.
+    pub qp_check_seconds: f64,
     /// BFGS and positive-definiteness-check time.
     pub bfgs_seconds: f64,
     /// Optional bounded history in original step coordinates.

@@ -460,6 +460,9 @@ fn solve_native<'py>(
                             }
                             "qp_tolerance" => settings.qp_tolerance = value.extract()?,
                             "qp_max_iterations" => settings.qp_max_iterations = value.extract()?,
+                            "qp_reuse_workspace" => {
+                                settings.qp_reuse_workspace = value.extract()?
+                            }
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
                             "record_history" => settings.record_history = value.extract()?,
                             "max_restoration_steps" => {
@@ -526,6 +529,15 @@ fn solve_native<'py>(
     report.set_item("total_seconds", r.report.total_seconds)?;
     report.set_item("callback_seconds", r.report.callback_seconds)?;
     report.set_item("qp_seconds", r.report.qp_seconds)?;
+    report.set_item("qp_setups", r.report.qp_setups)?;
+    report.set_item("qp_updates", r.report.qp_updates)?;
+    report.set_item("qp_cold_retries", r.report.qp_cold_retries)?;
+    report.set_item("qp_retry_reason", &r.report.qp_retry_reason)?;
+    report.set_item("qp_conversion_seconds", r.report.qp_conversion_seconds)?;
+    report.set_item("qp_setup_seconds", r.report.qp_setup_seconds)?;
+    report.set_item("qp_update_seconds", r.report.qp_update_seconds)?;
+    report.set_item("qp_solve_seconds", r.report.qp_solve_seconds)?;
+    report.set_item("qp_check_seconds", r.report.qp_check_seconds)?;
     report.set_item("bfgs_seconds", r.report.bfgs_seconds)?;
     let trace = PyList::empty(py);
     for q in &r.report.qp_trace {

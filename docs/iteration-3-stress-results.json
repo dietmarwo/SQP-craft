@@ -1,0 +1,404 @@
+{
+  "version": "0.4.0",
+  "base_commit": "214f93b0ec0cf407f62fd01ef23df90c7a81fe5c",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.39",
+  "seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "cases_per_seed": 300,
+  "thresholds": {
+    "primal": 1e-07,
+    "stationarity": 1e-06,
+    "complementarity": 1e-06,
+    "dual_sign": 1e-08
+  },
+  "runs": [
+    {
+      "reuse_workspace": false,
+      "seed": 1,
+      "count": 300,
+      "seconds": 1.433978921995731,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 292
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 8
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 296
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 3
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 1
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 232
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 68
+        }
+      ]
+    },
+    {
+      "reuse_workspace": false,
+      "seed": 2,
+      "count": 300,
+      "seconds": 1.3867163469985826,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 287
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 13
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 296
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 3
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 1
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 242
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 58
+        }
+      ]
+    },
+    {
+      "reuse_workspace": false,
+      "seed": 3,
+      "count": 300,
+      "seconds": 1.3289890010055387,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 292
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 8
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 295
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 5
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 242
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 58
+        }
+      ]
+    },
+    {
+      "reuse_workspace": false,
+      "seed": 4,
+      "count": 300,
+      "seconds": 1.415063893997285,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 294
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 6
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 299
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 1
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 254
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 46
+        }
+      ]
+    },
+    {
+      "reuse_workspace": true,
+      "seed": 1,
+      "count": 300,
+      "seconds": 1.1719287739979336,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 292
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 8
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 296
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 3
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 1
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 232
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 68
+        }
+      ]
+    },
+    {
+      "reuse_workspace": true,
+      "seed": 2,
+      "count": 300,
+      "seconds": 1.373688025996671,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 287
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 13
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 296
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 3
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 1
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 242
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 58
+        }
+      ]
+    },
+    {
+      "reuse_workspace": true,
+      "seed": 3,
+      "count": 300,
+      "seconds": 1.2357693840021966,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 292
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 8
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 295
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 5
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 242
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 58
+        }
+      ]
+    },
+    {
+      "reuse_workspace": true,
+      "seed": 4,
+      "count": 300,
+      "seconds": 1.205635317004635,
+      "false_convergence": [],
+      "outcomes": [
+        {
+          "solver": "scipy-SLSQP",
+          "status": "accepted",
+          "accepted": null,
+          "count": 294
+        },
+        {
+          "solver": "scipy-SLSQP",
+          "status": "not accepted",
+          "accepted": null,
+          "count": 6
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "converged",
+          "accepted": true,
+          "count": 299
+        },
+        {
+          "solver": "sqp-craft",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 1
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "converged",
+          "accepted": true,
+          "count": 254
+        },
+        {
+          "solver": "sqp-craft, restoration off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 46
+        }
+      ]
+    }
+  ]
+}

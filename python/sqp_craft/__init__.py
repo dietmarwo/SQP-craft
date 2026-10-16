@@ -33,7 +33,7 @@ from ._native import check_derivatives as _check_derivatives
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "Cancellation",
@@ -129,6 +129,8 @@ class SqpOptions:
     """Native tolerance of the QP backend."""
     qp_max_iterations: int = 200
     """Iteration cap per QP."""
+    qp_reuse_workspace: bool = False
+    """Opt in to compatible workspace reuse; primal/dual iterates still start cold."""
     record_qp_limit: int = 0
     """Number of step QPs to keep in ``report.qp_trace`` (at most 16)."""
     max_restoration_steps: int = 10
@@ -229,6 +231,15 @@ class RunReport:
     total_seconds: float
     callback_seconds: float
     qp_seconds: float
+    qp_setups: int
+    qp_updates: int
+    qp_cold_retries: int
+    qp_retry_reason: Optional[str]
+    qp_conversion_seconds: float
+    qp_setup_seconds: float
+    qp_update_seconds: float
+    qp_solve_seconds: float
+    qp_check_seconds: float
     bfgs_seconds: float
     qp_trace: list[dict[str, Any]]
     history: list[IterationRecord]

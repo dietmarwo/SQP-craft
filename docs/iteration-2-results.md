@@ -1,7 +1,8 @@
 # Iteration 2 results — bounded feasibility restoration
 
-Version 0.3.0 · 16 October 2026 UTC.
-[Plan](iteration-2-plan.md) · [API](api.md) · [Validation](validation.md).
+Version 0.3.0 · 16 October 2026 UTC. Historical iteration 2 record;
+this work was subsequently merged and reviewed on `main` at `214f93b`.
+[Plan](iteration-2-plan.md) · [API](api.md) · [Validation](iteration-2-validation.md).
 
 ## Repository review and baseline
 
