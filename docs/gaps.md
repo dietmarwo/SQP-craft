@@ -1,0 +1,92 @@
+# Gaps compared with mature SQP codes
+
+16 October 2026, version 0.14.0 (the reviewed performance release). The
+comparison is with SNOPT, filterSQP, NLPQL and SLSQP, and for
+second-derivative use also with the IPOPT, WORHP and KNITRO family. It is
+ranked by expected impact on the target use, trajectory transcriptions.
+Measurements come from this repository's fixtures; statements about other
+codes describe their published methods, not runs made here.
+
+## 1. QP subproblems: cold interior point on a dense Hessian
+
+Every step QP is solved from scratch by Clarabel's interior-point method.
+
+- **Measured:** about 8–9 interior-point iterations per QP, each factorizing a
+  KKT system that contains the dense n × n BFGS block. That is 85–93% of run
+  time on the orbit fixture, about 1.1 ms per factorization at n = 164
+  (`docs/iteration-3-results.md`, `docs/performance/README.md`). Workspace
+  reuse removes only the setup.
+- **Others:** active-set QP solvers (SQOPT in SNOPT, the LSQ solver in SLSQP)
+  start from the previous working set. Near convergence that set rarely
+  changes, so a QP often costs one or two factor updates.
+- **Side effects:** interior-point solutions stop slightly short of active
+  bounds. That causes the noise-level predicted-decrease cases handled in
+  iteration 2, and no clean active set is ever available.
+
+## 2. Curvature: dense full-space damped BFGS
+
+- **Measured:** O(n²) memory and O(n³) work per QP, hence the 256-variable
+  cap. The curvature is learned from scratch: 167 major iterations for 164
+  variables, about the same as SLSQP's 180 with the same approach.
+- **Others:** SNOPT uses limited-memory updates. IPOPT, WORHP and KNITRO can
+  use exact sparse Hessians. Collocation problems have very sparse
+  Hessians, and with exact second derivatives they typically converge in a
+  few dozen iterations, independent of n.
+
+## 3. Globalization: L1 merit, backtracking, no second-order correction
+
+On curved equality constraints near a solution, an L1 merit line search can
+reject or shorten good steps (the Maratos effect). SNOPT uses an
+augmented-Lagrangian merit function; filterSQP uses a filter with trust
+regions. Neither a second-order correction nor a watchdog is implemented
+here.
+
+## 4. Inconsistent linearizations: separate restoration mode
+
+The bounded Gauss–Newton restoration is a separate mode that can stall at
+infeasible stationary points of the constraint violation.
+
+- **Measured:** 14 of 1,200 stress problems fail this way (SLSQP fails 12 of
+  the same 14).
+- **Others:** SNOPT's elastic mode puts an ℓ1 penalty on the constraints
+  inside the QP itself, so the subproblem is always feasible and the
+  transition is smooth.
+
+## 5. No automatic scaling
+
+Tolerances are absolute and in original units. The orbit fixture is well
+scaled. Real trajectory models, with times, masses and angles in very
+different units, usually are not. SNOPT and IPOPT scale variables and
+constraints by default.
+
+## 6. Thin external evidence
+
+The only external comparison is SciPy SLSQP: 13 cases, one random problem
+family and the orbit transfer. The mature codes are tuned on CUTEst-scale
+test sets, and the failure profile on degenerate, badly scaled or large
+problems here is unknown. Some weaknesses may not be on this list yet.
+
+## What to keep
+
+These properties should survive every change:
+
+- independent original-unit KKT verification of every convergence claim;
+- statuses that never claim more than was shown (no infeasibility claim
+  from restoration, no optimality certificate);
+- reproducible evidence for every change.
+
+## Order of work
+
+1. **A dense, warm-startable dual active-set QP** (Goldfarb–Idnani) on the
+   Cholesky factor of B, for n ≤ 256. It addresses gap 1 directly, gives
+   exact active sets, and folds the positive-definiteness check into the
+   factorization the method needs anyway. In progress:
+   [active-set QP](active-set-qp.md).
+2. Elastic mode on top of the active-set solver (gap 4).
+3. A second-order correction or watchdog (gap 3).
+4. Automatic scaling, measured on the target application once its data
+   exists (gap 5).
+5. Sparse or limited-memory curvature with a sparse QP when the application
+   needs more than a few hundred variables (gap 2).
+6. A CUTEst subset through a Python interface, to measure gaps 3–5 instead
+   of reasoning about them (gap 6).
