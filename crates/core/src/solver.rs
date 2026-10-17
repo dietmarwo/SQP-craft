@@ -301,6 +301,10 @@ pub struct RunReport {
     /// Times the elastic weight was multiplied by ten at a stationary point of
     /// the ℓ1 penalty with violated constraints.
     pub elastic_weight_increases: u64,
+    /// Second-order corrections evaluated after a rejected full step.
+    pub second_order_corrections: u64,
+    /// Second-order corrections accepted as the step.
+    pub second_order_steps: u64,
     /// Explicit corrections of tiny fixed-variable step components.
     pub fixed_step_corrections: u64,
     /// Step components moved onto a variable bound they exceeded by at most the
@@ -373,6 +377,8 @@ pub struct IterationRecord {
     pub max_penalty: f64,
     /// Backend iterations of the QP solved at this iterate.
     pub qp_iterations: u64,
+    /// The accepted step is a second-order correction of the QP step.
+    pub second_order_correction: bool,
 }
 impl SolveResult {
     /// Empty result before a complete evaluation exists.

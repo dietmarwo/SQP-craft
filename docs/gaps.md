@@ -43,8 +43,19 @@ Every step QP is solved from scratch by Clarabel's interior-point method.
 On curved equality constraints near a solution, an L1 merit line search can
 reject or shorten good steps (the Maratos effect). SNOPT uses an
 augmented-Lagrangian merit function; filterSQP uses a filter with trust
-regions. Neither a second-order correction nor a watchdog is implemented
-here.
+regions. A watchdog is not implemented here.
+
+**Status:** a second-order correction is available as an option
+(`second_order_correction=True`, [second-order-correction.md](second-order-correction.md)).
+- On the Maratos example from 200 random starts it saves 16% of the
+  iterations and 21% of the callbacks.
+- On the stress family it saves 2.3% of the iterations and 0.9% of the
+  callbacks. Most corrections there come at the start and fail half the
+  time, and two problems take another path and end in failed restoration.
+- The orbit QP steps are almost never rejected, so the orbit is unaffected
+  (orbit-20: 104 → 102 iterations).
+
+It stays off by default.
 
 ## 4. Inconsistent linearizations: separate restoration mode
 
@@ -119,7 +130,8 @@ These properties should survive every change:
 2. Elastic mode on top of the active-set solver (gap 4). Done as an option:
    [elastic mode](elastic-mode.md). It keeps multipliers and curvature
    through infeasible phases but does not reduce the local failures.
-3. A second-order correction or watchdog (gap 3).
+3. A second-order correction or watchdog (gap 3). The second-order
+   correction is done as an option: [second-order correction](second-order-correction.md).
 4. Automatic scaling, measured on the target application once its data
    exists (gap 5).
 5. Sparse or limited-memory curvature with a sparse QP when the application

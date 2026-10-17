@@ -34,6 +34,10 @@ that backend, `SqpOptions(qp_solver="active-set", elastic_mode=True)` solves
 every step QP as an ℓ1-elastic QP instead of entering feasibility
 restoration ([elastic-mode.md](docs/elastic-mode.md)); it is an option, not
 the default, because it does not reduce the local failures.
+`SqpOptions(second_order_correction=True)` tries one corrected step before
+backtracking when a curved constraint makes the merit reject the full step
+([second-order-correction.md](docs/second-order-correction.md)): 21% fewer
+callbacks on the Maratos example, 1% on the stress family.
 
 See [plans and results](docs/performance/README.md) for all ten checkpoints,
 raw per-iteration measurements, final paired timings, numerical failure fixes
@@ -92,6 +96,8 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | [docs/active-set-qp.md](docs/active-set-qp.md) | The active-set backend: method, measurements, validation |
 | [docs/elastic-mode.md](docs/elastic-mode.md) | Elastic mode: the elastic QP, the driver rules, measurements |
 | `examples/stress_mpcc.py` | Random problems with complementarity constraints (degenerate QPs) |
+| [docs/second-order-correction.md](docs/second-order-correction.md) | The second-order correction: rule, measurements |
+| `scripts/compare_corrections.py` | Paired runs with and without the second-order correction |
 | `crates/python`, `python/sqp_craft` | PyO3 extension and typed Python API |
 | [docs/api.md](docs/api.md) | The contract: conventions, algorithm, options, statuses, errors |
 | `examples/restore_hs071.py` | Compare disabled restoration with the recovered HS071 solve |

@@ -144,6 +144,10 @@ class SqpOptions:
     """Solve every step QP as an l1-elastic QP: rows may be violated at a cost, so
     the QP is always feasible and restoration is not used. Needs
     ``qp_solver="active-set"``."""
+    second_order_correction: bool = False
+    """When the full step fails the merit test and increases the constraint
+    violation, re-solve the step QP with the constraints shifted by their
+    second-order change along the step and try that step before backtracking."""
     elastic_weight: float = 1e4
     """Initial elastic weight relative to ``max(1, ‖∇f(x0)‖∞)``; multiplied by 10
     (at most six times) at a stationary point of the penalty with violated rows."""
@@ -211,6 +215,7 @@ class IterationRecord:
     trials: int
     max_penalty: float
     qp_iterations: int
+    second_order_correction: bool
 
 
 @dataclass(frozen=True)
@@ -246,6 +251,8 @@ class RunReport:
     elastic_steps: int
     elastic_weight: Optional[float]
     elastic_weight_increases: int
+    second_order_corrections: int
+    second_order_steps: int
     fixed_step_corrections: int
     bound_step_corrections: int
     step_norm: Optional[float]
