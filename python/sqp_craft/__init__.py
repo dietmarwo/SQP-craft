@@ -152,8 +152,9 @@ class SqpOptions:
     merit: Literal["l1", "augmented-lagrangian"] = "l1"
     """Line-search merit: ``"l1"`` (``f`` plus Powell-weighted violations) or
     ``"augmented-lagrangian"`` (SNOPT's ``f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²``,
-    searched jointly in ``x``, the multiplier estimate and the slacks, with
-    minimum-norm penalties). The latter is differentiable and is not combined
+    searched jointly in ``x``, the multiplier estimate and the slacks, with the
+    smallest penalties whose linear model falls by ½pᵀBp over the unit step,
+    twice SNOPT's slope rule). The latter is differentiable and is not combined
     with ``second_order_correction``; elastic steps that leave rows violated use
     the l1 merit."""
     scaling: Literal["none", "linear", "jacobian"] = "none"

@@ -122,8 +122,10 @@ pub enum Merit {
     L1,
     /// SNOPT's augmented Lagrangian `f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²`,
     /// searched jointly in the variables, the multiplier estimate `π` and
-    /// the slacks `s`, with minimum-norm penalties `ρ` that may decrease
-    /// (Gill, Murray and Saunders 2005, §2.7). It is differentiable, so it
+    /// the slacks `s` (Gill, Murray and Saunders 2005, §2.7). The penalties
+    /// `ρ` are the smallest for which the linear model of the merit falls by
+    /// `½pᵀBp` over the unit step, twice the paper's slope rule, and may
+    /// decrease under its damping rule. It is differentiable, so it
     /// needs no second-order correction; the combination is rejected.
     /// Steps whose elastic QP leaves rows violated use the ℓ1 merit.
     AugmentedLagrangian,

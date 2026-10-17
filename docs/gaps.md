@@ -64,6 +64,19 @@ regions. A watchdog is not implemented here.
 
 It stays off by default.
 
+SNOPT's augmented-Lagrangian merit is available as well
+(`merit="augmented-lagrangian"`, [snopt-lessons.md](snopt-lessons.md)). Its
+penalty is doubled against the paper's rule, so that the unit step is
+covered and not only the slope.
+- On the Maratos example it saves 25% of the iterations and 49% of the
+  callbacks.
+- On the stress family it saves 3.7% of the iterations with both backends,
+  without status changes.
+- Clarabel loses 9 of its 532 complementarity problems.
+
+It is the strongest candidate for a default, but stays off until the
+application decides.
+
 ## 4. Inconsistent linearizations: separate restoration mode
 
 The bounded Gauss–Newton restoration is a separate mode that can stall at

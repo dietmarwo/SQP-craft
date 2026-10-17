@@ -31,14 +31,20 @@ convergence claim in every run passed the independent evaluator.
 | Step | Where it pays off | Where it costs | Default |
 | --- | --- | --- | --- |
 | 1. Curvature repair | Maratos example: −4.6% iterations, −7.4% callbacks | nothing measurable (stress ±0.2%) | off |
-| 2. Augmented-Lagrangian merit | MERIT_SUMMARY_GOOD | MERIT_SUMMARY_BAD | off |
+| 2. Augmented-Lagrangian merit | Maratos example: −25% iterations, −49% callbacks (the second-order correction: −16%, −21%); stress family: −3.7% iterations, −4.9% callbacks, no status changes | complementarity family: +0.4% callbacks with the active-set backend, 9 of 532 problems lost with Clarabel | off |
 | 2. Violation limit | a model unbounded outside the constraints: violation ≤ 10 instead of 99 | nothing on the families | off |
 | 3. Linear rows | linear-guard family: −7% iterations; elastic mode and restoration never leave the rows | the projection costs two callbacks per projected start (+17% on the MPCC family) | undeclared |
 | 4. Scaling (`"jacobian"`) | badly scaled families: orbit 40/40 converged instead of 20/40 with −76% iterations, stress −29% | well-scaled families: +2% to +24% iterations; the orbit converges to another local optimum | off |
 
-None of the four is made the default: each helps on its own mechanism and
+None of the four is made the default. Each helps on its own mechanism and
 costs elsewhere, and the target application, which would decide, is not
 available.
+
+The smooth merit is the strongest candidate for a default. It takes 3.7%
+fewer iterations on the stress family with both backends and 25% fewer on
+the Maratos example, changes no stress-family status, and makes the
+second-order correction unnecessary. Against that, Clarabel loses 9 of the
+532 complementarity problems it solves.
 
 ## 1. Curvature repair (`hessian_update="augmented"`)
 
@@ -112,7 +118,47 @@ are curved along `s`; linear rows (`d_L = 0`) contribute nothing.
 
 ### Result
 
-MERIT_RESULT
+| Family | ℓ1 merit | ℓ1 + second-order correction | Augmented Lagrangian |
+| --- | --- | --- | --- |
+| Stress, 1,500 (AS) | 1,485 converged | 1,483 converged | 1,485 converged |
+| Stress, the common 1,483 (AS) | 15,128 iterations, 35,897 callbacks | 14,777, 35,565 | 14,567 (−3.7%), 34,121 (−4.9%) |
+| Stress, the common 1,483 (Clarabel) | 15,157, 35,978 | 14,818, 35,712 | 14,620 (−3.5%), 34,340 (−4.6%) |
+| Complementarity, 600 (AS) | 600; 2,721 iterations, 6,651 callbacks | identical | 600; 2,734, 6,680 |
+| Complementarity (Clarabel) | 532 converged | 532 | 523 |
+| Maratos, 200 starts | 2,137 iterations, 8,278 callbacks | 1,796, 6,543 | 1,606 (−25%), 4,242 (−49%) |
+| 13 SLSQP cases | 344, 737; 13/13 at the reference | 342, 733 | 344, 736; 13/13 |
+
+The smooth merit accepts the unit steps on curved constraints without a second
+QP. It does not change the statuses on the stress family, where the
+correction loses two problems. On the Maratos example from a feasible start
+every step has length 1 (`the_augmented_lagrangian_merit_takes_unit_steps_on_a_curved_constraint`).
+
+**Two corrections to the paper's rules were needed**:
+- **The penalty.** With the minimum-norm `ρ*` of (LSPρ), the merit cost the
+  stress family 19% more callbacks with the active-set backend, and with
+  Clarabel 100 of 1,500 problems ended in `stalled` or `line_search_failure`.
+  Near a solution the multiplier estimate `π` lags the QP multipliers by one
+  step. That makes the unpenalized slope positive, so `ρ*` is just large
+  enough for the slope. But the penalty term falls by only half its slope
+  over the unit step, and the unit step was rejected; halving `α` then needed
+  about eight trials. The traced case (stress seed 1, case 14, with Clarabel)
+  had a violation of 10⁻⁶ and a step of 1.7·10⁻⁷. The merit rose by 5·10⁻¹²
+  against a predicted decrease of 2.6·10⁻¹⁴. Requiring the linear-model
+  decrease over the unit step, as below, doubles `ρ*` and removes all of
+  these failures.
+- **Noise-level steps.** A step whose predicted decrease is below the
+  rounding level of the merit value is tried at full length (below). With
+  the corrected penalty it is rarely needed, but it keeps rounding from
+  deciding the line search.
+
+The violation limit changes little on the families. The stress family takes
+14,637 instead of 14,661 iterations with the smooth merit, and 335 trial
+points are rejected with the ℓ1 merit. Its purpose is the unbounded case
+(`the_violation_limit_keeps_trial_points_near_the_constraints`):
+- for min −10x₀ on the unit disc from the origin, where `J = 0`, the first
+  step goes to x₀ = 10, a violation of 99;
+- with `τ_V = 10` every accepted point stays within 10, and the solve needs
+  6 instead of 9 iterations.
 
 ### Method
 
@@ -139,9 +185,14 @@ the slope is
 
 which is linear in `ρ`.
 
-**The penalty** solves (LSPρ): `min ½‖ρ‖²` subject to
-`φ′(0) = −½pᵀBp, ρ ≥ 0`. Its closed form is `ρ* = ξq⁺/‖q⁺‖²`, with
-`ξ = gᵀp − (π̄ − π)ᵀr − πᵀr′ + ½pᵀBp` (`ρ* = 0` if `ξ ≤ 0`). The damped
+**The penalty.** The paper's (LSPρ) is `min ½‖ρ‖²` subject to
+`φ′(0) = −½pᵀBp, ρ ≥ 0`. Here the penalty term `½ρ(1 − α)²r²` matters: over
+the unit step it falls by only `½ρr²`, half of what its slope promises. So the
+slope must also cover that remainder, `φ′(0) + ½Σρᵢqᵢ = −½pᵀBp`. That makes
+the linear-model change of the merit over the unit step `−½pᵀBp`. The
+closed form is `ρ* = 2ξq⁺/‖q⁺‖²`, with
+`ξ = gᵀp − (π̄ − π)ᵀr − πᵀr′ + ½pᵀBp` (`ρ* = 0` if `ξ ≤ 0`), twice the
+paper's. The damped
 update (eq. 2.4) keeps `ρᵢ` below `4(ρ*ᵢ + Δρ)`, moves it to
 `√(ρᵢ(ρ*ᵢ + Δρ))` above, and takes the larger of that and `ρ*ᵢ`. `Δρ`
 starts at 1 and doubles whenever the trend of `‖ρ‖` reverses.
@@ -158,7 +209,7 @@ violation. Near a solution its predicted decrease can fall below the rounding
 of the merit value itself, so a step whose predicted decrease is below
 `100ε(|f| + Σ|πᵢrᵢ| + ½Σρᵢrᵢ²)` is a noise-level step. It is tried once at
 full length and accepted if the merit does not rise by more than that level,
-at most three times in a row, as for the ℓ1 merit. MERIT_NOISE_NOTE
+at most three times in a row, as for the ℓ1 merit.
 
 **Other interactions.**
 - **Elastic mode.** Steps whose elastic QP leaves rows violated use the ℓ1
@@ -297,14 +348,21 @@ Results by option:
 - **`"linear"`** is the identity without declared rows, and gives exactly the
   unscaled runs. On the badly scaled linear-guard family, with the duration
   rows declared, it reaches 600 of 600 in 12,022 instead of 17,286
-  iterations (LINEAR_ONLY_NOTE).
+  iterations. Declaring the rows without scaling gives 17,046 iterations, so
+  almost all of that gain comes from the scaling.
 - **`"jacobian"` on the 13 SLSQP cases** converges in fewer than half the
   iterations. The two orbit transfers, however, reach other local optima:
   −1.521507 instead of −1.522060 (N = 20) and −1.524281 instead of −1.524487
   (N = 40). The scaled start `B₀ = D⁻²` takes another path, as the elastic
   weight 10 did ([elastic-mode.md](elastic-mode.md)).
-- **Clarabel** shows the same picture on the stress and linear-guard families
-  (CLARABEL_SCALED). On the complementarity family Jacobian scaling makes its
+- **Clarabel** shows the same picture on the badly scaled families:
+  - stress: 579 instead of 569 converged;
+  - linear-guard: 597 with Jacobian scaling, or 598 with the rows declared
+    and linear scaling, instead of 588;
+  - orbit: 40 instead of 19 converged, with 2,518 instead of 8,206
+    iterations.
+
+  On the complementarity family Jacobian scaling makes its
   degenerate QPs fail more often: 405 instead of 532 converged. The
   active-set backend solves all 600 under every option.
 
@@ -348,6 +406,33 @@ With `x = D x̃` and `c̃ = R c`:
   scaling.
 - With scaling, `report.qp_trace` holds the scaled QPs.
 
+## All four together
+
+The configuration closest to SNOPT combines all four:
+`hessian_update="augmented"`, `merit="augmented-lagrangian"`,
+`violation_limit=10`, declared linear rows and `scaling="jacobian"`
+(active-set backend).
+
+| Family | Default | All four | Without the smooth merit and limit |
+| --- | --- | --- | --- |
+| Stress, 1,500 | 1,485 converged; 15,141 iterations, 35,932 callbacks (common 1,484) | 1,485; 14,957, 35,153 | 1,485; 15,361, 36,751 |
+| Complementarity, 600 | 600; 2,721, 6,651 | 600; 2,888, 8,205 | 600; 2,888, 8,205 |
+| Maratos, 200 | 2,137, 8,278 | 1,741, 4,615 | 2,217, 8,574 |
+| Linear-guard, 600 | 600; 10,121, 23,239 | 600; 12,040, 29,449 | 600; 11,080, 25,923 |
+| 13 SLSQP cases | 344, 737; 13/13 at the reference | 161, 406; 11/13 | 172, 420; 11/13 |
+| Stress, badly scaled, 600 | 571 converged | 581 (5 line-search failures) | 585 |
+| Linear-guard, badly scaled | 600; 17,286, 39,177 | 600; 13,542, 33,706 | 600; 12,554, 29,737 |
+| Orbit, 40 badly scaled | 20 converged; 9,944 iterations | 40; 2,349 | 40; 2,458 |
+
+The combination behaves like its parts:
+- **Scaling** drives the badly scaled families and costs on the well-scaled
+  ones.
+- **The smooth merit** drives the Maratos example and the well-scaled stress
+  family.
+- **The projection** costs on the complementarity family.
+
+No setting is best everywhere, which is why the four stay separate options.
+
 ## Validation
 
 - **Rust unit tests:**
@@ -383,8 +468,8 @@ With `x = D x̃` and `c̃ = R c`:
 
 - **SNOPT's first curvature modification**, which needs a primal QP method.
 - **Skipping the update** when no repair exists; see step 1.
-- **SNOPT's interpolating line search.** Its effect on the extra trials of
-  the smooth merit is untested.
+- **SNOPT's interpolating line search.** Step halving was kept for both
+  merits.
 - **Convergence tests in scaled units.**
 - **Linear constraints given as data**, which would remove the start's extra
   evaluation and allow a start where the model is undefined.
