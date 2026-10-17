@@ -21,6 +21,7 @@ pub struct ClarabelQp {
     workspace: Option<Workspace>,
     checks: QpResidualWorkspace,
     conversion: Option<ConversionCache>,
+    pd: PdScratch,
     #[cfg(test)]
     cancel_at_iteration: Option<u32>,
     #[cfg(test)]
@@ -35,6 +36,7 @@ impl Clone for ClarabelQp {
             workspace: None,
             checks: QpResidualWorkspace::default(),
             conversion: None,
+            pd: PdScratch::default(),
             #[cfg(test)]
             cancel_at_iteration: self.cancel_at_iteration,
             #[cfg(test)]
@@ -122,11 +124,41 @@ fn sides(lower: f64, upper: f64) -> impl Iterator<Item = (f64, f64, f64, bool)> 
     lower_side.into_iter().chain(upper_side)
 }
 
-fn positive_definite(model: &QpModel) -> bool {
+/// Reused buffers of [`positive_definite`]: the dense copy alone is 215 KB at
+/// n = 164, above glibc's mmap threshold, so a fresh one per QP costs page
+/// faults on every call.
+#[derive(Default)]
+struct PdScratch {
+    dense: DMatrix<f64>,
+    diagonal: Vec<f64>,
+    radii: Vec<f64>,
+}
+
+/// Exact positive-definiteness gate for the Hessian.
+///
+/// A strictly diagonally dominant matrix with positive diagonal is positive
+/// definite (Gershgorin); the radii are summed with upward rounding, so the
+/// sufficient test is safe in floating point. A stored pattern that splits
+/// into disconnected components is factored per component. Everything else
+/// gets a dense Cholesky factorization of the lower triangle, which is all
+/// nalgebra reads; for a full lower triangle the copy and the dominance sums
+/// share one pass.
+fn positive_definite(model: &QpModel, scratch: &mut PdScratch) -> bool {
     let n = model.n();
     let h = &model.hessian_lower;
-    let mut diagonal = vec![0.; n];
-    let mut radii = vec![0.; n];
+    let full = h.pattern.nnz() == n * (n + 1) / 2;
+    let PdScratch {
+        dense,
+        diagonal,
+        radii,
+    } = scratch;
+    diagonal.clear();
+    diagonal.resize(n, 0.);
+    radii.clear();
+    radii.resize(n, 0.);
+    if full && dense.shape() != (n, n) {
+        *dense = DMatrix::zeros(n, n);
+    }
     let add_up = |a: f64, b: f64| {
         let sum = a + b;
         if !sum.is_finite() {
@@ -135,29 +167,42 @@ fn positive_definite(model: &QpModel) -> bool {
             f64::from_bits(sum.to_bits() + 1)
         }
     };
+    // Radii only grow, so the dominance sums stop at the first row that
+    // already fails (for a dense BFGS matrix, within the first rows); the copy
+    // for the Cholesky test continues. A row's diagonal is the last entry of
+    // its lower-triangle row, so diagonal[j] is final whenever j < i.
+    let mut dominant = true;
     for i in 0..n {
         for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
             let j = h.pattern.indices[k];
             let v = h.values[k];
+            if full {
+                dense[(i, j)] = v;
+            }
+            if !dominant {
+                continue;
+            }
             if i == j {
                 diagonal[i] = v;
+                dominant = v.is_finite() && v > radii[i];
             } else if v != 0. {
                 radii[i] = add_up(radii[i], v.abs());
                 radii[j] = add_up(radii[j], v.abs());
+                dominant = radii[j] < diagonal[j];
             }
         }
     }
-    // A sufficient SPD proof; inconclusive cases keep the full Cholesky test.
-    if diagonal
-        .iter()
-        .zip(&radii)
-        .all(|(&d, &r)| d.is_finite() && d > r)
+    // A sufficient SPD proof; inconclusive cases keep a Cholesky test.
+    if dominant
+        && diagonal
+            .iter()
+            .zip(radii.iter())
+            .all(|(&d, &r)| d.is_finite() && d > r)
     {
         return true;
     }
     // Missing stored off-block entries prove exact structural disconnection.
-    // Full lower triangles bypass graph work, preserving the dense path.
-    if h.pattern.nnz() < n * (n + 1) / 2 {
+    if !full {
         fn root(p: &mut [usize], mut i: usize) -> usize {
             while p[i] != i {
                 p[i] = p[p[i]];
@@ -188,10 +233,7 @@ fn positive_definite(model: &QpModel) -> bool {
                 let mut part = DMatrix::zeros(group.len(), group.len());
                 for &i in group {
                     for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
-                        let j = h.pattern.indices[k];
-                        let v = h.values[k];
-                        part[(local[i], local[j])] = v;
-                        part[(local[j], local[i])] = v;
+                        part[(local[i], local[h.pattern.indices[k]])] = h.values[k];
                     }
                 }
                 if part.cholesky().is_none() {
@@ -200,16 +242,20 @@ fn positive_definite(model: &QpModel) -> bool {
             }
             return true;
         }
-    }
-    let mut dense = DMatrix::zeros(n, n);
-    for i in 0..n {
-        for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
-            let j = h.pattern.indices[k];
-            dense[(i, j)] = h.values[k];
-            dense[(j, i)] = h.values[k];
+        *dense = DMatrix::zeros(n, n);
+        for i in 0..n {
+            for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                dense[(i, h.pattern.indices[k])] = h.values[k];
+            }
         }
     }
-    dense.cholesky().is_some()
+    match std::mem::take(dense).cholesky() {
+        Some(factor) => {
+            *dense = factor.unpack_dirty();
+            true
+        }
+        None => false,
+    }
 }
 
 /// Builds Clarabel's data directly in canonical CSC form, in O(nnz).
@@ -218,12 +264,8 @@ fn positive_definite(model: &QpModel) -> bool {
 /// row, none above the diagonal) is exactly the upper-triangle CSC that
 /// Clarabel expects. `A` is filled column by column in conic-row order, so
 /// row indices are sorted without a sort. Explicit zeros are kept, as before.
+/// The caller checks positive definiteness first ([`positive_definite`]).
 fn convert(model: &QpModel) -> Result<Converted> {
-    if !positive_definite(model) {
-        return Err(Error::Unsupported(
-            "QP pilot requires a positive-definite Hessian".into(),
-        ));
-    }
     let n = model.n();
     let h = &model.hessian_lower;
     let p = CscMatrix::new(
@@ -368,12 +410,7 @@ impl ConversionCache {
             data,
         })
     }
-    fn refresh(&mut self, q: &QpModel) -> Result<()> {
-        if !positive_definite(q) {
-            return Err(Error::Unsupported(
-                "QP pilot requires a positive-definite Hessian".into(),
-            ));
-        }
+    fn refresh(&mut self, q: &QpModel) {
         self.data.p.nzval.clone_from(&q.hessian_lower.values);
         for (value, &(source, scale)) in self.data.a.nzval.iter_mut().zip(&self.sources) {
             *value = scale
@@ -391,7 +428,6 @@ impl ConversionCache {
                 bounds.upper[i]
             };
         }
-        Ok(())
     }
 }
 
@@ -482,9 +518,18 @@ impl QpBackend for ClarabelQp {
             return Ok(outcome);
         }
         let t = Instant::now();
+        if !positive_definite(model, &mut self.pd) {
+            // Nothing was solved or changed: keep both caches, so the
+            // caller's re-solve (with a reset Hessian) reuses them exactly
+            // as if this call had not happened.
+            self.workspace = previous;
+            self.last.conversion_seconds = t.elapsed().as_secs_f64();
+            return Ok(QpOutcome::NotPositiveDefinite);
+        }
         let converted =
             if let Some(mut cached) = self.conversion.take().filter(|c| c.matches(model)) {
-                cached.refresh(model).map(|()| cached)
+                cached.refresh(model);
+                Ok(cached)
             } else {
                 ConversionCache::new(model)
             };
@@ -728,7 +773,7 @@ mod tests {
             q.variables.lower[0] = -(k as f64);
             q.variables.upper[0] = k as f64 + 2.;
             assert!(cached.matches(&q));
-            cached.refresh(&q).unwrap();
+            cached.refresh(&q);
             let fresh = convert(&q).unwrap();
             assert_eq!(cached.data.p.nzval, fresh.p.nzval);
             assert_eq!(cached.data.a.nzval, fresh.a.nzval);
@@ -779,7 +824,7 @@ mod tests {
             q.rows.lower[1] = 2. * k as f64;
             q.rows.upper[1] = q.rows.lower[1];
             assert!(cache.matches(&q));
-            cache.refresh(&q).unwrap();
+            cache.refresh(&q);
             let fresh = convert(&q).unwrap();
             for (a, b) in [
                 (&cache.data.p.nzval, &fresh.p.nzval),
@@ -828,7 +873,96 @@ mod tests {
             (vec![1., 0.9999999999999999, 1.], true),
         ] {
             q.hessian_lower.values = values;
-            assert_eq!(positive_definite(&q), expected);
+            assert_eq!(positive_definite(&q, &mut PdScratch::default()), expected);
+        }
+    }
+
+    #[test]
+    fn a_hessian_that_is_not_positive_definite_is_an_outcome_and_keeps_both_caches() {
+        let (mut b, mut q) = reusable();
+        assert!(b.workspace.is_some() && b.conversion.is_some());
+        q.hessian_lower.values[0] = -1.0;
+        assert_eq!(
+            b.solve(&q, None, &CancellationToken::default()).unwrap(),
+            QpOutcome::NotPositiveDefinite
+        );
+        assert!(b.workspace.is_some() && b.conversion.is_some());
+        assert_eq!(
+            (b.last.setups, b.last.updates, b.last.iterations),
+            (0, 0, 0)
+        );
+        q.hessian_lower.values[0] = 2.0;
+        assert!(matches!(
+            b.solve(&q, None, &CancellationToken::default()).unwrap(),
+            QpOutcome::Optimal(_)
+        ));
+        assert_eq!((b.last.setups, b.last.updates), (0, 1));
+    }
+
+    #[test]
+    fn the_positive_definiteness_scratch_follows_dimension_and_pattern_changes() {
+        let mut scratch = PdScratch::default();
+        for n in [3, 1, 6, 6, 2] {
+            for (dense, indefinite) in [(true, false), (true, true), (false, false), (false, true)]
+            {
+                let (mut indptr, mut indices, mut values) = (vec![0], vec![], vec![]);
+                for i in 0..n {
+                    for j in 0..=i {
+                        if dense || j == i || j + 1 == i {
+                            indices.push(j);
+                            // 1 on the diagonal, 0.9 next to it: never
+                            // diagonally dominant for n > 2, positive definite
+                            // for small n and indefinite at n = 6, so the
+                            // Cholesky paths decide; compared with a reference.
+                            values.push(if i == j {
+                                1.0
+                            } else if j + 1 == i {
+                                0.9
+                            } else {
+                                0.0
+                            });
+                        }
+                    }
+                    indptr.push(indices.len());
+                }
+                if indefinite {
+                    let last = values.len() - 1;
+                    values[last] = -1.0;
+                }
+                let q = QpModel {
+                    hessian_lower: CsrMatrix {
+                        pattern: CsrPattern {
+                            rows: n,
+                            cols: n,
+                            indptr,
+                            indices,
+                        },
+                        values,
+                    },
+                    gradient: vec![0.; n],
+                    variables: Bounds::free(n),
+                    matrix: CsrMatrix {
+                        pattern: CsrPattern::dense(0, n),
+                        values: vec![],
+                    },
+                    rows: Bounds::free(0),
+                };
+                let mut reference = DMatrix::zeros(n, n);
+                for i in 0..n {
+                    for k in
+                        q.hessian_lower.pattern.indptr[i]..q.hessian_lower.pattern.indptr[i + 1]
+                    {
+                        let j = q.hessian_lower.pattern.indices[k];
+                        reference[(i, j)] = q.hessian_lower.values[k];
+                        reference[(j, i)] = q.hessian_lower.values[k];
+                    }
+                }
+                assert_eq!(
+                    positive_definite(&q, &mut scratch),
+                    reference.cholesky().is_some(),
+                    "n {n}, dense {dense}, indefinite {indefinite}"
+                );
+            }
         }
     }
 

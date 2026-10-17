@@ -1,9 +1,58 @@
 # Ten SQP performance iterations
 
 Version 0.14.0. Base: reviewed upstream main `73d8d0cbab8c8a4fdbebc1cc82e2aa22e2bd509a`.
-The numerical source is preserved in local Git checkpoints `sqp-performance-00` through `sqp-performance-10`; the release also includes the final validation safeguards and block-to-full fallback.
+The delivered archive preserved the numerical source as local Git checkpoints `sqp-performance-00` through `sqp-performance-10` in a bundle, which is not part of this repository. The release also includes the final validation safeguards and block-to-full fallback.
 
-## Final paired measurements
+## Review of the performance release
+
+The delivery built and passed its 91 Rust tests, doctest and 97 Python tests. The review rebuilt the baseline checkpoint (`main` plus the benchmark), the delivered release and the reviewed code on a 2-core Linux VM (Rust 1.97.0). It reproduced the paired benchmark and checked every result against `main`.
+
+**One regression: an indefinite B aborted the solve above 16 variables.** Iteration 3 replaced the fresh Cholesky check of each BFGS update with a rank-updated factor. That factor tracks a nearby matrix, not the rounded B that the QP receives. When cancellation in the explicit rank-two terms left B indefinite, the factor still looked valid, the QP adapter rejected B with `Unsupported`, and the whole solve failed. On `main` the same B was caught at the update and reset. The delivery saw this at n = 2 (seed 4, case 86) and kept fresh checks for n ≤ 16 only. Padded with 20 decoupled variables, the same problem fails on the delivered release in three different weightings and converges on `main` (`crates/sqp/tests/hessian_gate.rs`, `tests/test_performance_options.py`).
+
+**Fix, and one positive-definiteness check per iteration instead of two.** The adapter already ran an exact check on every B it received. It now returns `QpOutcome::NotPositiveDefinite` instead of an error and keeps its cached workspace and conversion data. The driver then resets B and re-solves, as after a failed update. Full-mode BFGS therefore no longer factorizes at all: the factor, the rank updates, the 32-update refresh and the n ≤ 16 rule are removed. Explicit blocks keep their exact per-block check, so a failed block still switches to full BFGS at the update.
+
+**Conversion back to baseline cost.** The adapter's check allocated a fresh 215 KB dense matrix per QP at n = 164, above glibc's mmap threshold, and ran the dominance sums as a separate pass. On dense BFGS matrices those sums never succeed. The check now reuses one buffer, folds the sums into the copy, and stops them at the first row that fails.
+
+| Orbit, 164 variables, reuse; medians of 4 rotating rounds | Baseline | Delivered | Reviewed |
+| --- | ---: | ---: | ---: |
+| BFGS phase (ms) | 95.6 | 47.1 | **33.8** |
+| Conversion including the positive-definiteness check (ms) | 68.3 | 83.4 | **71.4** |
+| BFGS + conversion (ms) | 163.9 | 130.5 | **105.2** |
+| Clarabel engine (ms), same 1,444 interior-point iterations | 2,640 | 2,654 | 2,784 |
+| Wall (ms) | 2,910 | 2,881 | 2,983 |
+
+The engine receives bit-identical input in all three builds, and its code is unchanged. Its time still moves by about ±5% with code layout. An earlier reviewed build, which differed only in the dominance loop, ran the same engine work in 2,631 ms and had the fastest wall time of the three (2,837 ms). Wall-time differences of a few percent between builds therefore do not measure the work; the BFGS and conversion phases do. At 84 variables BFGS + conversion is 18.6 / 16.5 / 11.8 ms. On the restoration fixture it is 0.50 / 0.29 / 0.26 ms. The delivered block modes are unchanged (same step counts and times).
+
+Results are bit-identical to `main` in full mode, in status, objective bits and iteration counts:
+
+- all 6,000 stress runs (seeds 1–5 × 300 problems, restoration on and off, cold and reuse);
+- all 26 runs of the 13-case comparison, including interior-point iteration counts;
+- the orbit objectives.
+
+The delivered release gives the same results on all of these as well. Fat LTO and thin LTO were measured and did not help (thin LTO with 16 codegen units was 7% slower), so the release profile is unchanged.
+
+Local validation of the review (Rust 1.97.0, CPython 3.13, maturin 1.15.0):
+
+- `scripts/check.sh` from a clean build passes: fmt, Clippy `-D warnings`, 94 Rust tests + 1 doctest in debug, the examples, and 98 Python tests.
+- `cargo doc` with `-D warnings` and `mypy --strict` both pass.
+- A fresh-venv release wheel passes all 98 tests.
+- The dummy-only wheel passes the 42 contract tests.
+
+The new tests:
+
+- the padded regression in Rust and Python, which fails on the delivered release;
+- the adapter's outcome and cache retention on a non-positive-definite Hessian;
+- the check's reused buffer across dimension and pattern changes;
+- the exact per-block check.
+
+Repository changes:
+
+- The 31 build and test logs under `validation/` and the ten 424 KB per-seed stress dumps are dropped; build logs stay out of the repository by policy, and `validation-summary.json` keeps the totals.
+- `scripts/finalize_performance_iteration.py` is dropped. It was the delivery's local workflow (it bumps versions, copies logs into `docs/`, commits, tags and writes outside the repository).
+- `compare_performance_final.py` becomes `compare_performance.py`, which pairs any number of labeled builds.
+- The other measurement scripts and `tests/test_performance_options.py` are rewritten readably with the same behavior.
+
+## Final paired measurements (delivered, on the delivery's host)
 
 CPU: AMD EPYC 9V74 80-Core Processor; Linux x86_64, Rust 1.99.1. One numerical thread. Five measured samples plus one warmup per case/configuration, fresh processes, rotated/reversed order; 120 raw records. No compilation or correctness stress process ran concurrently. No CPU affinity or exclusive-host guarantee. Solver timing excludes fixture construction and process startup. Binary hashes are in the raw JSON.
 
@@ -52,7 +101,7 @@ Each iteration has a pre-implementation plan, code checkpoint, full workspace re
 
 ## Failure ledger and final refinements
 
-1. The rank-update shortcut initially allowed a finite factor to accompany an explicitly rounded small Hessian that failed the independent SPD gate (seed 4, case 86; three settings). Dimensions <=16 now retain fresh Cholesky checks. The captured input is a permanent regression; the final 1,500-case sweep has no such exceptions. Larger full Hessians retain periodic/fallback factor updates and the adapter SPD gate.
+1. The rank-update shortcut initially allowed a finite factor to accompany an explicitly rounded small Hessian that failed the independent SPD gate (seed 4, case 86; three settings). Dimensions <=16 now retain fresh Cholesky checks. The captured input is a permanent regression; the final 1,500-case sweep has no such exceptions. Larger full Hessians retain periodic/fallback factor updates and the adapter SPD gate. *Review:* the same case padded to n = 22 still failed on the release; the review removed the rank-update factor and made the adapter's exact check the gate (see above).
 2. Pure block BFGS initially failed both orbit trials. Fresh per-block checks converted that into a controlled numerical stop. A failed block update now consumes one existing reset, switches once to full BFGS and invalidates the QP template; both reference orbit problems then converge under unchanged budgets/tolerances. The switch is reported. Original failed experiments remain in iteration-09/10-blocks.json and final-blocks.json; final-hybrid-blocks.json and the final paired comparison describe the release.
 3. Per-iteration wall times are noisy and not monotone. Allocation reductions, matrix-expression counts and phase times explain the intended improvements; the final paired table is the stronger end-to-end evidence. No failed run is counted as a speedup, and no acceptance threshold was weakened.
 
@@ -68,13 +117,9 @@ python -m pytest -q
 python scripts/validate_performance_stress.py stress.json --seed 5 --count 300
 ```
 
-The archive includes full source, the Python wrapper, raw measurements, validation logs, a checksum manifest and a Git bundle. Restore the checkpoint history with:
-
-```sh
-git clone --branch performance-10 history/sqp-performance.bundle SQP-craft-history
-```
-
-Build the performance example at `sqp-performance-00` and at `sqp-performance-release` into separate target directories, then pass their binary paths and an output filename to `scripts/compare_performance_final.py`. No benchmark binaries or virtual environments are bundled.
+To pair builds, build the `performance` example of each into its own target directory and run
+`python3 scripts/compare_performance.py out.json base=PATH_A new=PATH_B --blocks new --repeats 5`.
+No benchmark binaries or virtual environments are kept in the repository.
 
 ## Scope and next priorities
 
@@ -82,4 +127,4 @@ The application target card remains unfilled. The orbit case is the existing tra
 
 The solver still has a 256-variable cap, a dense full Hessian, one numerical thread per solve, no second-order correction, no automatic scaling and no industrial robustness guarantee. It reports numerical first-order convergence, not a global or exact certificate. Future application-driven work should target KKT factorization, meaningful curvature partitions or limited-memory representations, and structured QP methods. The current synthetic regression suite remains available when the real trajectory model can be added.
 
-Raw release data: [paired native timings](final-native-comparison.json), [validation summary](validation-summary.json), [Python comparison](final-python-comparison.json). Per-seed baseline/final data and per-iteration measurements are adjacent. Final validation logs are under `validation/`.
+Raw delivered data: [paired native timings](final-native-comparison.json), [validation summary](validation-summary.json), [Python comparison](final-python-comparison.json); per-iteration measurements are adjacent. The per-seed stress dumps and build logs were dropped in the review; `scripts/validate_performance_stress.py` regenerates the former.

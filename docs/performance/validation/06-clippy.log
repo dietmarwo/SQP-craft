@@ -1,5 +1,0 @@
-    Checking sqp-craft v0.10.0 (/workspace/scratch/2b5b088c7b46/repos/SQP-craft-performance/crates/core)
-    Checking sqp-craft-clarabel v0.10.0 (/workspace/scratch/2b5b088c7b46/repos/SQP-craft-performance/crates/clarabel)
-    Checking sqp-craft-solver v0.10.0 (/workspace/scratch/2b5b088c7b46/repos/SQP-craft-performance/crates/sqp)
-    Checking sqp-craft-python v0.10.0 (/workspace/scratch/2b5b088c7b46/repos/SQP-craft-performance/crates/python)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.76s

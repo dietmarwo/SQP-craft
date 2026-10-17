@@ -11,9 +11,10 @@ KKT checks. There is no second-order/global optimality certificate or nonlinear
 infeasibility certificate.
 
 The performance work reuses numerical/checking/callback buffers, caches QP and
-conic conversion structure, reduces symmetric update work, maintains large
-BFGS Cholesky factors with safeguarded updates and preserves exact sparsity in
-restoration. Full BFGS remains the default. An explicit
+conic conversion structure, reduces symmetric update work and preserves exact
+sparsity in restoration. Each BFGS matrix is checked for positive
+definiteness exactly once per iteration, by the QP adapter. A failed check
+resets it, like a failed update. Full BFGS remains the default. An explicit
 `SqpOptions(hessian_block_size=...)` requests contiguous curvature blocks;
 failed block updates switch once to full BFGS within the existing reset budget.
 `report.block_hessian_fallbacks` records that switch. Block mode is an
@@ -112,6 +113,7 @@ cargo build --release -p sqp-craft-solver --example performance --locked
 cargo run --release -p sqp-craft-solver --example performance --locked -- orbit 40 reuse 0
 cargo run --release -p sqp-craft-solver --example performance --locked -- separable 128 reuse 2
 python3 scripts/performance_iteration.py target/release/examples/performance measurements.json
+python3 scripts/compare_performance.py pair.json base=PATH_A new=PATH_B --blocks new
 ```
 
 The final comparison includes cold and reused QP workspaces, plus explicit

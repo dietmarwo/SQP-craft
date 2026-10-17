@@ -357,6 +357,10 @@ pub enum QpOutcome {
     LimitReached(Option<QpSolution>),
     /// Stopped by the cancellation token.
     Cancelled,
+    /// The Hessian is not positive definite, so the model was not solved.
+    /// A backend that requires a convex model reports this instead of an
+    /// error; the SQP driver resets its Hessian approximation and re-solves.
+    NotPositiveDefinite,
 }
 
 /// A QP subproblem solver.

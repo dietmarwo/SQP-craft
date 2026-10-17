@@ -712,7 +712,6 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     // Feasibility steps do not carry an NLP multiplier estimate.
                     // Restart curvature/penalties without spending the BFGS failure budget.
                     b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
-                    bfgs_work.reset();
                     penalties.fill(0.0);
                     have_penalties = false;
                     retry_descent = false;
@@ -740,6 +739,32 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                                  definite; numerical trouble"
                         .into();
                     break;
+                }
+                Ok(QpOutcome::NotPositiveDefinite) => {
+                    // Damping keeps B positive definite in exact arithmetic,
+                    // but rounding in the explicit update can leave it
+                    // indefinite. The backend's exact check is the only
+                    // positive-definiteness test of B: treat its rejection
+                    // like a failed update (reset, or stop without budget)
+                    // and re-solve this QP without counting an iteration.
+                    if r.report.hessian_resets >= u64::from(settings.max_hessian_resets) {
+                        status = Some(Status::NumericalFailure);
+                        r.message = "the Hessian approximation is not positive definite and \
+                                     the Hessian reset budget is exhausted"
+                            .into();
+                        break;
+                    }
+                    if effective_block > 0 {
+                        effective_block = 0;
+                        bfgs_work = bfgs::Curvature::new(n, 0);
+                        qp_work = None;
+                        r.report.block_hessian_fallbacks += 1;
+                    }
+                    b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                    r.report.hessian_resets += 1;
+                    retry_descent = false;
+                    notify = false;
+                    continue;
                 }
                 Ok(other) => {
                     status = Some(Status::QpFailure);
@@ -845,7 +870,6 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     && r.report.hessian_resets < u64::from(settings.max_hessian_resets)
                 {
                     b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
-                    bfgs_work.reset();
                     r.report.hessian_resets += 1;
                     retry_descent = true;
                     notify = false;
@@ -1004,7 +1028,6 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     r.report.block_hessian_fallbacks += 1;
                 }
                 b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
-                bfgs_work.reset();
                 r.report.hessian_resets += 1;
             }
             retry_descent = false;

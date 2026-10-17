@@ -1,49 +1,38 @@
-use nalgebra::{DMatrix, DVector, DVectorView, Dyn, linalg::Cholesky};
-/// Per-solve scratch; callbacks and unrelated solves never share it.
+use nalgebra::{DMatrix, DVector, DVectorView};
+
+/// Per-solve scratch for damped BFGS; callbacks and unrelated solves never
+/// share it.
+///
+/// Full mode does not factorize B. Damping keeps every update positive
+/// definite in exact arithmetic, and the QP backend checks the B it receives
+/// exactly: the Clarabel adapter runs a Cholesky gate on every model and
+/// reports [`sqp_craft::qp::QpOutcome::NotPositiveDefinite`], on which the
+/// driver resets B and re-solves, as it does after a failed update. A
+/// factorization here would repeat that O(n³) check once per iteration.
 pub(crate) struct Workspace {
     next: DMatrix<f64>,
-    check: DMatrix<f64>,
     bs: DVector<f64>,
     r: DVector<f64>,
-    factor: Option<Cholesky<f64, Dyn>>,
-    updates: usize,
-    fresh_each_update: bool,
+    /// Explicit blocks check their own update, so a failure can switch the
+    /// solve to full BFGS at the update, before any QP sees the block.
+    check: Option<DMatrix<f64>>,
 }
+
 impl Workspace {
-    pub fn new(n: usize) -> Self {
+    pub fn new(n: usize, check: bool) -> Self {
         Self {
             next: DMatrix::zeros(n, n),
-            check: DMatrix::zeros(n, n),
             bs: DVector::zeros(n),
             r: DVector::zeros(n),
-            factor: None,
-            updates: 0,
-            fresh_each_update: n <= 16,
+            check: check.then(|| DMatrix::zeros(n, n)),
         }
     }
-    pub fn reset(&mut self) {
-        self.factor = None;
-        self.updates = 0;
-    }
-    fn rebuild(&mut self, b: &DMatrix<f64>, candidate: bool) -> bool {
-        let matrix = if candidate { &self.next } else { b };
-        let mut work = self
-            .factor
-            .take()
-            .map(|f| f.unpack_dirty())
-            .unwrap_or_else(|| std::mem::take(&mut self.check));
-        work.resize_mut(matrix.nrows(), matrix.ncols(), 0.);
-        work.copy_from(matrix);
-        self.factor = work.cholesky();
-        self.updates = 0;
-        self.factor.is_some()
-    }
+
+    /// Damped BFGS update of `b`. Returns false if a reset is required, true
+    /// for an update or a negligible displacement.
     pub fn update(&mut self, b: &mut DMatrix<f64>, s: &[f64], y: &[f64]) -> bool {
         if s.iter().fold(0.0_f64, |v, s| v.max(s.abs())) < 1e-14 {
             return true;
-        }
-        if self.factor.is_none() && !self.rebuild(b, false) {
-            return false;
         }
         let sv = DVectorView::from_slice(s, s.len());
         let yv = DVectorView::from_slice(y, y.len());
@@ -65,6 +54,10 @@ impl Workspace {
         if !sr.is_finite() || sr <= 0. {
             return false;
         }
+        // B − (Bs)(Bs)ᵀ/t + rrᵀ/sr. B is exactly symmetric and every term is
+        // symmetric in i, j (floating-point products commute), so one
+        // triangle is computed and mirrored; the result is bit-identical to
+        // `0.5·(N + Nᵀ)` of the matrix expression.
         let n = b.nrows();
         for j in 0..n {
             for i in j..n {
@@ -76,21 +69,16 @@ impl Workspace {
         if self.next.iter().any(|v| !v.is_finite()) {
             return false;
         }
-        let rebuild = if self.fresh_each_update || self.updates >= 31 {
-            true
-        } else {
-            let factor = self.factor.as_mut().expect("factor initialized");
-            // Positive update first: B - uu' alone is singular in exact arithmetic.
-            factor.rank_one_update(&self.r, 1. / sr);
-            factor.rank_one_update(&self.bs, -1. / t);
-            self.updates += 1;
-            let l = factor.l_dirty();
-            (0..n).any(|i| {
-                !l[(i, i)].is_finite() || l[(i, i)] <= 0. || (0..=i).any(|j| !l[(i, j)].is_finite())
-            })
-        };
-        if rebuild && !self.rebuild(b, true) {
-            return false;
+        if let Some(buffer) = self.check.as_mut() {
+            let mut work = std::mem::take(buffer);
+            work.copy_from(&self.next);
+            match work.cholesky() {
+                Some(factor) => *buffer = factor.unpack_dirty(),
+                None => {
+                    *buffer = DMatrix::zeros(n, n);
+                    return false;
+                }
+            }
         }
         std::mem::swap(b, &mut self.next);
         true
@@ -102,16 +90,18 @@ struct Block {
     matrix: DMatrix<f64>,
     work: Workspace,
 }
+
 /// Full-mode behavior is preserved; blocks are an explicit approximation.
 pub(crate) struct Curvature {
     full: Option<Workspace>,
     blocks: Vec<Block>,
 }
+
 impl Curvature {
     pub fn new(n: usize, size: usize) -> Self {
         if size == 0 || size >= n {
             return Self {
-                full: Some(Workspace::new(n)),
+                full: Some(Workspace::new(n, false)),
                 blocks: vec![],
             };
         }
@@ -122,24 +112,13 @@ impl Curvature {
                 Block {
                     start,
                     matrix: DMatrix::zeros(k, k),
-                    work: {
-                        let mut work = Workspace::new(k);
-                        work.fresh_each_update = true;
-                        work
-                    },
+                    work: Workspace::new(k, true),
                 }
             })
             .collect();
         Self { full: None, blocks }
     }
-    pub fn reset(&mut self) {
-        if let Some(w) = self.full.as_mut() {
-            w.reset();
-        }
-        for block in &mut self.blocks {
-            block.work.reset();
-        }
-    }
+
     pub fn update(&mut self, b: &mut DMatrix<f64>, s: &[f64], y: &[f64]) -> bool {
         if let Some(w) = self.full.as_mut() {
             return w.update(b, s, y);
@@ -162,36 +141,13 @@ impl Curvature {
 
 #[cfg(test)]
 fn update(b: &mut DMatrix<f64>, s: &[f64], y: &[f64]) -> bool {
-    Workspace::new(s.len()).update(b, s, y)
+    Workspace::new(s.len(), false).update(b, s, y)
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn rank_updates_track_the_independent_matrix_and_reset() {
-        let n = 25;
-        let mut b = DMatrix::identity(n, n);
-        let mut w = Workspace::new(n);
-        for k in 0..120 {
-            let s: Vec<_> = (0..n)
-                .map(|j| ((j * 17 + k * 7) % 31) as f64 / 31. - 0.4)
-                .collect();
-            let y: Vec<_> = s
-                .iter()
-                .enumerate()
-                .map(|(j, &v)| v * (1. + (j % 4) as f64))
-                .collect();
-            assert!(w.update(&mut b, &s, &y));
-            let l = w.factor.as_ref().unwrap().l();
-            let actual = &l * l.transpose();
-            let scale = 1. + b.amax();
-            assert!((&actual - &b).amax() < 1e-8 * scale);
-            if k == 60 {
-                b = DMatrix::identity(n, n) * 2.;
-                w.reset();
-            }
-        }
-    }
+
     #[test]
     fn damping_preserves_positive_definiteness() {
         let mut b = DMatrix::identity(2, 2);
@@ -199,6 +155,27 @@ mod tests {
         assert!(b.clone().cholesky().is_some());
         assert!(update(&mut b, &[0.0, 0.0], &[1.0, 2.0]));
         assert!(!update(&mut b, &[1e308, 1e308], &[1.0, 1.0]));
+    }
+
+    #[test]
+    fn only_checked_blocks_factorize_and_reject_an_indefinite_result() {
+        // diag(1, -5) updated along e0 gives diag(2, -5): an update can only
+        // be indefinite from rounding or an indefinite start; this exercises
+        // the check itself deterministically.
+        let start = DMatrix::from_row_slice(2, 2, &[1.0, 0.0, 0.0, -5.0]);
+        let (s, y) = ([1.0, 0.0], [2.0, 0.0]);
+        let mut unchecked = start.clone();
+        assert!(Workspace::new(2, false).update(&mut unchecked, &s, &y));
+        assert_eq!(unchecked.as_slice(), &[2.0, 0.0, 0.0, -5.0]);
+        let mut checked = start.clone();
+        let mut work = Workspace::new(2, true);
+        assert!(!work.update(&mut checked, &s, &y));
+        assert_eq!(checked, start, "a rejected update leaves B unchanged");
+        // The buffer is restored after a rejection; later updates still work.
+        let mut fine = DMatrix::identity(2, 2);
+        assert!(work.update(&mut fine, &[1.0, 2.0], &[2.0, 3.0]));
+        assert!(work.update(&mut fine, &[0.5, -1.0], &[1.0, -1.5]));
+        assert!(fine.clone().cholesky().is_some());
     }
 
     #[test]
@@ -212,6 +189,7 @@ mod tests {
         };
         for n in [1, 2, 5, 17, 64] {
             let mut b = DMatrix::identity(n, n) * 1.7;
+            let mut work = Workspace::new(n, false);
             for step in 0..40 {
                 let s: Vec<f64> = (0..n).map(|_| uniform()).collect();
                 // Every fourth step has negative curvature, so damping applies.
@@ -233,7 +211,7 @@ mod tests {
                 let sr = sv.dot(&r);
                 let reference = &b - (&bs * bs.transpose()) / t + (&r * r.transpose()) / sr;
                 let reference = 0.5 * (&reference + reference.transpose());
-                assert!(update(&mut b, &s, &y), "n {n}, step {step}");
+                assert!(work.update(&mut b, &s, &y), "n {n}, step {step}");
                 assert!(
                     b.iter()
                         .zip(reference.iter())

@@ -150,8 +150,12 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    `φ(x_k + αp) <= φ(x_k) − 10⁻⁴·α·predicted`.
 4. **Update.** `derivatives` at the accepted point, then damped BFGS (Powell
    1978) with `y = ∇ₓL(x_{k+1}, λ) − ∇ₓL(x_k, λ)`, the new multipliers at both
-   ends; a symmetric positive-definite check (Cholesky) guards every update,
-   and a failed update resets `B` to `scale·I`.
+   ends. Damping keeps `B` positive definite in exact arithmetic; rounding in
+   the explicit update can still leave it indefinite. The QP backend checks
+   every `B` it receives exactly (the Clarabel adapter by Cholesky) and returns
+   `NotPositiveDefinite`; the driver then resets `B` to `scale·I` and re-solves
+   that QP, as after a failed update (non-finite values or non-positive
+   curvature after damping). Both consume the Hessian reset budget.
 
 If the predicted decrease is not positive, `B` is reset once and the QP
 retried. If it is still not positive but its magnitude is within the QP's own
@@ -273,9 +277,11 @@ positive semidefiniteness.
 A `QpBackend` is configured per call with `QpOptions` (native tolerance,
 acceptance tolerance, iteration cap, remaining time and `reuse_workspace`)
 and returns a `QpOutcome`:
-`Optimal(solution)`, `Infeasible`, `Unbounded`, `LimitReached(last iterate)` or
-`Cancelled`; `report()` gives the backend name, raw status, limit kind and
-iterations. Infeasibility and unboundedness are outcomes, not errors. A
+`Optimal(solution)`, `Infeasible`, `Unbounded`, `LimitReached(last iterate)`,
+`Cancelled` or `NotPositiveDefinite` (the Hessian failed the backend's
+convexity check and nothing was solved); `report()` gives the backend name,
+raw status, limit kind and iterations. Infeasibility, unboundedness and a
+non-positive-definite Hessian are outcomes, not errors. A
 `QpSolution` carries the step, multipliers in the shared convention, an optional
 working set and the iteration count. `QpWarmStart` may carry a step,
 multipliers and/or a working set; all are validated (finite, right lengths).
@@ -297,8 +303,13 @@ step.
 
 Clarabel 0.11.1, an interior-point conic solver in Rust. Cold starts only:
 supplied warm-start data is validated, then rejected as `Unsupported` rather
-than ignored. One thread, positive-definite Hessians (checked by Cholesky), at
-most 256 variables. Each finite side of a row or variable bound becomes one
+than ignored. One thread, positive-definite Hessians, at most 256 variables.
+Every model's Hessian is checked exactly before conversion: a strictly
+diagonally dominant one is accepted by an upward-rounded Gershgorin test, a
+pattern that splits into disconnected components is factorized per component,
+and any other by a dense Cholesky factorization. A failure is returned as
+`QpOutcome::NotPositiveDefinite`, keeping the cached workspace and
+conversion data, so the caller's re-solve reuses them. Each finite side of a row or variable bound becomes one
 nonnegative-cone row (`a·p ≤ u` as `(a, u)`, `a·p ≥ l` as `(−a, −l)`); equal
 bounds become a zero-cone row; free sides produce no row. Clarabel's duals
 `z ≥ 0` satisfy `Hp + g + Aᵀz = 0`, so `λ = z_lower − z_upper`, and `−z` for an
@@ -532,13 +543,13 @@ consumes one normal Hessian reset and increments
 continues for the rest of that solve. The block mode's initial orbit failures
 and the validated hybrid results remain in the performance records.
 
-Large full Hessians maintain a Cholesky representation through rank updates,
-with periodic (32-update) or invalid-factor rebuilds; dimensions <=16 retain
-fresh checks. The adapter independently verifies positive definiteness on
-every model and checks accepted QP solutions in original coordinates.
-Strictly diagonally dominant positive matrices use an upward-rounded
-Gershgorin sufficient test; disconnected stored Hessian components are
-factored separately; other cases keep the dense Cholesky gate.
+Full BFGS does not factorize `B`: the QP adapter's exact gate, described
+under the Clarabel adapter, is the only positive-definiteness test, once per
+QP. (The delivered release maintained a rank-updated Cholesky factor above 16
+variables. That factor tracked a nearby matrix, not the rounded `B` itself,
+so an indefinite `B` reached the adapter and the solve failed with
+`Unsupported`; see `crates/sqp/tests/hessian_gate.rs`.) The adapter also
+checks accepted QP solutions in original coordinates.
 
 `QpResidualWorkspace`, `QpModel.residuals_with_workspace`,
 `QpModel.accepts_with_workspace`, and `kkt::residuals_with_workspace` reuse
