@@ -1,7 +1,11 @@
 //! Fixed-callback release benchmark. Input generation is outside solver timing.
+//!
+//!     performance [orbit|separable|restoration] [size] [reuse|cold] [block] [clarabel|active-set]
 #[path = "support/orbit.rs"]
 mod orbit;
+use sqp_craft::qp::QpBackend;
 use sqp_craft::*;
+use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
 use sqp_craft_solver::{NativeSqp, SqpOptions};
 use std::time::Instant;
@@ -66,6 +70,7 @@ fn main() {
     let size = args.get(2).map(|s| s.parse().unwrap()).unwrap_or(20);
     let reuse = args.get(3).is_none_or(|s| s != "cold");
     let block = args.get(4).map(|s| s.parse().unwrap()).unwrap_or(0);
+    let backend = args.get(5).map(String::as_str).unwrap_or("clarabel");
     let (spec, mut model, x): (ProblemSpec, Box<dyn NlpProblem>, Vec<f64>) = if family == "orbit" {
         let (s, m, x) = orbit::OrbitTransfer::new(size);
         (s, Box::new(m), x)
@@ -99,28 +104,18 @@ fn main() {
         .unwrap();
         (s, Box::new(Separable { restoration }), vec![0.1; n])
     };
-    let mut solver = NativeSqp::<ClarabelQp> {
-        settings: SqpOptions {
-            max_iterations: 350,
-            hessian_block_size: block,
-            max_callback_calls: 3000,
-            qp_reuse_workspace: reuse,
-            ..Default::default()
-        },
+    let settings = SqpOptions {
+        max_iterations: 350,
+        hessian_block_size: block,
+        max_callback_calls: 3000,
+        qp_reuse_workspace: reuse,
         ..Default::default()
     };
-    let t = Instant::now();
-    let r = solver
-        .solve(
-            &spec,
-            model.as_mut(),
-            &x,
-            &Options::default(),
-            &CancellationToken::default(),
-            None,
-        )
-        .unwrap();
-    let seconds = t.elapsed().as_secs_f64();
+    let (r, seconds) = match backend {
+        "clarabel" => run::<ClarabelQp>(settings, &spec, model.as_mut(), &x),
+        "active-set" => run::<ActiveSetQp>(settings, &spec, model.as_mut(), &x),
+        other => panic!("unknown backend {other}"),
+    };
     assert_eq!(r.status, Status::Converged, "{family} {size}: {r:?}");
     let e = r.evaluation.as_ref().unwrap();
     let k = sqp_craft::kkt::nlp_residuals(
@@ -145,7 +140,7 @@ fn main() {
         assert!(e.objective < 1e-9);
     }
     println!(
-        "{{\"family\":\"{family}\",\"size\":{size},\"reuse\":{reuse},\"hessian_block_size\":{block},\"seconds\":{seconds},\"objective\":{},\"iterations\":{},\"qp_calls\":{},\"qp_iterations\":{},\"bfgs_seconds\":{},\"conversion_seconds\":{},\"engine_seconds\":{},\"block_hessian_fallbacks\":{},\"setups\":{},\"updates\":{},\"primal\":{},\"stationarity\":{}}}",
+        "{{\"family\":\"{family}\",\"backend\":\"{backend}\",\"size\":{size},\"reuse\":{reuse},\"hessian_block_size\":{block},\"seconds\":{seconds},\"objective\":{},\"iterations\":{},\"qp_calls\":{},\"qp_iterations\":{},\"bfgs_seconds\":{},\"conversion_seconds\":{},\"engine_seconds\":{},\"setup_seconds\":{},\"check_seconds\":{},\"qp_seconds\":{},\"block_hessian_fallbacks\":{},\"setups\":{},\"updates\":{},\"primal\":{},\"stationarity\":{}}}",
         e.objective,
         r.iterations,
         r.report.qp_solves,
@@ -153,10 +148,37 @@ fn main() {
         r.report.bfgs_seconds,
         r.report.qp_conversion_seconds,
         r.report.qp_solve_seconds,
+        r.report.qp_setup_seconds,
+        r.report.qp_check_seconds,
+        r.report.qp_seconds,
         r.report.block_hessian_fallbacks,
         r.report.qp_setups,
         r.report.qp_updates,
         k.primal,
         k.stationarity
     );
+}
+
+fn run<B: QpBackend + Default>(
+    settings: SqpOptions,
+    spec: &ProblemSpec,
+    model: &mut dyn NlpProblem,
+    x: &[f64],
+) -> (SolveResult, f64) {
+    let mut solver = NativeSqp::<B> {
+        settings,
+        qp: B::default(),
+    };
+    let t = Instant::now();
+    let r = solver
+        .solve(
+            spec,
+            model,
+            x,
+            &Options::default(),
+            &CancellationToken::default(),
+            None,
+        )
+        .unwrap();
+    (r, t.elapsed().as_secs_f64())
 }

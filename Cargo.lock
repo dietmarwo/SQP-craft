@@ -503,6 +503,14 @@ name = "sqp-craft"
 version = "0.14.0"
 
 [[package]]
+name = "sqp-craft-activeset"
+version = "0.14.0"
+dependencies = [
+ "sqp-craft",
+ "sqp-craft-clarabel",
+]
+
+[[package]]
 name = "sqp-craft-clarabel"
 version = "0.14.0"
 dependencies = [
@@ -517,6 +525,7 @@ version = "0.14.0"
 dependencies = [
  "pyo3",
  "sqp-craft",
+ "sqp-craft-activeset",
  "sqp-craft-clarabel",
  "sqp-craft-solver",
 ]
@@ -527,6 +536,7 @@ version = "0.14.0"
 dependencies = [
  "nalgebra",
  "sqp-craft",
+ "sqp-craft-activeset",
  "sqp-craft-clarabel",
 ]
 

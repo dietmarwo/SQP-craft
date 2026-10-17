@@ -4,9 +4,11 @@
     python3 scripts/compare_performance.py out.json base=/path/a new=/path/b \\
         [--blocks new] [--repeats 5]
 
-Each LABEL=BINARY is run on the fixed-callback fixtures with reused and cold
-QP workspaces; builds named with --blocks also run their block mode (width 4
-on the orbit, 2 on the separable and 1 on the restoration fixture). Every
+Each LABEL=BINARY[:BACKEND] is run on the fixed-callback fixtures with reused
+and cold QP workspaces; BACKEND (`clarabel` by default, or `active-set`)
+selects the QP backend, so one binary can appear under two labels. Builds
+named with --blocks also run their block mode (width 4 on the orbit, 2 on
+the separable and 1 on the restoration fixture). Every
 call is a fresh process. The first round is a warmup; rounds rotate and
 alternate direction so drift on the host affects every build alike. The
 example asserts convergence, original-unit KKT residuals and the reference
@@ -28,8 +30,9 @@ from pathlib import Path
 
 CASES = [("orbit", 20), ("orbit", 40), ("separable", 128), ("restoration", 64)]
 BLOCK_WIDTH = {"orbit": 4, "separable": 2, "restoration": 1}
-METRICS = ["seconds", "iterations", "qp_calls", "qp_iterations", "bfgs_seconds",
-           "conversion_seconds", "engine_seconds", "setups", "updates", "objective"]
+METRICS = ["seconds", "iterations", "qp_calls", "qp_iterations", "bfgs_seconds", "qp_seconds",
+           "conversion_seconds", "setup_seconds", "engine_seconds", "setups", "updates",
+           "objective"]
 
 
 def cpu() -> str:
@@ -45,14 +48,18 @@ def cpu() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("output", type=Path)
-    parser.add_argument("builds", nargs="+", metavar="LABEL=BINARY")
+    parser.add_argument("builds", nargs="+", metavar="LABEL=BINARY[:BACKEND]")
     parser.add_argument("--blocks", nargs="*", default=[], metavar="LABEL",
                         help="builds that also run their block mode")
     parser.add_argument("--repeats", type=int, default=5)
     args = parser.parse_args()
     if args.repeats < 1:
         parser.error("--repeats must be positive")
-    builds = dict(item.split("=", 1) for item in args.builds)
+    builds, backends = {}, {}
+    for item in args.builds:
+        label, target = item.split("=", 1)
+        path, _, backend = target.partition(":")
+        builds[label], backends[label] = path, backend or "clarabel"
     unknown = set(args.blocks) - builds.keys()
     if unknown:
         parser.error(f"--blocks names unknown builds: {sorted(unknown)}")
@@ -71,7 +78,8 @@ def main() -> None:
             order.reverse()
         for family, size, label, mode, blocked in order:
             width = BLOCK_WIDTH[family] if blocked else 0
-            command = [str(Path(builds[label]).resolve()), family, str(size), mode, str(width)]
+            command = [str(Path(builds[label]).resolve()), family, str(size), mode, str(width),
+                       backends[label]]
             done = subprocess.run(command, capture_output=True, text=True, timeout=300)
             if done.returncode:
                 raise RuntimeError(f"{label} {family} {size} {mode}: {done.stderr[-2000:]}")

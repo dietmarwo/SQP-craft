@@ -79,8 +79,9 @@ independent model instances, in separate processes when the model is Python.
 ## Solving
 
 Rust: `SqpSolver::solve(&mut self, spec, problem, x0, options, cancel, observer)`,
-implemented by `DummySolver` and `NativeSqp<ClarabelQp>` (crates `sqp-craft`,
-`sqp-craft-solver`, `sqp-craft-clarabel`).
+implemented by `DummySolver` (crate `sqp-craft`) and `NativeSqp<B>` (crate
+`sqp-craft-solver`) with a QP backend `B`: `ClarabelQp` (crate
+`sqp-craft-clarabel`) or `ActiveSetQp` (crate `sqp-craft-activeset`).
 
 Python: `solve(spec, model, x0, *, method="dummy", method_options=None,
 options=None, cancellation=None, observer=None)`. `method="sqp"` selects the
@@ -114,9 +115,11 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `dense_size_limit` | `256` | Variables allowed, 1 to 256 |
 | `initial_hessian_scale` | `1` | `B = scale·I` initially and after a reset |
 | `max_hessian_resets` | `3` | Total resets (failed BFGS updates and non-descent retries) |
-| `qp_tolerance` | `1e-10` | Clarabel's native tolerances |
-| `qp_max_iterations` | `200` | Per QP, shared across a reused attempt and its cold retry |
-| `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below |
+| `qp_solver` | `"clarabel"` | Python only: `"clarabel"` (interior point) or `"active-set"` (dense dual active set, see below); in Rust, the type `B` of `NativeSqp<B>` |
+| `qp_tolerance` | `1e-10` | The QP backend's native tolerance: Clarabel's feasibility and gap tolerances, the active-set violation and sign thresholds |
+| `qp_max_iterations` | `200` | Per QP, shared across an attempt and its cold retry. Clarabel: interior-point iterations. Active set: drops and re-entries of constraints (first entries are not charged) |
+| `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below. No effect on the active-set backend |
+| `qp_warm_start` | `true` | Pass the last step QP's working set to the next QP; only backends that report one (the active-set backend) receive it |
 | `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
@@ -152,7 +155,9 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    1978) with `y = ∇ₓL(x_{k+1}, λ) − ∇ₓL(x_k, λ)`, the new multipliers at both
    ends. Damping keeps `B` positive definite in exact arithmetic; rounding in
    the explicit update can still leave it indefinite. The QP backend checks
-   every `B` it receives exactly (the Clarabel adapter by Cholesky) and returns
+   every `B` it receives exactly (the Clarabel adapter by a separate Cholesky
+   factorization, the active-set backend by the factorization it solves with)
+   and returns
    `NotPositiveDefinite`; the driver then resets `B` to `scale·I` and re-solves
    that QP, as after a failed update (non-finite values or non-positive
    curvature after damping). Both consume the Hessian reset budget;
@@ -167,7 +172,13 @@ noise level. Near a solution it is still the right step (`pᵀBp ≈ 1e-12` whil
 stationarity is just above tolerance), so it is tried once at full length and
 accepted if the merit does not rise by more than that accuracy; at most three
 such steps in a row. Otherwise the solve ends `stalled` (noise level) or
-`no_descent`.
+`no_descent`. The active-set backend puts active constraints on their bounds
+to rounding, so its steps have no such interior-point gap.
+
+With `qp_warm_start` (the default) the working set of each accepted step QP
+is passed to the next one as `QpWarmStart.active_set`, if the backend
+reported one. Clarabel reports none, so its runs do not depend on the
+setting.
 
 Bounded local feasibility restoration is described below. There is no elastic-slack
 mode or second-order correction (so the
@@ -376,6 +387,10 @@ restoration calls under these names (the Python report has the same fields):
 | `qp_solve_seconds` | Engine solve time across all attempts |
 | `qp_check_seconds` | Backend solution extraction and independent acceptance checking |
 
+For the active-set backend, conversion is the dense copy of `H` and the
+row norms, setup is the Cholesky factorization (one setup per call), solve is
+`L⁻ᵀ` and the active-set iterations, and updates are always 0.
+
 Per-QP names omit the `qp_` prefix (`setups`, `updates`, and so on).
 `qp_solves` still counts backend calls; `qp_iterations` and the final
 `QpSolution.iterations` include both engine attempts. `qp_status` is the most
@@ -384,6 +399,41 @@ The new phase timers are disjoint subsets of inclusive `qp_seconds`; input
 validation, structural matching and other overhead explain their difference.
 Dummy reports have zero counters/times and no retry reason. Timing is diagnostic,
 not a deterministic API guarantee.
+
+### Active-set backend (`sqp-craft-activeset`)
+
+`ActiveSetQp` is the dual active-set method of Goldfarb and Idnani on a dense
+Cholesky factor `H = L Lᵀ`; [active-set-qp.md](active-set-qp.md) has the
+design, measurements and validation. It needs no dependency beyond the core
+crate.
+
+- Every finite bound side is a constraint `σ aᵀp ≥ σ b` (`σ = 1` lower,
+  `σ = −1` upper); equal bounds are an equality, which is never dropped.
+  Multipliers are mapped to the shared convention (`λ = σ u`), and the final
+  working set is returned as `QpSolution.active_set`: `AtLower` or `AtUpper`
+  per active side (either for an equality), `Inactive` otherwise. An
+  equality that depends on the others may stay `Inactive`.
+- A failed Cholesky pivot is `NotPositiveDefinite`. Inconsistent constraints
+  are `Infeasible`, claimed only from a point recomputed from the factors.
+  `Unbounded` does not occur. Iteration and time limits are
+  `LimitReached(None)` with `limit_reason` `"iterations"` or `"time"`; the
+  token is polled at every working-set change.
+- Warm starts use `QpWarmStart.active_set`: the equalities and the given
+  sides start in the working set (dependent ones are skipped), and negative
+  multipliers are dropped before the iterations begin, so any working set is
+  a valid start. `step` and `multipliers` are validated and ignored. A
+  warm-started attempt that ends infeasible or fails the independent check
+  is repeated once from a cold start within the same budget
+  (`cold_retries`, `retry_reason`).
+- `QpReport.iterations` counts the working-set changes after the initial
+  working set. `max_iterations` caps the drops and re-entries only, because
+  a cold start needs one entry per active inequality.
+- Accepted solutions pass `QpModel::accepts` with the call's acceptance
+  tolerance; a cold solution that fails it is `Error::Backend` (the driver's
+  `qp_failure`).
+- Three `n × n` buffers are kept and reused; `reuse_workspace` has no
+  effect, and results do not depend on earlier calls. The backend has no
+  variable cap of its own.
 
 ## Errors
 
