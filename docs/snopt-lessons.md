@@ -433,6 +433,15 @@ The combination behaves like its parts:
 
 No setting is best everywhere, which is why the four stay separate options.
 
+With Clarabel the combination gives nearly the same numbers on every family
+but one. The complementarity family collapses to 61 of 600 converged, against
+532 by default, because projection and Jacobian scaling both make its
+degenerate interior-point QPs fail. Elsewhere:
+- badly scaled orbit: 40 of 40 converged instead of 19;
+- badly scaled stress: 576 instead of 569;
+- badly scaled linear-guard: 597 instead of 588;
+- stress: 15,097 iterations instead of 15,254.
+
 ## Validation
 
 - **Rust unit tests:**
