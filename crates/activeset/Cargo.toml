@@ -1,0 +1,15 @@
+[package]
+name = "sqp-craft-activeset"
+description = "Dense dual active-set (Goldfarb-Idnani) QP backend for the sqp-craft QP seam"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+sqp-craft = { path = "../core" }
+
+[dev-dependencies]
+sqp-craft-clarabel = { path = "../clarabel" }

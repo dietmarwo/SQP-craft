@@ -14,6 +14,7 @@ use sqp_craft::{
     Bounds, CancellationToken, CsrPattern, NlpProblem, Options, ProblemSpec, Result, SolveResult,
     SqpSolver, Status,
 };
+use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
 use sqp_craft_solver::{NativeSqp, SqpOptions};
 
@@ -104,12 +105,19 @@ impl NlpProblem for Padded {
 
 #[test]
 fn an_update_that_rounds_indefinite_resets_b_instead_of_failing_the_solve() {
-    let mut resets = 0;
+    // Both backends gate B exactly: Clarabel's adapter by a separate dense
+    // Cholesky, the active-set backend by the factorization it solves with.
+    padded_runs::<ClarabelQp>();
+    padded_runs::<ActiveSetQp>();
+}
+
+fn padded_runs<B: QpBackend + Default>() {
+    let (mut resets, mut rejections) = (0, 0);
     for weight in [1e-3, 1.0, 1e3] {
         for reuse in [false, true] {
             let mut model = Padded { extra: 20, weight };
             let (spec, x0) = (model.spec(), model.start());
-            let r = NativeSqp::<ClarabelQp> {
+            let r = NativeSqp::<B> {
                 settings: SqpOptions {
                     max_iterations: 300,
                     qp_reuse_workspace: reuse,
@@ -133,6 +141,7 @@ fn an_update_that_rounds_indefinite_resets_b_instead_of_failing_the_solve() {
                 r.message
             );
             resets += r.report.hessian_resets;
+            rejections += r.report.qp_not_positive_definite;
             let k = nlp_residuals(
                 &spec,
                 r.candidate.as_ref().unwrap(),
@@ -149,8 +158,12 @@ fn an_update_that_rounds_indefinite_resets_b_instead_of_failing_the_solve() {
             );
         }
     }
-    // Five of the six runs reset B at least once after the QP gate fired.
-    assert!(resets >= 1, "the gate was not exercised");
+    // Most of the six runs reset B at least once after the QP gate fired
+    // (five with Clarabel, four with the active-set backend).
+    assert!(
+        rejections >= 1 && resets >= rejections,
+        "the gate was not exercised"
+    );
 }
 
 /// Delegates to Clarabel but reports `NotPositiveDefinite` for the listed

@@ -30,7 +30,7 @@ use std::time::Instant;
 
 use nalgebra::DMatrix;
 use sqp_craft::kkt::nlp_residuals;
-use sqp_craft::qp::{QpBackend, QpModel, QpOptions, QpOutcome, QpSolution};
+use sqp_craft::qp::{QpBackend, QpModel, QpOptions, QpOutcome, QpSolution, QpWarmStart};
 use sqp_craft::{
     Bounds, CancellationToken, Control, CsrMatrix, CsrPattern, Error, Evaluation, EvaluationCounts,
     IterationRecord, Multipliers, NlpProblem, Observer, Options, ProblemSpec, Progress, Result,
@@ -83,6 +83,10 @@ pub struct SqpOptions {
     pub qp_max_iterations: u32,
     /// Opt in to compatible QP workspace reuse (not a primal/dual warm start).
     pub qp_reuse_workspace: bool,
+    /// Pass the working set of the last step QP to the next one. Only
+    /// backends that report a working set (active-set methods) get one, so
+    /// this has no effect with Clarabel.
+    pub qp_warm_start: bool,
     /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
@@ -112,6 +116,7 @@ impl Default for SqpOptions {
             qp_tolerance: 1e-10,
             qp_max_iterations: 200,
             qp_reuse_workspace: false,
+            qp_warm_start: true,
             record_qp_limit: 0,
             record_history: false,
             max_restoration_steps: 10,
@@ -619,6 +624,8 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         };
         let mut bfgs_work = bfgs::Curvature::new(n, effective_block);
         let mut qp_work: Option<QpModel> = None;
+        // The last step QP's working set, if the backend reports one.
+        let mut qp_warm: Option<QpWarmStart> = None;
         let mut qp_checks = sqp_craft::qp::QpResidualWorkspace::default();
         let mut penalties = vec![0.0; spec.m()];
         let mut have_penalties = false;
@@ -678,7 +685,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             })?;
             let t = Instant::now();
             r.report.qp_solves += 1;
-            let outcome = self.qp.solve(qp, None, cancel);
+            let outcome = self.qp.solve(qp, qp_warm.as_ref(), cancel);
             r.report.qp_seconds += t.elapsed().as_secs_f64();
             let report = self.qp.report();
             record_qp_work(&mut r.report, &report);
@@ -779,6 +786,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 }
                 Err(err) => return Err(err),
             };
+            if settings.qp_warm_start {
+                if let Some(active_set) = solution.active_set.take() {
+                    qp_warm = Some(QpWarmStart {
+                        active_set: Some(active_set),
+                        ..Default::default()
+                    });
+                }
+            }
             // Put tolerance-level overshoots of the step bounds (including the
             // zero-width bounds of fixed variables) on the bound; recheck below.
             snap_step(

@@ -22,10 +22,13 @@ pyo3 = { version = "0.30.1", features = ["abi3-py310"] }
 
 [features]
 default = ["sqp"]
-sqp = ["dep:sqp-craft-solver", "dep:sqp-craft-clarabel"]
+sqp = ["dep:sqp-craft-solver", "dep:sqp-craft-clarabel", "dep:sqp-craft-activeset"]
 [dependencies.sqp-craft-solver]
 path = "../sqp"
 optional = true
 [dependencies.sqp-craft-clarabel]
 path = "../clarabel"
+optional = true
+[dependencies.sqp-craft-activeset]
+path = "../activeset"
 optional = true

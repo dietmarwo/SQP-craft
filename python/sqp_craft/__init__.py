@@ -130,9 +130,15 @@ class SqpOptions:
     qp_tolerance: float = 1e-10
     """Native tolerance of the QP backend."""
     qp_max_iterations: int = 200
-    """Iteration cap per QP."""
+    """Iteration cap per QP. For ``"active-set"`` it caps drops and re-entries
+    of constraints; first entries are not charged."""
     qp_reuse_workspace: bool = False
     """Opt in to compatible workspace reuse; primal/dual iterates still start cold."""
+    qp_solver: str = "clarabel"
+    """QP backend: ``"clarabel"`` (interior point) or ``"active-set"`` (dense
+    Goldfarb–Idnani dual active set, warm-started from the last working set)."""
+    qp_warm_start: bool = True
+    """Pass the last step QP's working set to the next; only ``"active-set"`` uses it."""
     record_qp_limit: int = 0
     """Number of step QPs to keep in ``report.qp_trace`` (at most 16)."""
     max_restoration_steps: int = 10

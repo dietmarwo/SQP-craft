@@ -5,10 +5,11 @@ for smooth constrained problems such as trajectory transcriptions.
 
 **Version 0.14.0: ten tested performance iterations** based on reviewed
 `main` at `73d8d0c`. This is still a research pilot with at most 256 variables
-and one numerical thread per solve. It uses damped BFGS, Clarabel QPs, an L1
-merit line search, bounded feasibility restoration and independent first-order
-KKT checks. There is no second-order/global optimality certificate or nonlinear
-infeasibility certificate.
+and one numerical thread per solve. It uses damped BFGS, QPs solved by
+Clarabel or by a dense active-set method, an L1 merit line search, bounded
+feasibility restoration and independent first-order KKT checks. There is no
+second-order/global optimality certificate or nonlinear infeasibility
+certificate.
 
 The performance work reuses numerical/checking/callback buffers, caches QP and
 conic conversion structure, reduces symmetric update work and preserves exact
@@ -20,6 +21,15 @@ failed block updates switch once to full BFGS within the existing reset budget.
 `report.block_hessian_fallbacks` records that switch. Block mode is an
 approximation, and can improve or worsen solve time depending on the model
 and variable order.
+
+**A dense active-set QP backend** (Goldfarb–Idnani dual method, warm-started
+from the previous working set) is available with
+`SqpOptions(qp_solver="active-set")`. On the benchmark fixtures it takes the
+same SQP steps as Clarabel and makes the whole solve 5.4 to 6.4 times faster
+(the 164-variable orbit transfer: 2.99 s → 0.55 s). It gave the same status
+as Clarabel in all 4,500 paired stress runs. Clarabel remains the default.
+See [active-set-qp.md](docs/active-set-qp.md), and
+[gaps.md](docs/gaps.md) for the ranked weaknesses that motivated it.
 
 See [plans and results](docs/performance/README.md) for all ten checkpoints,
 raw per-iteration measurements, final paired timings, numerical failure fixes
@@ -56,7 +66,11 @@ collocation problem; `examples/compare_baseline.py` compares the solver with
 SciPy's SLSQP under one independent evaluator, and `examples/stress_random.py`
 does the same on random feasible problems from random starts.
 
-To reuse compatible QP allocations and symbolic structure, set
+To use the dense active-set QP backend, set
+`SqpOptions(qp_solver="active-set")`; `qp_warm_start=True` (the default)
+starts each QP from the previous working set.
+
+To reuse compatible Clarabel allocations and symbolic structure, set
 `SqpOptions(qp_reuse_workspace=True)`. The default is `False`; every QP still
 starts its primal/dual iterates cold. `result.report` exposes `qp_setups`,
 `qp_updates`, `qp_cold_retries` and separate conversion, setup, update, solve
@@ -68,7 +82,10 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | --- | --- |
 | `crates/core` (`sqp-craft`) | Dependency-free contracts: problem spec, callbacks, solver traits, results, KKT residuals, QP seam, derivative checker, dummy method |
 | `crates/sqp` (`sqp-craft-solver`) | The native SQP driver and damped BFGS |
-| `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter |
+| `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter (default backend) |
+| `crates/activeset` (`sqp-craft-activeset`) | Dense dual active-set (Goldfarb–Idnani) QP backend, no dependencies |
+| [docs/gaps.md](docs/gaps.md) | Weaknesses compared with mature SQP codes, and the order of work |
+| [docs/active-set-qp.md](docs/active-set-qp.md) | The active-set backend: method, measurements, validation |
 | `crates/python`, `python/sqp_craft` | PyO3 extension and typed Python API |
 | [docs/api.md](docs/api.md) | The contract: conventions, algorithm, options, statuses, errors |
 | `examples/restore_hs071.py` | Compare disabled restoration with the recovered HS071 solve |
@@ -82,7 +99,7 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 ## Build and test
 
 Requirements: Rust 1.85 or newer, CPython 3.10 or newer, a C linker. The QP
-backend is Rust code; no external optimizer, BLAS or CMake is needed.
+backends are Rust code; no external optimizer, BLAS or CMake is needed.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -99,7 +116,7 @@ works without Python: `cargo test -p sqp-craft`. For the SLSQP comparison:
 `python -m pip install scipy && python examples/compare_baseline.py --table`
 (and `python examples/stress_random.py --table` for the stress test).
 Use `python examples/stress_random.py --reuse-workspace --table` to exercise
-reuse, and `python examples/compare_workspace.py --repeats 5 > workspace-results.json`
+reuse, `--qp-solver active-set` for the active-set backend, and `python examples/compare_workspace.py --repeats 5 > workspace-results.json`
 for the alternating-order timing comparison. These commands require SciPy.
 
 ## License
@@ -112,8 +129,10 @@ MIT, see [LICENSE](LICENSE) and [docs/dependencies.md](docs/dependencies.md).
 cargo build --release -p sqp-craft-solver --example performance --locked
 cargo run --release -p sqp-craft-solver --example performance --locked -- orbit 40 reuse 0
 cargo run --release -p sqp-craft-solver --example performance --locked -- separable 128 reuse 2
+cargo run --release -p sqp-craft-solver --example performance --locked -- orbit 40 reuse 0 active-set
 python3 scripts/performance_iteration.py target/release/examples/performance measurements.json
 python3 scripts/compare_performance.py pair.json base=PATH_A new=PATH_B --blocks new
+python3 scripts/compare_performance.py backends.json clarabel=PATH active-set=PATH:active-set
 ```
 
 The final comparison includes cold and reused QP workspaces, plus explicit

@@ -22,6 +22,11 @@ Every step QP is solved from scratch by Clarabel's interior-point method.
 - **Side effects:** interior-point solutions stop slightly short of active
   bounds. That causes the noise-level predicted-decrease cases handled in
   iteration 2, and no clean active set is ever available.
+- **Status:** addressed by the opt-in dense active-set backend
+  (`qp_solver="active-set"`, [active-set-qp.md](active-set-qp.md)). On the
+  fixtures it takes the same steps, the QP time falls 6.0–7.7×, and it gives
+  exact working sets, which warm-start the next QP. Clarabel is still the
+  default.
 
 ## 2. Curvature: dense full-space damped BFGS
 
@@ -80,8 +85,9 @@ These properties should survive every change:
 1. **A dense, warm-startable dual active-set QP** (Goldfarb–Idnani) on the
    Cholesky factor of B, for n ≤ 256. It addresses gap 1 directly, gives
    exact active sets, and folds the positive-definiteness check into the
-   factorization the method needs anyway. In progress:
-   [active-set QP](active-set-qp.md).
+   factorization the method needs anyway. Done as an opt-in backend:
+   [active-set QP](active-set-qp.md). Making it the default awaits evidence
+   from the target application.
 2. Elastic mode on top of the active-set solver (gap 4).
 3. A second-order correction or watchdog (gap 3).
 4. Automatic scaling, measured on the target application once its data

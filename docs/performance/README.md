@@ -128,4 +128,6 @@ The application target card remains unfilled. The orbit case is the existing tra
 
 The solver still has a 256-variable cap, a dense full Hessian, one numerical thread per solve, no second-order correction, no automatic scaling and no industrial robustness guarantee. It reports numerical first-order convergence, not a global or exact certificate. Future application-driven work should target KKT factorization, meaningful curvature partitions or limited-memory representations, and structured QP methods. The current synthetic regression suite remains available when the real trajectory model can be added.
 
+After this release, the dense active-set QP backend addressed the largest of these costs, the interior-point QP: see [active-set-qp.md](../active-set-qp.md), with its [paired timings](active-set-comparison.json) and [stress summary](active-set-stress-summary.json).
+
 Raw delivered data: [paired native timings](final-native-comparison.json), [validation summary](validation-summary.json), [Python comparison](final-python-comparison.json); per-iteration measurements are adjacent. The per-seed stress dumps and build logs were dropped in the review; `scripts/validate_performance_stress.py` regenerates the former.

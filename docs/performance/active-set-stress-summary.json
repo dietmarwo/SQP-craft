@@ -1,0 +1,137 @@
+{
+  "script": "scripts/validate_performance_stress.py",
+  "version": "0.14.0",
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "cases_per_seed": 300,
+  "modes": [
+    "cold",
+    "reuse",
+    "restoration_off"
+  ],
+  "backends": {
+    "clarabel": {
+      "solver_calls": 4500,
+      "errors": 0,
+      "false_claims": 0,
+      "counts": [
+        {
+          "mode": "cold",
+          "status": "converged",
+          "accepted": true,
+          "count": 1485
+        },
+        {
+          "mode": "cold",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 13
+        },
+        {
+          "mode": "cold",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 2
+        },
+        {
+          "mode": "restoration_off",
+          "status": "converged",
+          "accepted": true,
+          "count": 1219
+        },
+        {
+          "mode": "restoration_off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 281
+        },
+        {
+          "mode": "reuse",
+          "status": "converged",
+          "accepted": true,
+          "count": 1485
+        },
+        {
+          "mode": "reuse",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 13
+        },
+        {
+          "mode": "reuse",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 2
+        }
+      ]
+    },
+    "active-set": {
+      "solver_calls": 4500,
+      "errors": 0,
+      "false_claims": 0,
+      "counts": [
+        {
+          "mode": "cold",
+          "status": "converged",
+          "accepted": true,
+          "count": 1485
+        },
+        {
+          "mode": "cold",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 13
+        },
+        {
+          "mode": "cold",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 2
+        },
+        {
+          "mode": "restoration_off",
+          "status": "converged",
+          "accepted": true,
+          "count": 1219
+        },
+        {
+          "mode": "restoration_off",
+          "status": "linearization_infeasible",
+          "accepted": false,
+          "count": 281
+        },
+        {
+          "mode": "reuse",
+          "status": "converged",
+          "accepted": true,
+          "count": 1485
+        },
+        {
+          "mode": "reuse",
+          "status": "restoration_failed",
+          "accepted": false,
+          "count": 13
+        },
+        {
+          "mode": "reuse",
+          "status": "restoration_limit",
+          "accepted": false,
+          "count": 2
+        }
+      ]
+    }
+  },
+  "paired": {
+    "runs": 4500,
+    "same_status": 4500,
+    "both_converged": 4189,
+    "equal_iterations": 4136,
+    "active_set_fewer_iterations": 53,
+    "active_set_more_iterations": 0
+  }
+}

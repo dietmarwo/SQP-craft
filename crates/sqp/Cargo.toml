@@ -11,4 +11,5 @@ publish.workspace = true
 sqp-craft = { path = "../core" }
 nalgebra = { version = "=0.33.2", default-features = false, features = ["std"] }
 [dev-dependencies]
+sqp-craft-activeset = { path = "../activeset" }
 sqp-craft-clarabel = { path = "../clarabel" }

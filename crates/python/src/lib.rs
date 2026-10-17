@@ -430,6 +430,7 @@ fn solve_native<'py>(
             #[cfg(feature = "sqp")]
             {
                 let mut settings = sqp_craft_solver::SqpOptions::default();
+                let mut qp_solver = String::from("clarabel");
                 if let Some(d) = method_options {
                     for (key, value) in d.iter() {
                         let key: String = key.extract()?;
@@ -466,6 +467,8 @@ fn solve_native<'py>(
                             "qp_reuse_workspace" => {
                                 settings.qp_reuse_workspace = value.extract()?
                             }
+                            "qp_warm_start" => settings.qp_warm_start = value.extract()?,
+                            "qp_solver" => qp_solver = value.extract()?,
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
                             "record_history" => settings.record_history = value.extract()?,
                             "max_restoration_steps" => {
@@ -485,19 +488,26 @@ fn solve_native<'py>(
                         }
                     }
                 }
+                if !matches!(qp_solver.as_str(), "clarabel" | "active-set") {
+                    return Err(PyValueError::new_err(format!(
+                        "qp_solver must be \"clarabel\" or \"active-set\", got {qp_solver:?}"
+                    )));
+                }
                 py.detach(|| {
-                    let mut solver = sqp_craft_solver::NativeSqp {
-                        qp: sqp_craft_clarabel::ClarabelQp::default(),
-                        settings,
-                    };
-                    solver.solve(
-                        inner,
-                        &mut model,
-                        &x0,
-                        &options,
-                        &token,
-                        monitor.as_mut().map(|m| m as &mut dyn Observer),
-                    )
+                    let observer = monitor.as_mut().map(|m| m as &mut dyn Observer);
+                    if qp_solver == "active-set" {
+                        sqp_craft_solver::NativeSqp {
+                            qp: sqp_craft_activeset::ActiveSetQp::default(),
+                            settings,
+                        }
+                        .solve(inner, &mut model, &x0, &options, &token, observer)
+                    } else {
+                        sqp_craft_solver::NativeSqp {
+                            qp: sqp_craft_clarabel::ClarabelQp::default(),
+                            settings,
+                        }
+                        .solve(inner, &mut model, &x0, &options, &token, observer)
+                    }
                 })
             }
             #[cfg(not(feature = "sqp"))]
