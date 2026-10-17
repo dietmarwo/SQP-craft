@@ -1,7 +1,7 @@
 """Random stress problems in three settings, judged by the independent evaluator.
 
     python3 scripts/validate_performance_stress.py out.json [--seed S] [--count N]
-        [--qp-solver clarabel|active-set]
+        [--qp-solver clarabel|active-set] [--elastic]
 
 The same random family as examples/stress_random.py. Settings: cold QP
 workspace, reused workspace, and reused workspace with restoration off.
@@ -32,6 +32,7 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=300)
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--qp-solver", choices=["clarabel", "active-set"], default="clarabel")
+    parser.add_argument("--elastic", action="store_true", help="elastic mode (active-set only)")
     args = parser.parse_args()
     rng = sr.np.random.default_rng(args.seed)
     records, errors, false_claims = [], [], []
@@ -41,7 +42,8 @@ def main() -> None:
         case = cb.Case("random", spec, model, start, 0.0, math.inf)
         for mode, reuse, restoration in SETTINGS:
             options = SqpOptions(max_iterations=300, qp_reuse_workspace=reuse,
-                                 max_restoration_steps=restoration, qp_solver=args.qp_solver)
+                                 max_restoration_steps=restoration, qp_solver=args.qp_solver,
+                                 elastic_mode=args.elastic)
             try:
                 r = solve(spec, model(), start, method="sqp", method_options=options)
             except Exception as error:  # recorded, then fails the run below
@@ -54,14 +56,16 @@ def main() -> None:
             counts[(mode, r.status, ok)] += 1
             records.append(dict(case=case_id, mode=mode, status=r.status, accepted=ok,
                                 check=check, iterations=r.iterations))
-    result = dict(version=__version__, qp_solver=args.qp_solver, seed=args.seed, cases=args.count,
+    result = dict(version=__version__, qp_solver=args.qp_solver, elastic=args.elastic,
+                  seed=args.seed, cases=args.count,
                   solver_calls=len(records) + len(errors), false_claims=false_claims,
                   errors=errors,
                   counts=[dict(mode=m, status=s, accepted=a, count=n)
                           for (m, s, a), n in sorted(counts.items())],
                   records=records)
     args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
-    print(__version__, args.qp_solver, args.seed, len(records), "errors", len(errors),
+    print(__version__, args.qp_solver, "elastic" if args.elastic else "", args.seed,
+          len(records), "errors", len(errors),
           "false claims", len(false_claims))
     if errors or false_claims:
         sys.exit(1)

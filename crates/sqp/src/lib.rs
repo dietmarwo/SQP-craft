@@ -50,6 +50,10 @@ const PENALTY_MARGIN: f64 = 1.1;
 /// Consecutive steps allowed whose predicted merit decrease is non-positive
 /// only within the QP's accuracy (see the line search).
 const MAX_NOISE_STEPS: u32 = 3;
+/// Times elastic mode multiplies its weight by ten at a stationary point of
+/// the ℓ1 penalty with violated constraints before it reports
+/// `locally_infeasible`.
+const MAX_ELASTIC_INCREASES: u64 = 6;
 
 /// Settings of [`NativeSqp`]. Every field is used; invalid values are rejected.
 #[derive(Clone, Debug, PartialEq)]
@@ -87,6 +91,13 @@ pub struct SqpOptions {
     /// backends that report a working set (active-set methods) get one, so
     /// this has no effect with Clarabel.
     pub qp_warm_start: bool,
+    /// Solve every step QP as an ℓ1-elastic QP (`QpOptions::elastic_weight`):
+    /// constraint rows may be violated at a cost, so the QP is always
+    /// feasible and feasibility restoration is not used. Requires a backend
+    /// with elastic support (`ActiveSetQp`).
+    pub elastic_mode: bool,
+    /// Initial elastic weight, relative to `max(1, ‖∇f(x₀)‖∞)`.
+    pub elastic_weight: f64,
     /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
@@ -117,6 +128,8 @@ impl Default for SqpOptions {
             qp_max_iterations: 200,
             qp_reuse_workspace: false,
             qp_warm_start: true,
+            elastic_mode: false,
+            elastic_weight: 1e4,
             record_qp_limit: 0,
             record_history: false,
             max_restoration_steps: 10,
@@ -135,6 +148,7 @@ impl SqpOptions {
             ("dual_sign_tolerance", self.dual_sign_tolerance),
             ("initial_hessian_scale", self.initial_hessian_scale),
             ("qp_tolerance", self.qp_tolerance),
+            ("elastic_weight", self.elastic_weight),
             ("restoration_step_limit", self.restoration_step_limit),
             (
                 "restoration_regularization",
@@ -519,6 +533,55 @@ fn lagrangian_gradient(spec: &ProblemSpec, e: &Evaluation, m: &Multipliers) -> R
 /// Any multiplier vector gives an upper bound on the best first-order residual
 /// at the point, so this is meaningful even when `m` comes from the QP solved
 /// at the previous iterate.
+/// Rounding levels of the stationarity and complementarity residuals at `x`
+/// with multipliers `m`: what floating-point evaluation of
+/// `∇f − Jᵀλ − z` and of `|μ|·distance` can contribute on its own. Entry `j`
+/// of the stationarity sums `k_j + 2` terms (`k_j` rows use variable `j`),
+/// so its error is at most about `(k_j + 2) ε (|∇f_j| + Σ_i |J_ij λ_i| + |z_j|)`;
+/// a distance `v − b` is exact to `ε (|v| + |b|)`.
+///
+/// A residual within its tolerance only by less than this level is not
+/// evidence of a first-order point: with multipliers of 5·10⁹ (an
+/// interior-point QP on a degenerate problem) the stationarity residual is
+/// pure rounding at 10⁻⁶.
+fn rounding_levels(spec: &ProblemSpec, x: &[f64], e: &Evaluation, m: &Multipliers) -> (f64, f64) {
+    let n = spec.n();
+    let mut size: Vec<f64> = (0..n)
+        .map(|j| e.gradient[j].abs() + m.variables[j].abs())
+        .collect();
+    let mut terms = vec![2.0_f64; n];
+    let jacobian = spec.jacobian();
+    for (i, &lambda) in m.constraints.iter().enumerate() {
+        for a in jacobian.indptr[i]..jacobian.indptr[i + 1] {
+            let j = jacobian.indices[a];
+            size[j] += (e.jacobian_values[a] * lambda).abs();
+            terms[j] += 1.0;
+        }
+    }
+    let stationarity = size
+        .iter()
+        .zip(&terms)
+        .fold(0.0_f64, |a, (s, t)| a.max(t * f64::EPSILON * s));
+    let mut complementarity = 0.0_f64;
+    for (values, bounds, mu) in [
+        (&e.constraints[..], spec.constraints(), &m.constraints[..]),
+        (x, spec.variables(), &m.variables[..]),
+    ] {
+        for (i, (&v, &mu)) in values.iter().zip(mu).enumerate() {
+            let bound = if mu > 0.0 {
+                bounds.lower[i]
+            } else {
+                bounds.upper[i]
+            };
+            if mu != 0.0 && bound.is_finite() {
+                complementarity =
+                    complementarity.max(mu.abs() * f64::EPSILON * (v.abs() + bound.abs()));
+            }
+        }
+    }
+    (stationarity, complementarity)
+}
+
 fn store_residuals(spec: &ProblemSpec, r: &mut SolveResult, m: Multipliers) -> Result<()> {
     let (Some(x), Some(e)) = (r.candidate.as_ref(), r.evaluation.as_ref()) else {
         return Ok(());
@@ -553,6 +616,10 @@ fn status_message(status: Status) -> &'static str {
             "local restoration failed; nonlinear infeasibility is not established"
         }
         Status::RestorationLimit => "feasibility restoration step budget exhausted",
+        Status::LocallyInfeasible => {
+            "elastic mode stopped at a stationary point of the l1 penalty with violated \
+             constraints at its largest weight; nonlinear infeasibility is not established"
+        }
         Status::LineSearchFailure => "no acceptable step length within the backtracking limit",
         Status::NoDescent => "QP step is not a descent direction for the merit function",
         Status::Stalled => "QP step too small to change the iterate",
@@ -574,6 +641,11 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
     ) -> Result<SolveResult> {
         options.validate()?;
         self.settings.validate()?;
+        if self.settings.elastic_mode && !self.qp.supports_elastic() {
+            return Err(Error::Unsupported(
+                "elastic_mode needs a QP backend with elastic support, such as ActiveSetQp".into(),
+            ));
+        }
         spec.check_point(x0, "start point")?;
         if spec.n() > self.settings.dense_size_limit {
             return Err(Error::Unsupported(format!(
@@ -626,9 +698,19 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         let mut qp_work: Option<QpModel> = None;
         // The last step QP's working set, if the backend reports one.
         let mut qp_warm: Option<QpWarmStart> = None;
+        // Elastic mode: the weight γ, scaled by the start gradient.
+        let mut elastic_weight = r.evaluation.as_ref().and_then(|e| {
+            settings
+                .elastic_mode
+                .then(|| settings.elastic_weight * norm_inf(&e.gradient).max(1.0))
+        });
+        let mut relaxed = Bounds::free(0);
+        let mut transpose = Vec::new();
         let mut qp_checks = sqp_craft::qp::QpResidualWorkspace::default();
         let mut penalties = vec![0.0; spec.m()];
         let mut have_penalties = false;
+        // The last step QP left rows violated (elastic mode).
+        let mut elastic_phase = false;
         let mut retry_descent = false;
         let mut noise_steps = 0_u32;
         let mut notify = true;
@@ -682,6 +764,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 acceptance_tolerance: qp_acceptance,
                 max_iterations: settings.qp_max_iterations,
                 time_limit_seconds: remaining,
+                elastic_weight,
             })?;
             let t = Instant::now();
             r.report.qp_solves += 1;
@@ -803,7 +886,15 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 options.feasibility_tolerance,
                 &mut r.report,
             );
-            let check = qp.accepts_with_workspace(&solution, qp_acceptance, &mut qp_checks)?;
+            let check = match elastic_weight {
+                Some(weight) => qp.accepts_elastic_with_workspace(
+                    &solution,
+                    qp_acceptance,
+                    weight,
+                    &mut qp_checks,
+                )?,
+                None => qp.accepts_with_workspace(&solution, qp_acceptance, &mut qp_checks)?,
+            };
             if !check.accepted {
                 status = Some(Status::QpFailure);
                 r.message = format!(
@@ -832,9 +923,17 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 max_penalty: 0.0,
                 qp_iterations,
             };
+            // The residuals must clear their tolerances by their own rounding
+            // level, or the claim rests on rounding noise.
+            let (stationarity_level, complementarity_level) = rounding_levels(
+                spec,
+                r.candidate.as_ref().expect("evaluated"),
+                e,
+                r.multipliers.as_ref().expect("stored"),
+            );
             if e.primal_violation <= options.feasibility_tolerance
-                && stationarity <= settings.stationarity_tolerance
-                && complementarity <= settings.complementarity_tolerance
+                && stationarity + stationarity_level <= settings.stationarity_tolerance
+                && complementarity + complementarity_level <= settings.complementarity_tolerance
                 && r.dual_sign.expect("stored") <= settings.dual_sign_tolerance
             {
                 if settings.record_history {
@@ -843,10 +942,78 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 status = Some(Status::Converged);
                 break;
             }
-
-            // 3. Merit line search.
             let x = r.candidate.as_ref().expect("evaluated");
             let p = &solution.step;
+            let mut linear = vec![0.0; spec.m()];
+            spec.jacobian().multiply(&e.jacobian_values, p, &mut linear);
+            for (l, &c) in linear.iter_mut().zip(&e.constraints) {
+                *l = finite(*l + c, "linearized constraints")?;
+            }
+            // Rows the elastic QP leaves violated.
+            let rows = spec.constraints();
+            let elastic_rows: Vec<usize> = match elastic_weight {
+                Some(_) => (0..spec.m())
+                    .filter(|&i| {
+                        rows.lower[i] - linear[i] > options.feasibility_tolerance
+                            || linear[i] - rows.upper[i] > options.feasibility_tolerance
+                    })
+                    .collect(),
+                None => Vec::new(),
+            };
+            if let Some(weight) = elastic_weight.filter(|_| {
+                !elastic_rows.is_empty() && e.primal_violation > options.feasibility_tolerance
+            }) {
+                // At a stationary point of f + γ·violation with violated rows
+                // a larger weight may still reach feasibility; past the last
+                // increase the point is reported as locally infeasible.
+                let k = sqp_craft::kkt::elastic_residuals_with_workspace(
+                    &sqp_craft::kkt::KktPoint {
+                        x,
+                        variable_bounds: spec.variables(),
+                        rows: &e.constraints,
+                        row_bounds: rows,
+                        gradient: &e.gradient,
+                        jacobian: spec.jacobian(),
+                        jacobian_values: &e.jacobian_values,
+                    },
+                    &solution.multipliers,
+                    weight,
+                    options.feasibility_tolerance,
+                    &mut relaxed,
+                    &mut transpose,
+                )?;
+                // A negligible step says the same as small residuals: the QP
+                // finds x stationary for the penalty.
+                let scale = 1.0 + weight;
+                let tiny = norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x));
+                if tiny
+                    || k.stationarity <= settings.stationarity_tolerance
+                        && k.complementarity <= settings.complementarity_tolerance * scale
+                        && k.dual_sign <= settings.dual_sign_tolerance * scale
+                {
+                    if r.report.elastic_weight_increases < MAX_ELASTIC_INCREASES {
+                        elastic_weight = Some(10.0 * weight);
+                        r.report.elastic_weight_increases += 1;
+                        retry_descent = false;
+                        notify = false;
+                        continue;
+                    }
+                    if settings.record_history {
+                        r.report.history.push(record);
+                    }
+                    status = Some(Status::LocallyInfeasible);
+                    break;
+                }
+            }
+
+            // 3. Merit line search.
+            if elastic_phase && elastic_rows.is_empty() {
+                // The linearization is consistent again. Penalties of γ from
+                // the elastic phase would shorten every following step (as
+                // after restoration, start Powell's rule afresh).
+                have_penalties = false;
+            }
+            elastic_phase = !elastic_rows.is_empty();
             for (mu, &lambda) in penalties.iter_mut().zip(&solution.multipliers.constraints) {
                 let target = PENALTY_MARGIN * lambda.abs();
                 *mu = if have_penalties {
@@ -857,13 +1024,16 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 finite(*mu, "penalty")?;
             }
             have_penalties = true;
+            if let Some(weight) = elastic_weight {
+                // The elastic QP minimizes the model of f + γ·violation, so
+                // its step is a descent direction for that merit: rows it
+                // leaves violated (|λ_i| = γ) are weighted by exactly γ.
+                for &i in &elastic_rows {
+                    penalties[i] = weight;
+                }
+            }
             record.max_penalty = norm_inf(&penalties);
             let violation = weighted_violation(spec.constraints(), &e.constraints, &penalties)?;
-            let mut linear = vec![0.0; spec.m()];
-            spec.jacobian().multiply(&e.jacobian_values, p, &mut linear);
-            for (l, &c) in linear.iter_mut().zip(&e.constraints) {
-                *l = finite(*l + c, "linearized constraints")?;
-            }
             let linear_violation = weighted_violation(spec.constraints(), &linear, &penalties)?;
             let predicted = finite(
                 -dot(&e.gradient, p)? + (violation - linear_violation),
@@ -1005,6 +1175,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 }
                 break;
             };
+            if !elastic_rows.is_empty() {
+                r.report.elastic_steps += 1;
+            }
             noise_steps = if noise_step.is_some() {
                 noise_steps + 1
             } else {
@@ -1050,6 +1223,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             notify = true;
         }
 
+        r.report.elastic_weight = elastic_weight;
         r.status = status.unwrap_or(Status::IterationLimit);
         if r.message.is_empty() {
             r.message = status_message(r.status).into();
@@ -1064,6 +1238,42 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rounding_levels_scale_with_the_terms_of_each_residual() {
+        // One row with J = (1e-12, 2) and λ = −4e9. Variable 0's stationarity
+        // sums |1| + |1e-12 · 4e9| + |0.5|, variable 1's |−3| + |2 · 4e9|.
+        let spec = ProblemSpec::new(
+            Bounds::new(vec![0.0, 0.0], vec![10.0, 10.0]),
+            Bounds::new(vec![f64::NEG_INFINITY], vec![0.0]),
+            CsrPattern::dense(1, 2),
+        )
+        .unwrap();
+        let e = Evaluation {
+            objective: 0.0,
+            constraints: vec![2e-12],
+            gradient: vec![1.0, -3.0],
+            jacobian_values: vec![1e-12, 2.0],
+            primal_violation: 2e-12,
+            feasible_candidate: true,
+        };
+        let m = Multipliers {
+            constraints: vec![-4e9],
+            variables: vec![0.5, 0.0],
+        };
+        let (stationarity, complementarity) = rounding_levels(&spec, &[2.0, 1e-12], &e, &m);
+        // Three terms for each variable: one row, ∇f and z.
+        let expected = 3.0 * f64::EPSILON * (3.0 + 8e9);
+        assert!(
+            (stationarity / expected - 1.0).abs() < 1e-12,
+            "{stationarity}"
+        );
+        assert!(stationarity > 5e-6);
+        // |λ|·ε·(|c| + |u|) for the row, 0.5·ε·(2 + 0) for x0 at its lower bound.
+        let row = 4e9 * f64::EPSILON * 2e-12;
+        let variable = 0.5 * f64::EPSILON * 2.0;
+        assert_eq!(complementarity, row.max(variable));
+    }
 
     #[test]
     fn explicit_curvature_blocks_preserve_spd_and_sparse_pattern() {

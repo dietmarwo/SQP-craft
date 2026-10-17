@@ -7,7 +7,9 @@
 //! backend-specific warm-start state are still to come.
 
 use crate::error::{Error, Result, ensure, first_non_finite};
-use crate::kkt::{KktPoint, KktResiduals, residuals_with_workspace};
+use crate::kkt::{
+    KktPoint, KktResiduals, elastic_residuals_with_workspace, residuals_with_workspace,
+};
 use crate::solver::{CancellationToken, Multipliers};
 use crate::spec::{Bounds, CsrMatrix};
 
@@ -50,6 +52,8 @@ pub struct QpResidualWorkspace {
     gradient: Vec<f64>,
     rows: Vec<f64>,
     transpose: Vec<f64>,
+    relaxed_lower: Vec<f64>,
+    relaxed_upper: Vec<f64>,
 }
 
 impl QpModel {
@@ -148,6 +152,29 @@ impl QpModel {
         solution: &QpSolution,
         workspace: &mut QpResidualWorkspace,
     ) -> Result<KktResiduals> {
+        self.checked_residuals(solution, None, workspace)
+    }
+
+    /// Residuals of the elastic QP, in which rows may be violated at a cost of
+    /// `weight` per unit; rows violated by at most `slack` count as
+    /// satisfied (see [`QpOptions::elastic_weight`] and
+    /// [`crate::kkt::elastic_residuals_with_workspace`]).
+    pub fn elastic_residuals_with_workspace(
+        &self,
+        solution: &QpSolution,
+        weight: f64,
+        slack: f64,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<KktResiduals> {
+        self.checked_residuals(solution, Some((weight, slack)), workspace)
+    }
+
+    fn checked_residuals(
+        &self,
+        solution: &QpSolution,
+        elastic: Option<(f64, f64)>,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<KktResiduals> {
         self.validate()?;
         ensure(solution.step.len() == self.n(), || {
             format!(
@@ -165,6 +192,8 @@ impl QpModel {
             gradient,
             rows,
             transpose,
+            relaxed_lower,
+            relaxed_upper,
         } = workspace;
         gradient.resize(self.n(), 0.);
         self.hessian_product(&solution.step, gradient);
@@ -178,19 +207,29 @@ impl QpModel {
         for &v in gradient.iter().chain(rows.iter()) {
             crate::error::finite(v, "QP residual arithmetic")?;
         }
-        residuals_with_workspace(
-            &KktPoint {
-                x: &solution.step,
-                variable_bounds: &self.variables,
-                rows: rows.as_slice(),
-                row_bounds: &self.rows,
-                gradient: gradient.as_slice(),
-                jacobian: &self.matrix.pattern,
-                jacobian_values: &self.matrix.values,
-            },
+        let point = KktPoint {
+            x: &solution.step,
+            variable_bounds: &self.variables,
+            rows: rows.as_slice(),
+            row_bounds: &self.rows,
+            gradient: gradient.as_slice(),
+            jacobian: &self.matrix.pattern,
+            jacobian_values: &self.matrix.values,
+        };
+        let Some((weight, slack)) = elastic else {
+            return residuals_with_workspace(&point, &solution.multipliers, transpose);
+        };
+        let mut relaxed = Bounds::new(std::mem::take(relaxed_lower), std::mem::take(relaxed_upper));
+        let result = elastic_residuals_with_workspace(
+            &point,
             &solution.multipliers,
+            weight,
+            slack,
+            &mut relaxed,
             transpose,
-        )
+        );
+        (*relaxed_lower, *relaxed_upper) = (relaxed.lower, relaxed.upper);
+        result
     }
 
     /// Accepts or rejects `solution` from the model data alone, with one rule
@@ -216,10 +255,46 @@ impl QpModel {
         tolerance: f64,
         workspace: &mut QpResidualWorkspace,
     ) -> Result<QpAcceptance> {
+        self.checked_acceptance(solution, tolerance, None, workspace)
+    }
+
+    /// [`Self::accepts_elastic_with_workspace`] with fresh scratch.
+    pub fn accepts_elastic(
+        &self,
+        solution: &QpSolution,
+        tolerance: f64,
+        weight: f64,
+    ) -> Result<QpAcceptance> {
+        let mut workspace = QpResidualWorkspace::default();
+        self.accepts_elastic_with_workspace(solution, tolerance, weight, &mut workspace)
+    }
+
+    /// [`Self::accepts`] for the elastic QP with `weight` (see
+    /// [`QpOptions::elastic_weight`]): the same thresholds applied to
+    /// [`Self::elastic_residuals_with_workspace`] with `slack = tolerance`.
+    /// Rows may be violated; the primal residual covers the variable bounds
+    /// and rows violated by at most the tolerance.
+    pub fn accepts_elastic_with_workspace(
+        &self,
+        solution: &QpSolution,
+        tolerance: f64,
+        weight: f64,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<QpAcceptance> {
+        self.checked_acceptance(solution, tolerance, Some((weight, tolerance)), workspace)
+    }
+
+    fn checked_acceptance(
+        &self,
+        solution: &QpSolution,
+        tolerance: f64,
+        elastic: Option<(f64, f64)>,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<QpAcceptance> {
         ensure(tolerance.is_finite() && tolerance > 0.0, || {
             format!("QP acceptance tolerance must be positive and finite, got {tolerance}")
         })?;
-        let residuals = self.residuals_with_workspace(solution, workspace)?;
+        let residuals = self.checked_residuals(solution, elastic, workspace)?;
         let norm = |v: &[f64]| v.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
         let scale = 1.0
             + norm(&self.gradient)
@@ -369,6 +444,12 @@ pub trait QpBackend {
     fn configure(&mut self, _options: &QpOptions) -> Result<()> {
         Err(Error::Unsupported("QP options are not implemented".into()))
     }
+    /// Whether [`QpOptions::elastic_weight`] is supported. A backend that
+    /// returns `false` rejects an elastic configuration with
+    /// [`Error::Unsupported`].
+    fn supports_elastic(&self) -> bool {
+        false
+    }
     /// Engine identity and last termination details.
     fn report(&self) -> QpReport {
         QpReport::default()
@@ -425,6 +506,13 @@ pub struct QpOptions {
     pub max_iterations: u32,
     /// Remaining cooperative time budget, including setup.
     pub time_limit_seconds: Option<f64>,
+    /// Solve the ℓ1-elastic QP instead: every row may be violated at a cost
+    /// of this weight per unit, so the QP is feasible whenever the variable
+    /// bounds are. Variable bounds stay hard. Row multipliers then satisfy
+    /// `|λ_i| <= weight`, with `|λ_i| = weight` on violated rows. Solutions
+    /// are checked by [`QpModel::accepts_elastic_with_workspace`]. Only
+    /// backends whose [`QpBackend::supports_elastic`] is true accept it.
+    pub elastic_weight: Option<f64>,
 }
 impl Default for QpOptions {
     fn default() -> Self {
@@ -434,6 +522,7 @@ impl Default for QpOptions {
             acceptance_tolerance: 1e-7,
             max_iterations: 200,
             time_limit_seconds: None,
+            elastic_weight: None,
         }
     }
 }
@@ -451,6 +540,10 @@ impl QpOptions {
             self.time_limit_seconds
                 .is_none_or(|s| s.is_finite() && s >= 0.0),
             || "QP time budget must be finite and nonnegative".into(),
+        )?;
+        ensure(
+            self.elastic_weight.is_none_or(|w| w.is_finite() && w > 0.0),
+            || "QP elastic weight must be positive and finite".into(),
         )
     }
 }

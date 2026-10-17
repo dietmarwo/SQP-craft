@@ -32,6 +32,10 @@ pub enum Status {
     RestorationFailed,
     /// The enabled restoration step budget was exhausted.
     RestorationLimit,
+    /// Elastic mode reached a stationary point of the ℓ1 penalty function at
+    /// which constraints are still violated, with the elastic weight at its
+    /// largest value. Not an infeasibility certificate.
+    LocallyInfeasible,
     /// Native SQP termination: line_search_failure.
     LineSearchFailure,
     /// Native SQP termination: no_descent.
@@ -56,6 +60,7 @@ impl Status {
             Status::LinearizationInfeasible => "linearization_infeasible",
             Status::RestorationFailed => "restoration_failed",
             Status::RestorationLimit => "restoration_limit",
+            Status::LocallyInfeasible => "locally_infeasible",
             Status::LineSearchFailure => "line_search_failure",
             Status::NoDescent => "no_descent",
             Status::Stalled => "stalled",
@@ -289,6 +294,13 @@ pub struct RunReport {
     /// Step QPs the backend rejected as `QpOutcome::NotPositiveDefinite`; each
     /// is followed by a Hessian reset (counted in `hessian_resets`) or a stop.
     pub qp_not_positive_definite: u64,
+    /// Accepted steps whose elastic QP left at least one row violated.
+    pub elastic_steps: u64,
+    /// Elastic weight at the end of an elastic-mode solve, `None` otherwise.
+    pub elastic_weight: Option<f64>,
+    /// Times the elastic weight was multiplied by ten at a stationary point of
+    /// the ℓ1 penalty with violated constraints.
+    pub elastic_weight_increases: u64,
     /// Explicit corrections of tiny fixed-variable step components.
     pub fixed_step_corrections: u64,
     /// Step components moved onto a variable bound they exceeded by at most the

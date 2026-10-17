@@ -120,6 +120,8 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `qp_max_iterations` | `200` | Per QP, shared across an attempt and its cold retry. Clarabel: interior-point iterations. Active set: drops and re-entries of constraints (first entries are not charged) |
 | `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below. No effect on the active-set backend |
 | `qp_warm_start` | `true` | Pass the last step QP's working set to the next QP; only backends that report one (the active-set backend) receive it |
+| `elastic_mode` | `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; needs a backend with elastic support (`qp_solver="active-set"`), otherwise `Unsupported` / `NotImplementedError` before any model call. See [elastic-mode.md](elastic-mode.md) |
+| `elastic_weight` | `1e4` | Initial elastic weight relative to `max(1, ‖∇f(x₀)‖∞)`; multiplied by 10, at most six times, at a stationary point of the ℓ1 penalty with violated rows |
 | `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
@@ -140,8 +142,16 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    step-length cap `(u − x)/p` cut the whole step to almost zero.
 2. **Convergence test** at `x_k` with the QP's fresh multipliers: `converged`
    only if primal violation, stationarity, complementarity and dual-sign
-   residuals are all within their tolerances. A small step, a small objective
-   change or QP success alone never ends the solve.
+   residuals are all within their tolerances. The stationarity and
+   complementarity residuals must clear their tolerances by their own
+   rounding level, about `(k_j + 2) ε (|∇f_j| + Σ_i |J_ij λ_i| + |z_j|)` for
+   entry `j` of `∇f − Jᵀλ − z` (`k_j` rows use variable `j`) and
+   `|μ| ε (|v| + |b|)` for a product `|μ|·|v − b|`. Otherwise huge
+   multipliers make the residual rounding noise: an interior-point QP on a
+   complementarity problem produced multipliers of 5·10⁹ and a stationarity
+   residual of 9.5·10⁻⁷ that an independent NumPy evaluation put at
+   1.2·10⁻⁶. A small step, a small objective change or QP success alone never
+   ends the solve.
 3. **Merit line search.** Per-row penalty weights follow Powell's rule
    `μ_i ← max(t_i, ½(μ_i + t_i))` with `t_i = 1.1·|λ_i|` (`μ_i = t_i` at the
    first QP), so a large early multiplier does not keep the penalty large for
@@ -180,8 +190,13 @@ is passed to the next one as `QpWarmStart.active_set`, if the backend
 reported one. Clarabel reports none, so its runs do not depend on the
 setting.
 
-Bounded local feasibility restoration is described below. There is no elastic-slack
-mode or second-order correction (so the
+Bounded local feasibility restoration is described below. Elastic mode
+(`elastic_mode`, [elastic-mode.md](elastic-mode.md)) replaces it: every step
+QP is ℓ1-elastic, rows it leaves violated get the penalty weight γ in the
+merit, Powell's rule restarts when the linearization becomes consistent, and
+a stationary point of the ℓ1 penalty with violated rows raises γ tenfold, up
+to six times, before the solve ends `locally_infeasible`. There is no
+second-order correction (so the
 Maratos effect can cost backtracking steps), no automatic scaling, and no
 exact-Hessian option. First-order convergence is not a global or second-order
 optimality certificate.
@@ -196,6 +211,7 @@ optimality certificate.
 | `linearization_infeasible` | Inconsistent step QP with restoration disabled; no nonlinear infeasibility claim |
 | `restoration_failed` | Restoration reached a stationary point of the squared violation, or found no decreasing complete step |
 | `restoration_limit` | Restoration step budget exhausted while it was still making progress |
+| `locally_infeasible` | Elastic mode: a stationary point of `f + γ·violation` with violated rows, at the largest γ; no nonlinear infeasibility claim |
 | `line_search_failure` | No acceptable step within `max_backtracks` (including all trials undefined) |
 | `no_descent` | The step is not a merit descent direction, even after a Hessian reset |
 | `stalled` | The step is below the QP's accuracy or cannot change the iterate |
@@ -227,7 +243,10 @@ with the tolerance. Neither is evidence of optimality, and an infeasible
 candidate does not show that the problem is infeasible.
 
 `RunReport` holds the method, QP backend and its last raw status, QP solves and
-iterations, rejected and undefined trials, Hessian resets, fixed-step and
+iterations, rejected and undefined trials, Hessian resets, the elastic-mode
+counters (`elastic_steps`: accepted steps whose QP left rows violated;
+`elastic_weight`: the final γ, `None` without elastic mode;
+`elastic_weight_increases`), fixed-step and
 bound-step corrections, the last accepted step norm, inclusive phase times (total,
 callbacks including Python conversion, QP, BFGS; not a pure GIL-wait measure),
 the optional QP trace, and the optional history. Each `IterationRecord`
@@ -288,8 +307,8 @@ both symmetric positions and is not doubled. Validation checks structure, not
 positive semidefiniteness.
 
 A `QpBackend` is configured per call with `QpOptions` (native tolerance,
-acceptance tolerance, iteration cap, remaining time and `reuse_workspace`)
-and returns a `QpOutcome`:
+acceptance tolerance, iteration cap, remaining time, `reuse_workspace` and
+`elastic_weight`) and returns a `QpOutcome`:
 `Optimal(solution)`, `Infeasible`, `Unbounded`, `LimitReached(last iterate)`,
 `Cancelled` or `NotPositiveDefinite` (the Hessian failed the backend's
 convexity check and nothing was solved); `report()` gives the backend name,
@@ -309,12 +328,26 @@ errors, whose residuals are of the order of `scale`. The adapter and the driver
 use the same rule; the driver's tolerance is
 `min(feasibility, stationarity, complementarity tolerance)`.
 
+**Elastic QPs.** With `QpOptions.elastic_weight = Some(γ)` the backend
+solves `min ½pᵀHp + gᵀp + γ Σ_i dist(a_iᵀp, [l_i, u_i])` with hard variable
+bounds instead, which is feasible whenever the variable bounds are. Row
+multipliers then satisfy `|λ_i| ≤ γ`, and `λ_i = ±γ` on violated rows. Only
+backends whose `supports_elastic()` is true accept it (the active-set
+backend); the others return `Unsupported` from `configure`.
+`QpModel::accepts_elastic` (and `..._with_workspace`) applies the same
+thresholds to `kkt::elastic_residuals_with_workspace`: the residuals with
+each violated row's bounds relaxed to its value, plus
+`violation_i·|γ − σ_iλ_i|` in complementarity and `max(|λ_i| − γ, 0)` in
+dual sign. Rows violated by at most the primal tolerance count as satisfied
+and appear in the primal residual.
+
 `DummyQp` validates its input and returns `Unsupported`; it never fabricates a
 step.
 
 ### Clarabel adapter (`sqp-craft-clarabel`)
 
-Clarabel 0.11.1, an interior-point conic solver in Rust. Cold starts only:
+Clarabel 0.11.1, an interior-point conic solver in Rust. It does not solve
+elastic QPs (`configure` returns `Unsupported`). Cold starts only:
 supplied warm-start data is validated, then rejected as `Unsupported` rather
 than ignored. One thread, positive-definite Hessians, at most 256 variables.
 Every model's Hessian is checked exactly before conversion: a strictly
@@ -434,6 +467,11 @@ crate.
 - Three `n × n` buffers are kept and reused; `reuse_workspace` has no
   effect, and results do not depend on earlier calls. The backend has no
   variable cap of its own.
+- Elastic QPs are supported (`supports_elastic()` is true): row multipliers
+  are boxed (`[0, γ]`, `[−γ, γ]` for equalities); a row whose multiplier
+  reaches `±γ` becomes elastic, with its multiplier fixed in the linear term,
+  and re-enters from the other side once it is strictly satisfied. Elastic
+  rows are reported `Inactive` in the working set.
 
 ## Errors
 

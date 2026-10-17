@@ -468,6 +468,8 @@ fn solve_native<'py>(
                                 settings.qp_reuse_workspace = value.extract()?
                             }
                             "qp_warm_start" => settings.qp_warm_start = value.extract()?,
+                            "elastic_mode" => settings.elastic_mode = value.extract()?,
+                            "elastic_weight" => settings.elastic_weight = value.extract()?,
                             "qp_solver" => qp_solver = value.extract()?,
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
                             "record_history" => settings.record_history = value.extract()?,
@@ -540,6 +542,12 @@ fn solve_native<'py>(
     report.set_item(
         "qp_not_positive_definite",
         r.report.qp_not_positive_definite,
+    )?;
+    report.set_item("elastic_steps", r.report.elastic_steps)?;
+    report.set_item("elastic_weight", r.report.elastic_weight)?;
+    report.set_item(
+        "elastic_weight_increases",
+        r.report.elastic_weight_increases,
     )?;
     report.set_item("fixed_step_corrections", r.report.fixed_step_corrections)?;
     report.set_item("bound_step_corrections", r.report.bound_step_corrections)?;

@@ -166,6 +166,94 @@ pub fn residuals_with_workspace(
     })
 }
 
+/// Residuals of the ℓ1-elastic problem, in which rows may be violated at a
+/// cost of `weight` per unit:
+///
+/// ```text
+/// minimize  f(x) + weight · Σ_i dist(r_i(x), [row_lower_i, row_upper_i])
+/// subject to  variable_bounds on x
+/// ```
+///
+/// Its first-order conditions are those of `point` with each violated row's
+/// bounds relaxed to include `r_i(x)`, plus `|λ_i| <= weight`, with
+/// `λ_i = weight` for a row below its lower bound and `λ_i = −weight` above
+/// its upper bound. They are reported in the same four fields:
+/// `complementarity` also holds `violation_i · |weight − σ_i λ_i|`
+/// (σ_i = 1 below, −1 above), and `dual_sign` also holds
+/// `max(|λ_i| − weight, 0)`.
+///
+/// A row violated by at most `slack` counts as satisfied: its violation is
+/// reported in `primal`, as by [`residuals`]. Otherwise a rounding-level
+/// violation (a QP solution on its bound to 1e-11, say) would demand
+/// `|λ_i| = weight` and fail by `weight · 1e-11`. With `slack` at the primal
+/// tolerance of the caller's acceptance test, `primal` stays within that
+/// tolerance whenever the rows are elastic or satisfied. `relaxed` is
+/// scratch; its contents are replaced.
+///
+/// At a point that violates no row by more than `slack` this equals
+/// [`residuals`] apart from the `|λ_i| <= weight` test.
+pub fn elastic_residuals_with_workspace(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    weight: f64,
+    slack: f64,
+    relaxed: &mut Bounds,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
+    ensure(weight.is_finite() && weight > 0.0, || {
+        format!("elastic weight must be positive and finite, got {weight}")
+    })?;
+    ensure(slack.is_finite() && slack >= 0.0, || {
+        format!("elastic slack must be finite and nonnegative, got {slack}")
+    })?;
+    let m = point.rows.len();
+    point.row_bounds.validate(m, "KKT row bounds")?;
+    ensure(multipliers.constraints.len() == m, || {
+        format!(
+            "KKT input: row multipliers has length {}, expected {m}",
+            multipliers.constraints.len()
+        )
+    })?;
+    relaxed.lower.clear();
+    relaxed.upper.clear();
+    for i in 0..m {
+        // NaN rows are rejected by the residuals below; keep them in place.
+        let (r, l, u) = (
+            point.rows[i],
+            point.row_bounds.lower[i],
+            point.row_bounds.upper[i],
+        );
+        relaxed.lower.push(if l - r > slack { r } else { l });
+        relaxed.upper.push(if r - u > slack { r } else { u });
+    }
+    let mut result = residuals_with_workspace(
+        &KktPoint {
+            row_bounds: relaxed,
+            ..*point
+        },
+        multipliers,
+        jt_lambda,
+    )?;
+    for i in 0..m {
+        let (r, l, u) = (
+            point.rows[i],
+            point.row_bounds.lower[i],
+            point.row_bounds.upper[i],
+        );
+        let lambda = multipliers.constraints[i];
+        result.dual_sign = result.dual_sign.max(lambda.abs() - weight);
+        let product = if l - r > slack {
+            crate::error::finite((l - r) * (weight - lambda).abs(), "elastic complementarity")?
+        } else if r - u > slack {
+            crate::error::finite((r - u) * (weight + lambda).abs(), "elastic complementarity")?
+        } else {
+            0.0
+        };
+        result.complementarity = result.complementarity.max(product);
+    }
+    Ok(result)
+}
+
 /// [`residuals`] for an NLP candidate `x` with model values `evaluation`.
 pub fn nlp_residuals(
     spec: &ProblemSpec,

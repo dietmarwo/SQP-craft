@@ -441,3 +441,144 @@ fn a_nearly_singular_hessian_does_not_make_independent_constraints_dependent() {
     close(&s.step, &[-0.1791568589809212, 0.7451037023066871], 1e-9);
     assert_eq!(s.active_set.unwrap().variables[0], Activity::AtLower);
 }
+
+fn elastic(weight: f64) -> ActiveSetQp {
+    let mut b = ActiveSetQp::default();
+    b.configure(&QpOptions {
+        elastic_weight: Some(weight),
+        ..Default::default()
+    })
+    .unwrap();
+    b
+}
+
+fn elastic_optimal(b: &mut ActiveSetQp, model: &QpModel, warm: Option<&QpWarmStart>) -> QpSolution {
+    let weight = b.settings.elastic_weight.unwrap();
+    match b.solve(model, warm, &CancellationToken::default()).unwrap() {
+        QpOutcome::Optimal(s) => {
+            let check = model.accepts_elastic(&s, 1e-9, weight).unwrap();
+            assert!(check.accepted, "{:?} {s:?}", check.residuals);
+            s
+        }
+        other => panic!("expected an optimal elastic solution, got {other:?}"),
+    }
+}
+
+#[test]
+fn contradicting_rows_are_both_violated_at_the_elastic_weight() {
+    // p ≥ 1 and p ≤ −1: between the two the ℓ1 cost is constant, so p = 0.
+    let model = qp(
+        &[&[1.]],
+        &[0.],
+        (&[-INF], &[INF]),
+        &[&[1.], &[1.]],
+        (&[1., -INF], &[INF, -1.]),
+    );
+    assert_eq!(
+        backend()
+            .solve(&model, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::Infeasible
+    );
+    let s = elastic_optimal(&mut elastic(3.0), &model, None);
+    close(&s.step, &[0.0], 1e-14);
+    close(&s.multipliers.constraints, &[3.0, -3.0], 1e-14);
+    assert_eq!(s.active_set.unwrap().rows, [Activity::Inactive; 2]);
+}
+
+#[test]
+fn a_small_weight_caps_the_multiplier_and_lets_the_row_be_violated() {
+    // min ½(p − 3)² s.t. p ≤ 1: λ = −2 in the ordinary QP. With γ = 1 the
+    // row is violated: p = 2, λ = −1. With γ = 5 nothing changes.
+    let model = qp(
+        &[&[1.]],
+        &[-3.],
+        (&[-INF], &[INF]),
+        &[&[1.]],
+        (&[-INF], &[1.]),
+    );
+    let s = elastic_optimal(&mut elastic(1.0), &model, None);
+    close(&s.step, &[2.0], 1e-14);
+    close(&s.multipliers.constraints, &[-1.0], 1e-14);
+    let s = elastic_optimal(&mut elastic(5.0), &model, None);
+    close(&s.step, &[1.0], 1e-14);
+    close(&s.multipliers.constraints, &[-2.0], 1e-14);
+    // A soft equality: min ½p² + |p − 2| gives p = 1 and λ = 1.
+    let model = qp(&[&[1.]], &[0.], (&[-INF], &[INF]), &[&[1.]], (&[2.], &[2.]));
+    let s = elastic_optimal(&mut elastic(1.0), &model, None);
+    close(&s.step, &[1.0], 1e-14);
+    close(&s.multipliers.constraints, &[1.0], 1e-14);
+}
+
+#[test]
+fn variable_bounds_stay_hard_in_an_elastic_qp() {
+    // The row p₀ + p₁ ≥ 5 cannot be met inside the box [−1, 1]²; the box
+    // holds and the row is violated with λ = γ.
+    let model = qp(
+        &[&[1., 0.], &[0., 2.]],
+        &[0., 0.],
+        (&[-1.; 2], &[1.; 2]),
+        &[&[1., 1.]],
+        (&[5.], &[INF]),
+    );
+    let s = elastic_optimal(&mut elastic(10.0), &model, None);
+    close(&s.step, &[1.0, 1.0], 1e-14);
+    close(&s.multipliers.constraints, &[10.0], 1e-14);
+    close(&s.multipliers.variables, &[-9.0, -8.0], 1e-13);
+}
+
+#[test]
+fn an_elastic_row_that_becomes_satisfied_re_enters() {
+    // min ½(p₀² − 1.8 p₀p₁ + p₁²) + γ·max(0, 2 − p₀ − p₁), γ = 0.05, with the
+    // hard bound p₀ ≥ 1.3. From p = 0 the row is the most violated and
+    // becomes elastic at p = (0.5, 0.5). The bound then pulls p₁ along to
+    // 0.9 p₀ + γ, past the row, which must re-enter and leave: the optimum
+    // is p = (1.3, 1.17) with λ = 0 and z₀ = 1.3 − 0.9·1.17.
+    let model = qp(
+        &[&[1., -0.9], &[-0.9, 1.]],
+        &[0., 0.],
+        (&[1.3, -INF], &[INF, INF]),
+        &[&[1., 1.]],
+        (&[2.], &[INF]),
+    );
+    let s = elastic_optimal(&mut elastic(0.05), &model, None);
+    close(&s.step, &[1.3, 1.17], 1e-13);
+    close(&s.multipliers.constraints, &[0.0], 1e-13);
+    close(&s.multipliers.variables, &[1.3 - 0.9 * 1.17, 0.0], 1e-13);
+}
+
+#[test]
+fn a_large_weight_reproduces_the_ordinary_solution() {
+    let model = chain(12);
+    let ordinary = optimal(&mut backend(), &model, None);
+    let s = elastic_optimal(&mut elastic(1e6), &model, None);
+    close(&s.step, &ordinary.step, 1e-12);
+    close(
+        &s.multipliers.constraints,
+        &ordinary.multipliers.constraints,
+        1e-10,
+    );
+    assert_eq!(s.active_set, ordinary.active_set);
+}
+
+#[test]
+fn clarabel_and_the_dummy_reject_an_elastic_configuration() {
+    let options = QpOptions {
+        elastic_weight: Some(1.0),
+        ..Default::default()
+    };
+    assert!(ActiveSetQp::default().supports_elastic());
+    let mut clarabel = sqp_craft_clarabel::ClarabelQp::default();
+    assert!(!clarabel.supports_elastic());
+    assert!(matches!(
+        clarabel.configure(&options),
+        Err(Error::Unsupported(_))
+    ));
+    for weight in [0.0, -1.0, f64::NAN, INF] {
+        let bad = QpOptions {
+            elastic_weight: Some(weight),
+            ..Default::default()
+        };
+        assert!(ActiveSetQp::default().configure(&bad).is_err(), "{weight}");
+    }
+}

@@ -71,6 +71,7 @@ Status = Literal[
     "linearization_infeasible",
     "restoration_failed",
     "restoration_limit",
+    "locally_infeasible",
     "line_search_failure",
     "no_descent",
     "stalled",
@@ -139,6 +140,13 @@ class SqpOptions:
     Goldfarb–Idnani dual active set, warm-started from the last working set)."""
     qp_warm_start: bool = True
     """Pass the last step QP's working set to the next; only ``"active-set"`` uses it."""
+    elastic_mode: bool = False
+    """Solve every step QP as an l1-elastic QP: rows may be violated at a cost, so
+    the QP is always feasible and restoration is not used. Needs
+    ``qp_solver="active-set"``."""
+    elastic_weight: float = 1e4
+    """Initial elastic weight relative to ``max(1, ‖∇f(x0)‖∞)``; multiplied by 10
+    (at most six times) at a stationary point of the penalty with violated rows."""
     record_qp_limit: int = 0
     """Number of step QPs to keep in ``report.qp_trace`` (at most 16)."""
     max_restoration_steps: int = 10
@@ -235,6 +243,9 @@ class RunReport:
     hessian_resets: int
     block_hessian_fallbacks: int
     qp_not_positive_definite: int
+    elastic_steps: int
+    elastic_weight: Optional[float]
+    elastic_weight_increases: int
     fixed_step_corrections: int
     bound_step_corrections: int
     step_norm: Optional[float]

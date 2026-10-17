@@ -2,7 +2,7 @@
 
     pip install '.[bench]'
     python examples/stress_random.py [--seed S] [--count N] [--reuse-workspace]
-        [--qp-solver clarabel|active-set] [--table]
+        [--qp-solver clarabel|active-set] [--elastic] [--table]
 
 Each problem minimizes ||x - target||^2 on [-2, 2]^n (n = 2..7) subject to
 1-3 equality rows and 0-3 upper-bounded rows of the form
@@ -62,14 +62,16 @@ def first_order_ok(check) -> bool:
                 and check["complementarity"] <= cb.COMPLEMENTARITY and check["dual_sign"] <= cb.SIGN)
 
 
-def run(seed: int, count: int, reuse_workspace: bool = False, qp_solver: str = "clarabel"):
+def run(seed: int, count: int, reuse_workspace: bool = False, qp_solver: str = "clarabel",
+        elastic: bool = False):
     rng = np.random.default_rng(seed)
     tally = collections.Counter()
     false_claims = []
     for k in range(count):
         spec, model, start = problem(rng)
         case = cb.Case("random", spec, model, start, 0.0, math.inf)
-        common = dict(max_iterations=300, qp_reuse_workspace=reuse_workspace, qp_solver=qp_solver)
+        common = dict(max_iterations=300, qp_reuse_workspace=reuse_workspace, qp_solver=qp_solver,
+                      elastic_mode=elastic)
         for label, settings in (("sqp-craft", SqpOptions(**common)),
                                 ("sqp-craft, restoration off",
                                  SqpOptions(max_restoration_steps=0, **common))):
@@ -90,11 +92,15 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=300)
     parser.add_argument("--reuse-workspace", action="store_true")
     parser.add_argument("--qp-solver", choices=["clarabel", "active-set"], default="clarabel")
+    parser.add_argument("--elastic", action="store_true",
+                        help="elastic mode (needs --qp-solver active-set); restoration is then unused")
     parser.add_argument("--table", action="store_true", help="print a Markdown table")
     args = parser.parse_args()
-    tally, false_claims = run(args.seed, args.count, args.reuse_workspace, args.qp_solver)
+    tally, false_claims = run(args.seed, args.count, args.reuse_workspace, args.qp_solver,
+                              args.elastic)
     if args.table:
-        print(f"Seed {args.seed}, {args.count} problems, QP solver {args.qp_solver}, "
+        print(f"Seed {args.seed}, {args.count} problems, QP solver {args.qp_solver}"
+              f"{', elastic mode' if args.elastic else ''}, "
               f"workspace reuse {'on' if args.reuse_workspace else 'off'}.\n")
         print("| Solver | Status | Independently accepted | Count |")
         print("| --- | --- | :---: | ---: |")
