@@ -460,6 +460,9 @@ fn solve_native<'py>(
                             }
                             "qp_tolerance" => settings.qp_tolerance = value.extract()?,
                             "qp_max_iterations" => settings.qp_max_iterations = value.extract()?,
+                            "hessian_block_size" => {
+                                settings.hessian_block_size = value.extract()?
+                            }
                             "qp_reuse_workspace" => {
                                 settings.qp_reuse_workspace = value.extract()?
                             }
@@ -523,6 +526,11 @@ fn solve_native<'py>(
     report.set_item("rejected_trials", r.report.rejected_trials)?;
     report.set_item("undefined_trials", r.report.undefined_trials)?;
     report.set_item("hessian_resets", r.report.hessian_resets)?;
+    report.set_item("block_hessian_fallbacks", r.report.block_hessian_fallbacks)?;
+    report.set_item(
+        "qp_not_positive_definite",
+        r.report.qp_not_positive_definite,
+    )?;
     report.set_item("fixed_step_corrections", r.report.fixed_step_corrections)?;
     report.set_item("bound_step_corrections", r.report.bound_step_corrections)?;
     report.set_item("step_norm", r.report.step_norm)?;

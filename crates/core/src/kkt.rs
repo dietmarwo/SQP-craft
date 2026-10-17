@@ -60,6 +60,16 @@ pub struct KktPoint<'a> {
 /// Returns [`Error::InvalidInput`] for inconsistent lengths, invalid bounds or
 /// pattern, or non-finite inputs.
 pub fn residuals(point: &KktPoint<'_>, multipliers: &Multipliers) -> Result<KktResiduals> {
+    residuals_with_workspace(point, multipliers, &mut Vec::new())
+}
+
+/// Same validation and residuals as [`residuals`], reusing a transpose-product
+/// buffer. Scratch is resized and overwritten; it holds no borrowed inputs.
+pub fn residuals_with_workspace(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
     let n = point.x.len();
     let m = point.rows.len();
     point.variable_bounds.validate(n, "KKT variable bounds")?;
@@ -103,12 +113,10 @@ pub fn residuals(point: &KktPoint<'_>, multipliers: &Multipliers) -> Result<KktR
         .checked_violation(point.x)?
         .max(point.row_bounds.checked_violation(point.rows)?);
 
-    let mut jt_lambda = vec![0.0; n];
-    point.jacobian.multiply_transpose(
-        point.jacobian_values,
-        &multipliers.constraints,
-        &mut jt_lambda,
-    );
+    jt_lambda.resize(n, 0.);
+    point
+        .jacobian
+        .multiply_transpose(point.jacobian_values, &multipliers.constraints, jt_lambda);
     let mut stationarity = 0.0_f64;
     for (j, &jt) in jt_lambda.iter().enumerate() {
         crate::error::finite(jt, "transpose product")?;

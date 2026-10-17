@@ -73,6 +73,8 @@ pub struct SqpOptions {
     pub dense_size_limit: usize,
     /// Initial and reset Hessian approximation `B = scale · I`.
     pub initial_hessian_scale: f64,
+    /// Contiguous curvature block width; zero keeps full BFGS (default).
+    pub hessian_block_size: usize,
     /// Total Hessian resets allowed (failed BFGS updates and non-descent retries).
     pub max_hessian_resets: u32,
     /// Native tolerance passed to the QP backend.
@@ -105,6 +107,7 @@ impl Default for SqpOptions {
             dual_sign_tolerance: 1e-8,
             dense_size_limit: DENSE_SIZE_CAP,
             initial_hessian_scale: 1.0,
+            hessian_block_size: 0,
             max_hessian_resets: 3,
             qp_tolerance: 1e-10,
             qp_max_iterations: 200,
@@ -152,6 +155,11 @@ impl SqpOptions {
                 "dense_size_limit must be in 1..={DENSE_SIZE_CAP}, got {}",
                 self.dense_size_limit
             )));
+        }
+        if self.hessian_block_size > DENSE_SIZE_CAP {
+            return Err(Error::InvalidInput(
+                "hessian_block_size must lie in 0..=256".into(),
+            ));
         }
         if self.record_qp_limit > QP_TRACE_CAP {
             return Err(Error::InvalidInput(format!(
@@ -232,9 +240,15 @@ struct Calls<'a> {
     cancel: &'a CancellationToken,
     counts: EvaluationCounts,
     seconds: f64,
+    gradient_scratch: Vec<f64>,
+    jacobian_scratch: Vec<f64>,
 }
 
 impl Calls<'_> {
+    fn recycle(&mut self, e: Evaluation) {
+        self.gradient_scratch = e.gradient;
+        self.jacobian_scratch = e.jacobian_values;
+    }
     fn stop(&self) -> Option<Status> {
         if self.cancel.is_cancelled() {
             Some(Status::Cancelled)
@@ -284,13 +298,21 @@ impl Calls<'_> {
         tolerance: f64,
     ) -> Result<Evaluation> {
         spec.check_point(x, "callback point")?;
-        let mut g = vec![f64::NAN; spec.n()];
-        let mut j = vec![f64::NAN; spec.nnz()];
+        let mut g = std::mem::take(&mut self.gradient_scratch);
+        let mut j = std::mem::take(&mut self.jacobian_scratch);
+        g.resize(spec.n(), f64::NAN);
+        g.fill(f64::NAN);
+        j.resize(spec.nnz(), f64::NAN);
+        j.fill(f64::NAN);
         self.counts.derivatives += 1;
         let t = Instant::now();
         let result = model.derivatives(x, &mut g, &mut j);
         self.seconds += t.elapsed().as_secs_f64();
-        result?;
+        if let Err(err) = result {
+            self.gradient_scratch = g;
+            self.jacobian_scratch = j;
+            return Err(err);
+        }
         for &v in g.iter().chain(&j) {
             finite(v, "derivative value")?;
         }
@@ -397,13 +419,25 @@ fn trial_point(bounds: &Bounds, x: &[f64], p: &[f64], alpha: f64) -> Vec<f64> {
 }
 
 /// The step QP at `x` with model values `e` and Hessian approximation `b`.
+#[cfg(test)]
 fn qp_model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, b: &DMatrix<f64>) -> Result<QpModel> {
+    qp_model_with_blocks(spec, x, e, b, 0)
+}
+fn qp_model_with_blocks(
+    spec: &ProblemSpec,
+    x: &[f64],
+    e: &Evaluation,
+    b: &DMatrix<f64>,
+    block: usize,
+) -> Result<QpModel> {
     let n = spec.n();
     let mut indptr = vec![0];
-    let mut indices = Vec::with_capacity(n * (n + 1) / 2);
-    let mut values = Vec::with_capacity(n * (n + 1) / 2);
+    let capacity = n * (if block == 0 { n } else { block.min(n) } + 1) / 2;
+    let mut indices = Vec::with_capacity(capacity);
+    let mut values = Vec::with_capacity(capacity);
     for i in 0..n {
-        for j in 0..=i {
+        let first = i.checked_div(block).unwrap_or(0) * block;
+        for j in first..=i {
             indices.push(j);
             values.push(b[(i, j)]);
         }
@@ -427,6 +461,39 @@ fn qp_model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, b: &DMatrix<f64>) -> 
         },
         rows: shifted(spec.constraints(), &e.constraints)?,
     })
+}
+
+/// Refresh numeric data in a per-solve, fixed-structure QP template.
+fn refresh_qp(
+    q: &mut QpModel,
+    spec: &ProblemSpec,
+    x: &[f64],
+    e: &Evaluation,
+    b: &DMatrix<f64>,
+) -> Result<()> {
+    let h = &mut q.hessian_lower;
+    for i in 0..spec.n() {
+        for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+            h.values[k] = b[(i, h.pattern.indices[k])];
+        }
+    }
+    q.gradient.clone_from(&e.gradient);
+    q.matrix.values.clone_from(&e.jacobian_values);
+    for (dst, src, values) in [
+        (&mut q.variables, spec.variables(), x),
+        (&mut q.rows, spec.constraints(), e.constraints.as_slice()),
+    ] {
+        for (out, input) in [(&mut dst.lower, &src.lower), (&mut dst.upper, &src.upper)] {
+            for (i, v) in out.iter_mut().enumerate() {
+                *v = if input[i].is_finite() {
+                    finite(input[i] - values[i], "shifted bound")?
+                } else {
+                    input[i]
+                };
+            }
+        }
+    }
+    Ok(())
 }
 
 /// `∇f − Jᵀλ − z`.
@@ -521,6 +588,8 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             cancel,
             counts: EvaluationCounts::default(),
             seconds: 0.0,
+            gradient_scratch: Vec::new(),
+            jacobian_scratch: Vec::new(),
         };
         let mut r = SolveResult::empty(Status::IterationLimit, "");
         r.report.method = "sqp".into();
@@ -543,6 +612,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
 
         let n = spec.n();
         let mut b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+        let mut effective_block = if settings.hessian_block_size >= n {
+            0
+        } else {
+            settings.hessian_block_size
+        };
+        let mut bfgs_work = bfgs::Curvature::new(n, effective_block);
+        let mut qp_work: Option<QpModel> = None;
+        let mut qp_checks = sqp_craft::qp::QpResidualWorkspace::default();
         let mut penalties = vec![0.0; spec.m()];
         let mut have_penalties = false;
         let mut retry_descent = false;
@@ -580,9 +657,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             // 1. Step QP.
             let x = r.candidate.as_ref().expect("evaluated");
             let e = r.evaluation.as_ref().expect("evaluated");
-            let qp = qp_model(spec, x, e, &b)?;
+            if let Some(q) = qp_work.as_mut() {
+                refresh_qp(q, spec, x, e, &b)?;
+            } else {
+                qp_work = Some(qp_model_with_blocks(spec, x, e, &b, effective_block)?);
+            }
+            let qp = qp_work.as_ref().expect("QP initialized");
             if r.report.qp_trace.len() < settings.record_qp_limit {
-                r.report.qp_trace.push(qp.clone());
+                r.report.qp_trace.push((*qp).clone());
             }
             let remaining = settings
                 .time_limit_seconds
@@ -596,7 +678,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             })?;
             let t = Instant::now();
             r.report.qp_solves += 1;
-            let outcome = self.qp.solve(&qp, None, cancel);
+            let outcome = self.qp.solve(qp, None, cancel);
             r.report.qp_seconds += t.elapsed().as_secs_f64();
             let report = self.qp.report();
             record_qp_work(&mut r.report, &report);
@@ -658,6 +740,33 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         .into();
                     break;
                 }
+                Ok(QpOutcome::NotPositiveDefinite) => {
+                    r.report.qp_not_positive_definite += 1;
+                    // Damping keeps B positive definite in exact arithmetic,
+                    // but rounding in the explicit update can leave it
+                    // indefinite. The backend's exact check is the only
+                    // positive-definiteness test of B: treat its rejection
+                    // like a failed update (reset, or stop without budget)
+                    // and re-solve this QP without counting an iteration.
+                    if r.report.hessian_resets >= u64::from(settings.max_hessian_resets) {
+                        status = Some(Status::NumericalFailure);
+                        r.message = "the Hessian approximation is not positive definite and \
+                                     the Hessian reset budget is exhausted"
+                            .into();
+                        break;
+                    }
+                    if effective_block > 0 {
+                        effective_block = 0;
+                        bfgs_work = bfgs::Curvature::new(n, 0);
+                        qp_work = None;
+                        r.report.block_hessian_fallbacks += 1;
+                    }
+                    b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                    r.report.hessian_resets += 1;
+                    retry_descent = false;
+                    notify = false;
+                    continue;
+                }
                 Ok(other) => {
                     status = Some(Status::QpFailure);
                     r.message = format!("unexpected QP outcome {other:?}");
@@ -679,7 +788,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 options.feasibility_tolerance,
                 &mut r.report,
             );
-            let check = qp.accepts(&solution, qp_acceptance)?;
+            let check = qp.accepts_with_workspace(&solution, qp_acceptance, &mut qp_checks)?;
             if !check.accepted {
                 status = Some(Status::QpFailure);
                 r.message = format!(
@@ -897,10 +1006,12 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             let new_l = lagrangian_gradient(spec, &next_evaluation, &solution.multipliers)?;
             let y: Vec<f64> = new_l.iter().zip(old_l).map(|(&a, b)| a - b).collect();
             let t = Instant::now();
-            let updated = bfgs::update(&mut b, &s, &y);
+            let updated = bfgs_work.update(&mut b, &s, &y);
             r.report.bfgs_seconds += t.elapsed().as_secs_f64();
             r.candidate = Some(next);
-            r.evaluation = Some(next_evaluation);
+            if let Some(old) = r.evaluation.replace(next_evaluation) {
+                calls.recycle(old);
+            }
             r.iterations += 1;
             r.report.step_norm = Some(norm_inf(&s));
             store_residuals(spec, &mut r, solution.multipliers)?;
@@ -910,6 +1021,12 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     r.message =
                         "BFGS update failed and the Hessian reset budget is exhausted".into();
                     break;
+                }
+                if effective_block > 0 {
+                    effective_block = 0;
+                    bfgs_work = bfgs::Curvature::new(n, 0);
+                    qp_work = None;
+                    r.report.block_hessian_fallbacks += 1;
                 }
                 b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
                 r.report.hessian_resets += 1;
@@ -933,6 +1050,135 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn explicit_curvature_blocks_preserve_spd_and_sparse_pattern() {
+        let n = 7;
+        let spec =
+            ProblemSpec::new(Bounds::free(n), Bounds::free(0), CsrPattern::dense(0, n)).unwrap();
+        let e = Evaluation {
+            objective: 0.,
+            constraints: vec![],
+            gradient: vec![0.; n],
+            jacobian_values: vec![],
+            primal_violation: 0.,
+            feasible_candidate: true,
+        };
+        let mut b = DMatrix::identity(n, n);
+        let mut work = bfgs::Curvature::new(n, 3);
+        assert!(work.update(&mut b, &[1.; 7], &[2., 3., 4., 1., 2., 3., 4.]));
+        assert!(b.clone().cholesky().is_some());
+        let q = qp_model_with_blocks(&spec, &[0.; 7], &e, &b, 3).unwrap();
+        q.validate().unwrap();
+        assert_eq!(q.hessian_lower.values.len(), 13);
+        for i in 0..n {
+            for j in 0..n {
+                if i / 3 != j / 3 {
+                    assert_eq!(b[(i, j)], 0.);
+                }
+            }
+        }
+        for i in 0..n {
+            assert!(
+                q.hessian_lower
+                    .pattern
+                    .row(i)
+                    .iter()
+                    .all(|&j| i / 3 == j / 3)
+            );
+        }
+        assert!(
+            SqpOptions {
+                hessian_block_size: 257,
+                ..Default::default()
+            }
+            .validate()
+            .is_err()
+        );
+    }
+    #[test]
+    fn recycled_callback_buffers_still_reject_missing_entries() {
+        struct Partial {
+            missing: bool,
+        }
+        impl NlpProblem for Partial {
+            fn functions(&mut self, x: &[f64], c: &mut [f64]) -> Result<f64> {
+                c[0] = x[0] + x[1];
+                Ok(0.)
+            }
+            fn derivatives(&mut self, _: &[f64], g: &mut [f64], j: &mut [f64]) -> Result<()> {
+                if self.missing {
+                    g[0] = 1.;
+                } else {
+                    g.fill(1.);
+                    j.fill(1.);
+                }
+                Ok(())
+            }
+        }
+        let spec =
+            ProblemSpec::new(Bounds::free(2), Bounds::free(1), CsrPattern::dense(1, 2)).unwrap();
+        let settings = SqpOptions::default();
+        let cancel = CancellationToken::default();
+        let mut calls = Calls {
+            began: Instant::now(),
+            settings: &settings,
+            cancel: &cancel,
+            counts: EvaluationCounts::default(),
+            seconds: 0.,
+            gradient_scratch: vec![],
+            jacobian_scratch: vec![],
+        };
+        let mut model = Partial { missing: false };
+        let x = [1., 1.];
+        let v = calls.functions(&spec, &mut model, &x).unwrap();
+        let e = calls.derivatives(&spec, &mut model, &x, v, 1e-7).unwrap();
+        calls.recycle(e);
+        model.missing = true;
+        let v = calls.functions(&spec, &mut model, &x).unwrap();
+        assert!(calls.derivatives(&spec, &mut model, &x, v, 1e-7).is_err());
+    }
+    #[test]
+    fn reused_qp_template_matches_fresh_numeric_data() {
+        let spec = ProblemSpec::new(
+            Bounds::new(vec![0.; 3], vec![4.; 3]),
+            Bounds::new(vec![-1., 0.], vec![2., 0.]),
+            CsrPattern::dense(2, 3),
+        )
+        .unwrap();
+        let mut e = Evaluation {
+            objective: 0.,
+            constraints: vec![0., 0.],
+            gradient: vec![1., 2., 3.],
+            jacobian_values: vec![1.; 6],
+            primal_violation: 0.,
+            feasible_candidate: true,
+        };
+        let mut b = DMatrix::identity(3, 3);
+        let mut q = qp_model(&spec, &[1.; 3], &e, &b).unwrap();
+        let pointers = (
+            q.hessian_lower.pattern.indices.as_ptr(),
+            q.matrix.pattern.indices.as_ptr(),
+            q.hessian_lower.values.as_ptr(),
+            q.rows.lower.as_ptr(),
+        );
+        for step in 1..5 {
+            e.constraints[0] = step as f64 / 10.;
+            e.jacobian_values[2] = step as f64;
+            b[(1, 1)] = step as f64;
+            let x = [0.5 + step as f64 / 10.; 3];
+            refresh_qp(&mut q, &spec, &x, &e, &b).unwrap();
+            assert_eq!(q, qp_model(&spec, &x, &e, &b).unwrap());
+            assert_eq!(
+                pointers,
+                (
+                    q.hessian_lower.pattern.indices.as_ptr(),
+                    q.matrix.pattern.indices.as_ptr(),
+                    q.hessian_lower.values.as_ptr(),
+                    q.rows.lower.as_ptr()
+                )
+            );
+        }
+    }
     #[test]
     fn a_trial_capped_at_a_bound_stays_inside_the_box() {
         // With α = (u − x)/p, x + αp rounds to one ulp above u here (about 2% of

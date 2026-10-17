@@ -284,6 +284,11 @@ pub struct RunReport {
     pub undefined_trials: u64,
     /// Positive-diagonal Hessian resets.
     pub hessian_resets: u64,
+    /// Switches from requested block curvature to full BFGS after a failed update.
+    pub block_hessian_fallbacks: u64,
+    /// Step QPs the backend rejected as `QpOutcome::NotPositiveDefinite`; each
+    /// is followed by a Hessian reset (counted in `hessian_resets`) or a stop.
+    pub qp_not_positive_definite: u64,
     /// Explicit corrections of tiny fixed-variable step components.
     pub fixed_step_corrections: u64,
     /// Step components moved onto a variable bound they exceeded by at most the

@@ -19,6 +19,9 @@ pub struct ClarabelQp {
     settings: QpOptions,
     last: QpReport,
     workspace: Option<Workspace>,
+    checks: QpResidualWorkspace,
+    conversion: Option<ConversionCache>,
+    pd: PdScratch,
     #[cfg(test)]
     cancel_at_iteration: Option<u32>,
     #[cfg(test)]
@@ -31,6 +34,9 @@ impl Clone for ClarabelQp {
             settings: self.settings.clone(),
             last: self.last.clone(),
             workspace: None,
+            checks: QpResidualWorkspace::default(),
+            conversion: None,
+            pd: PdScratch::default(),
             #[cfg(test)]
             cancel_at_iteration: self.cancel_at_iteration,
             #[cfg(test)]
@@ -118,18 +124,138 @@ fn sides(lower: f64, upper: f64) -> impl Iterator<Item = (f64, f64, f64, bool)> 
     lower_side.into_iter().chain(upper_side)
 }
 
-fn positive_definite(model: &QpModel) -> bool {
+/// Reused buffers of [`positive_definite`]: the dense copy alone is 215 KB at
+/// n = 164, above glibc's mmap threshold, so a fresh one per QP costs page
+/// faults on every call.
+#[derive(Default)]
+struct PdScratch {
+    dense: DMatrix<f64>,
+    diagonal: Vec<f64>,
+    radii: Vec<f64>,
+}
+
+/// Exact positive-definiteness gate for the Hessian.
+///
+/// A strictly diagonally dominant matrix with positive diagonal is positive
+/// definite (Gershgorin); the radii are summed with upward rounding, so the
+/// sufficient test is safe in floating point. A stored pattern that splits
+/// into disconnected components is factored per component. Everything else
+/// gets a dense Cholesky factorization of the lower triangle, which is all
+/// nalgebra reads; for a full lower triangle the copy and the dominance sums
+/// share one pass.
+fn positive_definite(model: &QpModel, scratch: &mut PdScratch) -> bool {
     let n = model.n();
     let h = &model.hessian_lower;
-    let mut dense = DMatrix::zeros(n, n);
+    let full = h.pattern.nnz() == n * (n + 1) / 2;
+    let PdScratch {
+        dense,
+        diagonal,
+        radii,
+    } = scratch;
+    diagonal.clear();
+    diagonal.resize(n, 0.);
+    radii.clear();
+    radii.resize(n, 0.);
+    if full && dense.shape() != (n, n) {
+        *dense = DMatrix::zeros(n, n);
+    }
+    let add_up = |a: f64, b: f64| {
+        let sum = a + b;
+        if !sum.is_finite() {
+            f64::INFINITY
+        } else {
+            f64::from_bits(sum.to_bits() + 1)
+        }
+    };
+    // Radii only grow, so the dominance sums stop at the first row that
+    // already fails (for a dense BFGS matrix, within the first rows); the copy
+    // for the Cholesky test continues. A row's diagonal is the last entry of
+    // its lower-triangle row, so diagonal[j] is final whenever j < i.
+    let mut dominant = true;
     for i in 0..n {
         for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
             let j = h.pattern.indices[k];
-            dense[(i, j)] = h.values[k];
-            dense[(j, i)] = h.values[k];
+            let v = h.values[k];
+            if full {
+                dense[(i, j)] = v;
+            }
+            if !dominant {
+                continue;
+            }
+            if i == j {
+                diagonal[i] = v;
+                dominant = v.is_finite() && v > radii[i];
+            } else if v != 0. {
+                radii[i] = add_up(radii[i], v.abs());
+                radii[j] = add_up(radii[j], v.abs());
+                dominant = radii[j] < diagonal[j];
+            }
         }
     }
-    dense.cholesky().is_some()
+    // A sufficient SPD proof; inconclusive cases keep a Cholesky test.
+    if dominant
+        && diagonal
+            .iter()
+            .zip(radii.iter())
+            .all(|(&d, &r)| d.is_finite() && d > r)
+    {
+        return true;
+    }
+    // Missing stored off-block entries prove exact structural disconnection.
+    if !full {
+        fn root(p: &mut [usize], mut i: usize) -> usize {
+            while p[i] != i {
+                p[i] = p[p[i]];
+                i = p[i];
+            }
+            i
+        }
+        let mut parents: Vec<_> = (0..n).collect();
+        for i in 0..n {
+            for &j in h.pattern.row(i) {
+                let a = root(&mut parents, i);
+                let b = root(&mut parents, j);
+                parents[b] = a;
+            }
+        }
+        let mut groups = std::collections::BTreeMap::<usize, Vec<usize>>::new();
+        for i in 0..n {
+            groups.entry(root(&mut parents, i)).or_default().push(i);
+        }
+        if groups.len() > 1 {
+            let mut local = vec![0; n];
+            for group in groups.values() {
+                for (k, &i) in group.iter().enumerate() {
+                    local[i] = k;
+                }
+            }
+            for group in groups.values() {
+                let mut part = DMatrix::zeros(group.len(), group.len());
+                for &i in group {
+                    for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                        part[(local[i], local[h.pattern.indices[k]])] = h.values[k];
+                    }
+                }
+                if part.cholesky().is_none() {
+                    return false;
+                }
+            }
+            return true;
+        }
+        *dense = DMatrix::zeros(n, n);
+        for i in 0..n {
+            for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                dense[(i, h.pattern.indices[k])] = h.values[k];
+            }
+        }
+    }
+    match std::mem::take(dense).cholesky() {
+        Some(factor) => {
+            *dense = factor.unpack_dirty();
+            true
+        }
+        None => false,
+    }
 }
 
 /// Builds Clarabel's data directly in canonical CSC form, in O(nnz).
@@ -138,12 +264,8 @@ fn positive_definite(model: &QpModel) -> bool {
 /// row, none above the diagonal) is exactly the upper-triangle CSC that
 /// Clarabel expects. `A` is filled column by column in conic-row order, so
 /// row indices are sorted without a sort. Explicit zeros are kept, as before.
+/// The caller checks positive definiteness first ([`positive_definite`]).
 fn convert(model: &QpModel) -> Result<Converted> {
-    if !positive_definite(model) {
-        return Err(Error::Unsupported(
-            "QP pilot requires a positive-definite Hessian".into(),
-        ));
-    }
     let n = model.n();
     let h = &model.hessian_lower;
     let p = CscMatrix::new(
@@ -225,6 +347,88 @@ fn convert(model: &QpModel) -> Result<Converted> {
         cones,
         mapping,
     })
+}
+
+fn side_class(lower: f64, upper: f64) -> u8 {
+    if lower == upper {
+        4
+    } else {
+        u8::from(lower.is_finite()) | u8::from(upper.is_finite()) << 1
+    }
+}
+struct ConversionCache {
+    hessian: sqp_craft::CsrPattern,
+    matrix: sqp_craft::CsrPattern,
+    sides: Vec<u8>,
+    sources: Vec<(usize, f64)>,
+    data: Converted,
+}
+impl ConversionCache {
+    fn matches(&self, q: &QpModel) -> bool {
+        self.hessian == q.hessian_lower.pattern
+            && self.matrix == q.matrix.pattern
+            && self.sides.len() == q.m() + q.n()
+            && self.sides.iter().copied().eq(q
+                .rows
+                .lower
+                .iter()
+                .zip(&q.rows.upper)
+                .chain(q.variables.lower.iter().zip(&q.variables.upper))
+                .map(|(&l, &u)| side_class(l, u)))
+    }
+    fn new(q: &QpModel) -> Result<Self> {
+        let data = convert(q)?;
+        let mut sources = Vec::with_capacity(data.a.nzval.len());
+        for j in 0..q.n() {
+            for k in data.a.colptr[j]..data.a.colptr[j + 1] {
+                let (variable, i, dual_sign) = data.mapping[data.a.rowval[k]];
+                let source = if variable {
+                    usize::MAX
+                } else {
+                    q.matrix.pattern.indptr[i]
+                        + q.matrix
+                            .pattern
+                            .row(i)
+                            .binary_search(&j)
+                            .expect("validated conversion source")
+                };
+                sources.push((source, -dual_sign));
+            }
+        }
+        Ok(Self {
+            hessian: q.hessian_lower.pattern.clone(),
+            matrix: q.matrix.pattern.clone(),
+            sides: q
+                .rows
+                .lower
+                .iter()
+                .zip(&q.rows.upper)
+                .chain(q.variables.lower.iter().zip(&q.variables.upper))
+                .map(|(&l, &u)| side_class(l, u))
+                .collect(),
+            sources,
+            data,
+        })
+    }
+    fn refresh(&mut self, q: &QpModel) {
+        self.data.p.nzval.clone_from(&q.hessian_lower.values);
+        for (value, &(source, scale)) in self.data.a.nzval.iter_mut().zip(&self.sources) {
+            *value = scale
+                * if source == usize::MAX {
+                    1.
+                } else {
+                    q.matrix.values[source]
+                };
+        }
+        for (value, &(variable, i, sign)) in self.data.b.iter_mut().zip(&self.data.mapping) {
+            let bounds = if variable { &q.variables } else { &q.rows };
+            *value = if sign > 0. {
+                -bounds.lower[i]
+            } else {
+                bounds.upper[i]
+            };
+        }
+    }
 }
 
 impl ClarabelQp {
@@ -314,12 +518,27 @@ impl QpBackend for ClarabelQp {
             return Ok(outcome);
         }
         let t = Instant::now();
-        let converted = convert(model);
+        if !positive_definite(model, &mut self.pd) {
+            // Nothing was solved or changed: keep both caches, so the
+            // caller's re-solve (with a reset Hessian) reuses them exactly
+            // as if this call had not happened.
+            self.workspace = previous;
+            self.last.conversion_seconds = t.elapsed().as_secs_f64();
+            return Ok(QpOutcome::NotPositiveDefinite);
+        }
+        let converted =
+            if let Some(mut cached) = self.conversion.take().filter(|c| c.matches(model)) {
+                cached.refresh(model);
+                Ok(cached)
+            } else {
+                ConversionCache::new(model)
+            };
         self.last.conversion_seconds = t.elapsed().as_secs_f64();
-        let data = converted?;
+        let conversion = converted?;
+        let data = &conversion.data;
         let mut reusable = previous.filter(|w| {
             self.settings.reuse_workspace
-                && w.key.matches(&data)
+                && w.key.matches(data)
                 && w.solver.is_data_update_allowed()
         });
         if let Some(w) = reusable.as_mut() {
@@ -423,6 +642,7 @@ impl QpBackend for ClarabelQp {
                 model,
                 &data.mapping,
                 self.settings.acceptance_tolerance,
+                &mut self.checks,
             );
             self.last.check_seconds += t.elapsed().as_secs_f64();
             #[cfg(test)]
@@ -452,6 +672,9 @@ impl QpBackend for ClarabelQp {
             {
                 self.workspace = Some(workspace);
             }
+            if matches!(outcome, Ok(QpOutcome::Optimal(_))) {
+                self.conversion = Some(conversion);
+            }
             return outcome.map(|outcome| match outcome {
                 QpOutcome::Optimal(mut solution) => {
                     solution.iterations = self.last.iterations;
@@ -468,6 +691,7 @@ fn extract(
     model: &QpModel,
     mapping: &[(bool, usize, f64)],
     tolerance: f64,
+    workspace: &mut QpResidualWorkspace,
 ) -> Result<QpOutcome> {
     match solver.solution.status {
         SolverStatus::PrimalInfeasible => Ok(QpOutcome::Infeasible),
@@ -490,7 +714,7 @@ fn extract(
                 active_set: None,
                 iterations: u64::from(solver.solution.iterations),
             };
-            let check = model.accepts(&solution, tolerance)?;
+            let check = model.accepts_with_workspace(&solution, tolerance, workspace)?;
             if !check.accepted {
                 return Err(Error::Backend(format!(
                     "Clarabel solution failed the independent check (scale {:.3e}): {:?}",
@@ -537,6 +761,209 @@ mod tests {
             QpOutcome::Optimal(_)
         ));
         (b, model)
+    }
+
+    #[test]
+    fn conversion_cache_refreshes_every_value_and_checks_structure() {
+        let (_, mut q) = reusable();
+        let mut cached = ConversionCache::new(&q).unwrap();
+        for k in 1..10 {
+            q.hessian_lower.values[0] = 1. + k as f64 / 10.;
+            q.gradient[0] = -(k as f64);
+            q.variables.lower[0] = -(k as f64);
+            q.variables.upper[0] = k as f64 + 2.;
+            assert!(cached.matches(&q));
+            cached.refresh(&q);
+            let fresh = convert(&q).unwrap();
+            assert_eq!(cached.data.p.nzval, fresh.p.nzval);
+            assert_eq!(cached.data.a.nzval, fresh.a.nzval);
+            assert_eq!(cached.data.b, fresh.b);
+            assert_eq!(cached.data.mapping, fresh.mapping);
+        }
+        q.variables.lower[0] = f64::NEG_INFINITY;
+        assert!(!cached.matches(&q));
+        q.variables.lower[0] = q.variables.upper[0];
+        assert!(!cached.matches(&q));
+        q.variables.lower[0] = -9.;
+        q.matrix.pattern = sqp_craft::CsrPattern::dense(1, 1);
+        q.matrix.values = vec![1.];
+        q.rows = sqp_craft::Bounds::fixed(vec![0.]);
+        assert!(!cached.matches(&q));
+    }
+
+    #[test]
+    fn conversion_cache_tracks_signed_sparse_jacobian_and_rhs_changes() {
+        let mut q = QpModel {
+            hessian_lower: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: 2,
+                    cols: 2,
+                    indptr: vec![0, 1, 3],
+                    indices: vec![0, 0, 1],
+                },
+                values: vec![2., 0.5, 2.],
+            },
+            gradient: vec![0.; 2],
+            variables: Bounds::new(vec![-2., f64::NEG_INFINITY], vec![3., 4.]),
+            matrix: CsrMatrix {
+                pattern: CsrPattern::dense(2, 2),
+                values: vec![0., -2., 3., 4.],
+            },
+            rows: Bounds::new(vec![-3., 2.], vec![5., 2.]),
+        };
+        let mut cache = ConversionCache::new(&q).unwrap();
+        let pointers = (
+            cache.data.a.rowval.as_ptr(),
+            cache.data.a.colptr.as_ptr(),
+            cache.data.a.nzval.as_ptr(),
+        );
+        for k in 1..8 {
+            q.matrix.values = vec![(k - 1) as f64, -(k as f64), 3. * k as f64, 4. - k as f64];
+            q.rows.lower[0] = -3. * k as f64;
+            q.rows.upper[0] = 5. * k as f64;
+            q.rows.lower[1] = 2. * k as f64;
+            q.rows.upper[1] = q.rows.lower[1];
+            assert!(cache.matches(&q));
+            cache.refresh(&q);
+            let fresh = convert(&q).unwrap();
+            for (a, b) in [
+                (&cache.data.p.nzval, &fresh.p.nzval),
+                (&cache.data.a.nzval, &fresh.a.nzval),
+                (&cache.data.b, &fresh.b),
+            ] {
+                assert_eq!(a.len(), b.len());
+                assert!(a.iter().zip(b).all(|(a, b)| a.to_bits() == b.to_bits()));
+            }
+            assert_eq!(
+                pointers,
+                (
+                    cache.data.a.rowval.as_ptr(),
+                    cache.data.a.colptr.as_ptr(),
+                    cache.data.a.nzval.as_ptr()
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn dominance_gate_and_cholesky_fallback_cover_boundary_cases() {
+        let mut q = QpModel {
+            hessian_lower: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: 2,
+                    cols: 2,
+                    indptr: vec![0, 1, 3],
+                    indices: vec![0, 0, 1],
+                },
+                values: vec![1., 0., 1.],
+            },
+            gradient: vec![0.; 2],
+            variables: Bounds::free(2),
+            matrix: CsrMatrix {
+                pattern: CsrPattern::dense(0, 2),
+                values: vec![],
+            },
+            rows: Bounds::free(0),
+        };
+        for (values, expected) in [
+            (vec![1., 0., 2.], true),
+            (vec![0.1, 0.2, 2.], true),
+            (vec![1., 2., 1.], false),
+            (vec![1., 1., 1.], false),
+            (vec![1., 0.9999999999999999, 1.], true),
+        ] {
+            q.hessian_lower.values = values;
+            assert_eq!(positive_definite(&q, &mut PdScratch::default()), expected);
+        }
+    }
+
+    #[test]
+    fn a_hessian_that_is_not_positive_definite_is_an_outcome_and_keeps_both_caches() {
+        let (mut b, mut q) = reusable();
+        assert!(b.workspace.is_some() && b.conversion.is_some());
+        q.hessian_lower.values[0] = -1.0;
+        assert_eq!(
+            b.solve(&q, None, &CancellationToken::default()).unwrap(),
+            QpOutcome::NotPositiveDefinite
+        );
+        assert!(b.workspace.is_some() && b.conversion.is_some());
+        assert_eq!(
+            (b.last.setups, b.last.updates, b.last.iterations),
+            (0, 0, 0)
+        );
+        q.hessian_lower.values[0] = 2.0;
+        assert!(matches!(
+            b.solve(&q, None, &CancellationToken::default()).unwrap(),
+            QpOutcome::Optimal(_)
+        ));
+        assert_eq!((b.last.setups, b.last.updates), (0, 1));
+    }
+
+    #[test]
+    fn the_positive_definiteness_scratch_follows_dimension_and_pattern_changes() {
+        let mut scratch = PdScratch::default();
+        for n in [3, 1, 6, 6, 2] {
+            for (dense, indefinite) in [(true, false), (true, true), (false, false), (false, true)]
+            {
+                let (mut indptr, mut indices, mut values) = (vec![0], vec![], vec![]);
+                for i in 0..n {
+                    for j in 0..=i {
+                        if dense || j == i || j + 1 == i {
+                            indices.push(j);
+                            // 1 on the diagonal, 0.9 next to it: never
+                            // diagonally dominant for n > 2, positive definite
+                            // for small n and indefinite at n = 6, so the
+                            // Cholesky paths decide; compared with a reference.
+                            values.push(if i == j {
+                                1.0
+                            } else if j + 1 == i {
+                                0.9
+                            } else {
+                                0.0
+                            });
+                        }
+                    }
+                    indptr.push(indices.len());
+                }
+                if indefinite {
+                    let last = values.len() - 1;
+                    values[last] = -1.0;
+                }
+                let q = QpModel {
+                    hessian_lower: CsrMatrix {
+                        pattern: CsrPattern {
+                            rows: n,
+                            cols: n,
+                            indptr,
+                            indices,
+                        },
+                        values,
+                    },
+                    gradient: vec![0.; n],
+                    variables: Bounds::free(n),
+                    matrix: CsrMatrix {
+                        pattern: CsrPattern::dense(0, n),
+                        values: vec![],
+                    },
+                    rows: Bounds::free(0),
+                };
+                let mut reference = DMatrix::zeros(n, n);
+                for i in 0..n {
+                    for k in
+                        q.hessian_lower.pattern.indptr[i]..q.hessian_lower.pattern.indptr[i + 1]
+                    {
+                        let j = q.hessian_lower.pattern.indices[k];
+                        reference[(i, j)] = q.hessian_lower.values[k];
+                        reference[(j, i)] = q.hessian_lower.values[k];
+                    }
+                }
+                assert_eq!(
+                    positive_definite(&q, &mut scratch),
+                    reference.cholesky().is_some(),
+                    "n {n}, dense {dense}, indefinite {indefinite}"
+                );
+            }
+        }
     }
 
     /// The previous conversion through Clarabel's sorting triplet constructor.

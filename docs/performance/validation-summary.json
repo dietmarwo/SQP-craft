@@ -1,0 +1,111 @@
+{
+  "unique_random_problems": 1500,
+  "settings_per_release": 3,
+  "solver_calls_per_release": 4500,
+  "total_solver_calls": 9000,
+  "status_or_acceptance_differences": [],
+  "max_paired_converged_objective_difference": 0.0,
+  "counts": {
+    "baseline": [
+      {
+        "mode": "cold",
+        "status": "converged",
+        "accepted": true,
+        "count": 1485
+      },
+      {
+        "mode": "cold",
+        "status": "restoration_failed",
+        "accepted": false,
+        "count": 13
+      },
+      {
+        "mode": "cold",
+        "status": "restoration_limit",
+        "accepted": false,
+        "count": 2
+      },
+      {
+        "mode": "restoration_off",
+        "status": "converged",
+        "accepted": true,
+        "count": 1219
+      },
+      {
+        "mode": "restoration_off",
+        "status": "linearization_infeasible",
+        "accepted": false,
+        "count": 281
+      },
+      {
+        "mode": "reuse",
+        "status": "converged",
+        "accepted": true,
+        "count": 1485
+      },
+      {
+        "mode": "reuse",
+        "status": "restoration_failed",
+        "accepted": false,
+        "count": 13
+      },
+      {
+        "mode": "reuse",
+        "status": "restoration_limit",
+        "accepted": false,
+        "count": 2
+      }
+    ],
+    "final": [
+      {
+        "mode": "cold",
+        "status": "converged",
+        "accepted": true,
+        "count": 1485
+      },
+      {
+        "mode": "cold",
+        "status": "restoration_failed",
+        "accepted": false,
+        "count": 13
+      },
+      {
+        "mode": "cold",
+        "status": "restoration_limit",
+        "accepted": false,
+        "count": 2
+      },
+      {
+        "mode": "restoration_off",
+        "status": "converged",
+        "accepted": true,
+        "count": 1219
+      },
+      {
+        "mode": "restoration_off",
+        "status": "linearization_infeasible",
+        "accepted": false,
+        "count": 281
+      },
+      {
+        "mode": "reuse",
+        "status": "converged",
+        "accepted": true,
+        "count": 1485
+      },
+      {
+        "mode": "reuse",
+        "status": "restoration_failed",
+        "accepted": false,
+        "count": 13
+      },
+      {
+        "mode": "reuse",
+        "status": "restoration_limit",
+        "accepted": false,
+        "count": 2
+      }
+    ]
+  },
+  "python_comparison_passed": 26
+}
