@@ -56,6 +56,17 @@ infeasible stationary points of the constraint violation.
 - **Others:** SNOPT's elastic mode puts an ℓ1 penalty on the constraints
   inside the QP itself, so the subproblem is always feasible and the
   transition is smooth.
+- **Status:** elastic mode is available as an option
+  (`elastic_mode=True` with the active-set backend,
+  [elastic-mode.md](elastic-mode.md)). It changes which local failures
+  occur, not how many:
+  - on the stress family it ends locally infeasible on 14 of 1,500 problems,
+    against 15 failures with restoration, 13 of them the same;
+  - on the problems that need restoration it takes fewer iterations but
+    slightly more callbacks.
+
+  The remaining failures are near local minimizers of the infeasibility,
+  which no local strategy escapes. Restoration stays the default.
 
 ## 5. No automatic scaling
 
@@ -70,6 +81,20 @@ The only external comparison is SciPy SLSQP: 13 cases, one random problem
 family and the orbit transfer. The mature codes are tuned on CUTEst-scale
 test sets, and the failure profile on degenerate, badly scaled or large
 problems here is unknown. Some weaknesses may not be on this list yet.
+
+A first addition beyond SLSQP's families: 600 random problems with
+complementarity constraints (`examples/stress_mpcc.py`), where the
+Mangasarian–Fromovitz condition fails at every feasible point.
+- The active-set backend solves all 600, with or without elastic mode.
+- Clarabel solves 531. It ends 62 with `qp_failure`, 5 with
+  `numerical_failure` and 1 with `line_search_failure`.
+- Clarabel also makes one false convergence claim (seed 1, case 80): its QP
+  multipliers reach 5·10⁹, so the stationarity residual is at its own
+  rounding level (9.5·10⁻⁷ in Rust, 1.2·10⁻⁶ in the independent NumPy
+  evaluator, against a tolerance of 10⁻⁶).
+
+The convergence test should not accept a residual below its own rounding
+level. That is a separate fix.
 
 ## What to keep
 
@@ -88,7 +113,9 @@ These properties should survive every change:
    factorization the method needs anyway. Done as an opt-in backend:
    [active-set QP](active-set-qp.md). Making it the default awaits evidence
    from the target application.
-2. Elastic mode on top of the active-set solver (gap 4).
+2. Elastic mode on top of the active-set solver (gap 4). Done as an option:
+   [elastic mode](elastic-mode.md). It keeps multipliers and curvature
+   through infeasible phases but does not reduce the local failures.
 3. A second-order correction or watchdog (gap 3).
 4. Automatic scaling, measured on the target application once its data
    exists (gap 5).

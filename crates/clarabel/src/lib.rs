@@ -477,6 +477,11 @@ impl ClarabelQp {
 impl QpBackend for ClarabelQp {
     fn configure(&mut self, options: &QpOptions) -> Result<()> {
         options.validate()?;
+        if options.elastic_weight.is_some() {
+            return Err(Error::Unsupported(
+                "the Clarabel adapter does not solve elastic QPs".into(),
+            ));
+        }
         self.settings = options.clone();
         if !options.reuse_workspace {
             self.workspace = None;

@@ -92,6 +92,10 @@ impl QpBackend for ActiveSetQp {
         self.last.clone()
     }
 
+    fn supports_elastic(&self) -> bool {
+        true
+    }
+
     /// Uses [`QpWarmStart::active_set`] and ignores a starting step or
     /// multipliers, which a dual method cannot exploit.
     fn solve(
@@ -146,7 +150,8 @@ impl ActiveSetQp {
             return Ok(self.stopped(stop));
         }
         let t = Instant::now();
-        self.work.load(model, self.settings.tolerance);
+        self.work
+            .load(model, self.settings.tolerance, self.settings.elastic_weight);
         self.norms.clear();
         self.norms.extend((0..model.m()).map(|i| {
             let range = model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1];
@@ -176,11 +181,18 @@ impl ActiveSetQp {
                 Ok(()) => {
                     let t = Instant::now();
                     let solution = self.work.solution(&sources, budget.changes);
-                    let check = model.accepts_with_workspace(
-                        &solution,
-                        self.settings.acceptance_tolerance,
-                        &mut self.checks,
-                    )?;
+                    let tolerance = self.settings.acceptance_tolerance;
+                    let check = match self.settings.elastic_weight {
+                        Some(weight) => model.accepts_elastic_with_workspace(
+                            &solution,
+                            tolerance,
+                            weight,
+                            &mut self.checks,
+                        )?,
+                        None => {
+                            model.accepts_with_workspace(&solution, tolerance, &mut self.checks)?
+                        }
+                    };
                     self.last.check_seconds += t.elapsed().as_secs_f64();
                     if check.accepted {
                         return Ok(QpOutcome::Optimal(solution));
@@ -348,13 +360,18 @@ impl Sources<'_> {
     }
 }
 
-/// One oriented constraint `σ aᵀp ≥ rhs` (`rhs = σ b`).
+/// One oriented constraint `σ aᵀp ≥ rhs` (`rhs = σ b`) with multiplier
+/// bounds `low <= u <= high`: `[0, ∞)` for an inequality, `(−∞, ∞)` for an
+/// equality, and `[0, γ]` or `[−γ, γ]` for rows of an elastic QP with weight
+/// `γ`. A multiplier that reaches a finite bound leaves the working set; at
+/// `±γ` the row becomes elastic (see [`Work::elastic`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Member {
     source: usize,
     sigma: f64,
     rhs: f64,
-    equality: bool,
+    low: f64,
+    high: f64,
 }
 
 /// Factors and iterate of the dual method, reused across calls.
@@ -389,6 +406,14 @@ struct Work {
     active: Vec<bool>,
     /// Whether each source has been in the working set during the attempt.
     entered: Vec<bool>,
+    /// Elastic weight `γ` of an elastic QP; rows are then soft.
+    weight: Option<f64>,
+    /// Per source, the signed count of elastic sides: `σ` when the row may
+    /// violate its side `σ` at a fixed multiplier `σγ` (a linear term
+    /// `−γσa` in the objective). Opposite entries cancel.
+    elastic: Vec<f64>,
+    /// `g − γ Σ elastic_s a_s`, the gradient with the elastic terms.
+    ge: Vec<f64>,
     tolerance: f64,
     /// Absolute dependence threshold per unit normal (see [`DEPENDENCE`]).
     dependence: f64,
@@ -399,7 +424,7 @@ struct Work {
 }
 
 impl Work {
-    fn load(&mut self, model: &QpModel, tolerance: f64) {
+    fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>) {
         let n = model.n();
         self.n = n;
         self.l.clear();
@@ -417,6 +442,7 @@ impl Work {
             &mut self.rp,
             &mut self.dx,
             &mut self.du,
+            &mut self.ge,
         ] {
             v.resize(n, 0.0);
         }
@@ -430,6 +456,9 @@ impl Work {
             flags.clear();
             flags.resize(n + model.m(), false);
         }
+        self.elastic.clear();
+        self.elastic.resize(n + model.m(), 0.0);
+        self.weight = weight;
         self.tolerance = tolerance;
     }
 
@@ -461,19 +490,13 @@ impl Work {
         self.u.clear();
         self.active.fill(false);
         self.entered.fill(false);
+        self.elastic.fill(0.0);
         self.polished = false;
         for s in 0..sources.count() {
             let (lower, upper) = sources.bounds(s);
             if lower == upper {
-                self.force(
-                    sources,
-                    Member {
-                        source: s,
-                        sigma: 1.0,
-                        rhs: lower,
-                        equality: true,
-                    },
-                );
+                let member = self.member(sources, s, 1.0, lower, true);
+                self.force(sources, member);
             }
         }
         if let Some(set) = warm {
@@ -485,15 +508,8 @@ impl Work {
                     Activity::AtUpper if upper.is_finite() => (-1.0, -upper),
                     _ => continue,
                 };
-                self.force(
-                    sources,
-                    Member {
-                        source: s,
-                        sigma,
-                        rhs,
-                        equality: false,
-                    },
-                );
+                let member = self.member(sources, s, sigma, rhs, false);
+                self.force(sources, member);
             }
         }
         self.settle(sources, budget)?;
@@ -504,6 +520,37 @@ impl Work {
                 None if self.polished => return Ok(()),
                 None => self.settle(sources, budget)?,
             }
+        }
+    }
+
+    /// The member for side `sigma` of source `s`, with the multiplier bounds
+    /// of its kind.
+    fn member(&self, sources: &Sources, s: usize, sigma: f64, rhs: f64, equality: bool) -> Member {
+        let soft = self.weight.filter(|_| s >= sources.n());
+        let (low, high) = match (soft, equality) {
+            (None, false) => (0.0, f64::INFINITY),
+            (None, true) => (f64::NEG_INFINITY, f64::INFINITY),
+            (Some(w), false) => (0.0, w),
+            (Some(w), true) => (-w, w),
+        };
+        Member {
+            source: s,
+            sigma,
+            rhs,
+            low,
+            high,
+        }
+    }
+
+    /// Removes member `k`, which left at its lower bound (`at_high` false) or
+    /// upper bound; at `±γ` its row becomes elastic on that side.
+    fn release(&mut self, k: usize, at_high: bool) {
+        let member = self.members[k];
+        self.drop(k);
+        if at_high && member.high.is_finite() {
+            self.elastic[member.source] += member.sigma;
+        } else if !at_high && member.low < 0.0 && member.low.is_finite() {
+            self.elastic[member.source] -= member.sigma;
         }
     }
 
@@ -522,27 +569,31 @@ impl Work {
         (free > self.dependence * norm).then_some(free)
     }
 
-    /// Recomputes `x` and `u` on the working set, then drops the most
-    /// negative inequality multiplier until all are nonnegative.
+    /// Recomputes `x` and `u` on the working set, then releases the member
+    /// whose multiplier is furthest outside its bounds until none is.
     fn settle(&mut self, sources: &Sources, budget: &mut Budget) -> std::result::Result<(), Stop> {
         loop {
             self.polish(sources);
             let largest = self.u.iter().fold(0.0_f64, |a, &b| a.max(b.abs()));
-            let mut lowest = -self.tolerance * (1.0 + largest);
+            let mut excess = self.tolerance * (1.0 + largest);
             let mut worst = None;
             for (k, (member, &u)) in self.members.iter().zip(&self.u).enumerate() {
-                if !member.equality && u < lowest {
-                    lowest = u;
-                    worst = Some(k);
+                if member.low - u > excess {
+                    excess = member.low - u;
+                    worst = Some((k, false));
+                }
+                if u - member.high > excess {
+                    excess = u - member.high;
+                    worst = Some((k, true));
                 }
             }
-            let Some(k) = worst else {
+            let Some((k, at_high)) = worst else {
                 self.polished = true;
                 return Ok(());
             };
             budget.check()?;
             budget.spend(true)?;
-            self.drop(k);
+            self.release(k, at_high);
         }
     }
 
@@ -553,12 +604,20 @@ impl Work {
     fn polish(&mut self, sources: &Sources) {
         let (n, q) = (self.n, self.q);
         let model = sources.model;
+        self.ge.copy_from_slice(&model.gradient);
+        if let Some(weight) = self.weight {
+            for (s, &e) in self.elastic.iter().enumerate().skip(n) {
+                if e != 0.0 {
+                    sources.scatter(s, -weight * e, &mut self.ge);
+                }
+            }
+        }
         for (b, member) in self.rp.iter_mut().zip(&self.members) {
             *b = member.rhs;
         }
         kkt_solve(
             (&self.j, &self.r, n, q),
-            &model.gradient,
+            &self.ge,
             &self.rp[..q],
             &mut self.c,
             &mut self.x,
@@ -566,7 +625,7 @@ impl Work {
         );
         for _ in 0..REFINEMENT_STEPS {
             model.hessian_product(&self.x, &mut self.rd);
-            for (r, &g) in self.rd.iter_mut().zip(&model.gradient) {
+            for (r, &g) in self.rd.iter_mut().zip(&self.ge) {
                 *r += g;
             }
             for (k, member) in self.members.iter().enumerate() {
@@ -601,13 +660,23 @@ impl Work {
             }
             let (v, magnitude) = sources.value(s, &self.x);
             let tau = |b: f64| self.tolerance * (1.0 + b.abs() + magnitude);
-            let member = |sigma: f64, rhs: f64, equality| Member {
-                source: s,
-                sigma,
-                rhs,
-                equality,
-            };
-            let found = if lower == upper {
+            let member =
+                |sigma: f64, rhs: f64, equality| self.member(sources, s, sigma, rhs, equality);
+            let e = self.elastic[s];
+            let found = if e != 0.0 {
+                // An elastic row may violate side e. Once it satisfies that
+                // side strictly, its fixed multiplier is wrong: re-enter the
+                // opposite side with multiplier bounds [0, γ], which together
+                // with the elastic term gives the row a multiplier in
+                // σ·[0, γ] on its bound, or cancels it at γ.
+                let rhs = if e > 0.0 { lower } else { -upper };
+                let slack = e * v - rhs;
+                (slack > tau(rhs)).then(|| {
+                    let mut back = member(-e, -rhs, false);
+                    back.low = 0.0;
+                    (slack, back)
+                })
+            } else if lower == upper {
                 let e = v - lower;
                 (e.abs() > tau(lower)).then(|| {
                     let sigma = if e > 0.0 { -1.0 } else { 1.0 };
@@ -656,27 +725,35 @@ impl Work {
             sources.project(p.source, p.sigma, &self.j, &mut self.d);
             let free = self.free_part(sources.norm(p.source));
             self.back_substitute();
-            // Partial step: the first working-set inequality whose multiplier
-            // reaches zero. Entries of y at rounding level are zero: for a
-            // dependent p they would allow absurd dual steps.
+            // Partial step: the first working-set multiplier that reaches a
+            // finite bound (u_k(t) = u_k − t y_k). Entries of y at rounding
+            // level are zero: for a dependent p they would allow absurd dual
+            // steps.
             let floor = self.noise * self.y[..q].iter().fold(0.0_f64, |a, b| a.max(b.abs()));
             let mut partial = f64::INFINITY;
             let mut leaving = None;
             for (k, member) in self.members.iter().enumerate() {
-                if !member.equality && self.y[k] > floor {
-                    let ratio = self.u[k] / self.y[k];
-                    if ratio < partial {
-                        partial = ratio;
-                        leaving = Some(k);
-                    }
+                let (u, y) = (self.u[k], self.y[k]);
+                let (ratio, at_high) = if y > floor && member.low.is_finite() {
+                    ((u - member.low) / y, false)
+                } else if y < -floor && member.high.is_finite() {
+                    ((member.high - u) / -y, true)
+                } else {
+                    continue;
+                };
+                if ratio.max(0.0) < partial {
+                    partial = ratio.max(0.0);
+                    leaving = Some((k, at_high));
                 }
             }
+            // An elastic row's own multiplier stops at its upper bound γ.
+            let cap = (p.high - multiplier).max(0.0);
             // Full step: the primal step that satisfies p.
             let full = free.map_or(f64::INFINITY, |free| {
                 let (v, _) = sources.value(p.source, &self.x);
                 ((p.rhs - p.sigma * v) / (free * free)).max(0.0)
             });
-            if partial == f64::INFINITY && full == f64::INFINITY {
+            if partial == f64::INFINITY && full == f64::INFINITY && cap == f64::INFINITY {
                 if self.polished {
                     return Err(Stop::Infeasible);
                 }
@@ -690,7 +767,7 @@ impl Work {
                 }
                 continue;
             }
-            let t = partial.min(full);
+            let t = partial.min(full).min(cap);
             for (u, &y) in self.u.iter_mut().zip(&self.y[..q]) {
                 *u -= t * y;
             }
@@ -701,12 +778,21 @@ impl Work {
                 }
                 self.polished = false;
             }
-            if full <= partial {
+            if full <= partial && full <= cap {
                 let reentry = self.entered[p.source];
                 self.push(p, multiplier);
                 return budget.spend(reentry);
             }
-            self.drop(leaving.expect("a finite partial step has a leaving constraint"));
+            if cap <= partial {
+                // p stays violated at multiplier γ: it becomes elastic.
+                let reentry = self.entered[p.source];
+                self.entered[p.source] = true;
+                self.elastic[p.source] += p.sigma;
+                self.polished = false;
+                return budget.spend(reentry);
+            }
+            let (k, at_high) = leaving.expect("a finite partial step has a leaving constraint");
+            self.release(k, at_high);
             budget.spend(true)?;
         }
     }
@@ -776,7 +862,14 @@ impl Work {
             rows: vec![Activity::Inactive; m],
         };
         for (member, &u) in self.members.iter().zip(&self.u) {
-            let side = if member.sigma > 0.0 {
+            // A re-entered elastic row sits on its elastic side.
+            let e = self.elastic[member.source];
+            let sigma = if e != 0.0 && member.sigma == -e {
+                e
+            } else {
+                member.sigma
+            };
+            let side = if sigma > 0.0 {
                 Activity::AtLower
             } else {
                 Activity::AtUpper
@@ -796,6 +889,11 @@ impl Work {
             };
             values[i] += member.sigma * u;
             activity[i] = side;
+        }
+        if let Some(weight) = self.weight {
+            for (i, &e) in self.elastic[n..].iter().enumerate() {
+                multipliers.constraints[i] += weight * e;
+            }
         }
         QpSolution {
             step: self.x.clone(),

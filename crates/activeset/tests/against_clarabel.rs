@@ -326,3 +326,113 @@ fn census() {
     }
     println!("most working-set changes in one QP: {most_changes}");
 }
+
+fn elastic_attempt(
+    backend: &mut ActiveSetQp,
+    model: &QpModel,
+    weight: f64,
+    warm: Option<&QpWarmStart>,
+) -> QpSolution {
+    backend
+        .configure(&QpOptions {
+            acceptance_tolerance: 1e-7,
+            elastic_weight: Some(weight),
+            ..Default::default()
+        })
+        .unwrap();
+    let outcome = backend
+        .solve(model, warm, &CancellationToken::default())
+        .unwrap_or_else(|e| panic!("{e}"));
+    let solution = optimal(outcome);
+    let check = model.accepts_elastic(&solution, 1e-7, weight).unwrap();
+    assert!(check.accepted, "{:?}", check.residuals);
+    solution
+}
+
+/// `½pᵀHp + gᵀp + weight · Σ row violations`, the elastic objective.
+fn elastic_objective(model: &QpModel, p: &[f64], weight: f64) -> f64 {
+    let mut rows = vec![0.0; model.m()];
+    model
+        .matrix
+        .pattern
+        .multiply(&model.matrix.values, p, &mut rows);
+    let violation: f64 = rows
+        .iter()
+        .enumerate()
+        .map(|(i, &r)| (model.rows.lower[i] - r).max(0.0) + (r - model.rows.upper[i]).max(0.0))
+        .sum();
+    model.objective(p) + weight * violation
+}
+
+#[test]
+fn random_elastic_qps_are_always_solved_and_pass_the_elastic_check() {
+    // Convex problem: the independent first-order check proves optimality.
+    // Every result must also be at least as good as the ordinary solution
+    // (feasible QPs) and as the origin projected onto the box.
+    let mut rng = Rng(5);
+    let mut backend = ActiveSetQp::default();
+    let mut ordinary = ActiveSetQp::default();
+    for case in 0..1000 {
+        let model = random_qp(&mut rng, case % 2 == 1);
+        let weight = [1e-2, 1e-1, 1.0, 10.0, 1e3][rng.below(5)];
+        let s = elastic_attempt(&mut backend, &model, weight, None);
+        let phi = elastic_objective(&model, &s.step, weight);
+        if let QpOutcome::Optimal(o) = solve(&mut ordinary, &model, None) {
+            let reference = elastic_objective(&model, &o.step, weight);
+            assert!(
+                phi <= reference + 1e-7 * (1.0 + reference.abs()),
+                "case {case}: {phi} > {reference}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_weight_above_the_multipliers_reproduces_the_ordinary_qp() {
+    let mut rng = Rng(17);
+    let (mut backend, mut ordinary) = (ActiveSetQp::default(), ActiveSetQp::default());
+    for case in 0..500 {
+        let model = random_qp(&mut rng, false);
+        let o = optimal(solve(&mut ordinary, &model, None));
+        let largest = o
+            .multipliers
+            .constraints
+            .iter()
+            .fold(0.0_f64, |a, b| a.max(b.abs()));
+        let s = elastic_attempt(&mut backend, &model, 2.0 * (1.0 + largest), None);
+        let scale = 1.0 + o.step.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
+        assert!(
+            distance(&s.step, &o.step) <= 1e-7 * scale,
+            "case {case}: {}",
+            distance(&s.step, &o.step)
+        );
+    }
+}
+
+#[test]
+fn elastic_warm_starts_reach_the_cold_solution() {
+    let mut rng = Rng(23);
+    let mut backend = ActiveSetQp::default();
+    for case in 0..400 {
+        let mut model = random_qp(&mut rng, case % 2 == 0);
+        let weight = [0.1, 1.0, 10.0][rng.below(3)];
+        let first = elastic_attempt(&mut backend, &model, weight, None);
+        let warm = QpWarmStart {
+            active_set: first.active_set.clone(),
+            ..Default::default()
+        };
+        for g in &mut model.gradient {
+            *g += 0.05 * rng.normal();
+        }
+        let cold = elastic_attempt(&mut backend, &model, weight, None);
+        let warmed = elastic_attempt(&mut backend, &model, weight, Some(&warm));
+        let (a, b) = (
+            elastic_objective(&model, &cold.step, weight),
+            elastic_objective(&model, &warmed.step, weight),
+        );
+        assert!(
+            (a - b).abs() <= 1e-7 * (1.0 + a.abs()),
+            "case {case}: {a} vs {b}"
+        );
+    }
+}

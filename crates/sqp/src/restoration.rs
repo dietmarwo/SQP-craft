@@ -136,6 +136,7 @@ pub(super) fn step<B: QpBackend>(
         time_limit_seconds: settings
             .time_limit_seconds
             .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0)),
+        elastic_weight: None,
     })?;
     let began = Instant::now();
     result.report.qp_solves += 1;

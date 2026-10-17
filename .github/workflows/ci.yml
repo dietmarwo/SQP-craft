@@ -86,7 +86,14 @@ jobs:
             python examples/stress_random.py --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
             python examples/stress_random.py --reuse-workspace --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
             python examples/stress_random.py --qp-solver active-set --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
+            python examples/stress_random.py --qp-solver active-set --elastic --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
             echo >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Complementarity problems (fails on a false convergence claim)
+        run: |
+          for seed in 1 2; do
+            python examples/stress_mpcc.py --qp-solver active-set --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
+            python examples/stress_mpcc.py --qp-solver active-set --elastic --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
           done
 
   dummy-only:

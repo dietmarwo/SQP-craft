@@ -130,3 +130,66 @@ fn primal_residual_and_input_checks() {
     );
     assert!(nan.is_err());
 }
+
+fn elastic(
+    spec: &ProblemSpec,
+    x: [f64; 2],
+    m: &Multipliers,
+    weight: f64,
+    slack: f64,
+) -> KktResiduals {
+    let e = toy_evaluation(x);
+    sqp_craft::kkt::elastic_residuals_with_workspace(
+        &sqp_craft::kkt::KktPoint {
+            x: &x,
+            variable_bounds: spec.variables(),
+            rows: &e.constraints,
+            row_bounds: spec.constraints(),
+            gradient: &e.gradient,
+            jacobian: spec.jacobian(),
+            jacobian_values: &e.jacobian_values,
+        },
+        m,
+        weight,
+        slack,
+        &mut Bounds::free(0),
+        &mut Vec::new(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn elastic_residuals_accept_a_violated_row_only_at_the_weight() {
+    // x0 + x1 >= 5 at x = (1.5, 2.5): violated by 1, and ∇f = (1, 1) = 1·∇c.
+    // That is first-order optimal for f + γ·violation exactly when γ = 1.
+    let spec = toy_spec(Bounds::new(vec![5.0], vec![INF]));
+    let m = multipliers(&[1.0], &[0.0, 0.0]);
+    let at_one = elastic(&spec, [1.5, 2.5], &m, 1.0, 1e-7);
+    assert_eq!(at_one, zero());
+    // A larger weight leaves the multiplier one short of it on a row
+    // violated by one; the ordinary residuals see only the violation.
+    let at_two = elastic(&spec, [1.5, 2.5], &m, 2.0, 1e-7);
+    assert_eq!(at_two.complementarity, 1.0);
+    assert_eq!(at_two.primal, 0.0);
+    let ordinary = nlp_residuals(&spec, &[1.5, 2.5], &toy_evaluation([1.5, 2.5]), &m).unwrap();
+    assert_eq!(ordinary.primal, 1.0);
+    // A multiplier above the weight is a sign-type violation.
+    let above = elastic(&spec, [1.5, 2.5], &m, 0.5, 1e-7);
+    assert_eq!(above.dual_sign, 0.5);
+}
+
+#[test]
+fn elastic_residuals_treat_tolerance_level_violations_as_satisfied() {
+    // On the bound to 1e-9 with an ordinary multiplier: within the slack the
+    // row is satisfied and only the primal residual reports the 1e-9.
+    let spec = toy_spec(Bounds::new(vec![4.0], vec![INF]));
+    let x = [1.5, 2.5 - 1e-9];
+    let lambda = 1.0 - 1e-9;
+    let m = multipliers(&[lambda], &[0.0, 0.0]);
+    let within = elastic(&spec, x, &m, 1e4, 1e-7);
+    assert!(within.primal > 0.0 && within.primal < 2e-9, "{within:?}");
+    assert!(within.complementarity < 2e-9, "{within:?}");
+    // Without slack the same point would need λ = 10⁴ on a violated row.
+    let strict = elastic(&spec, x, &m, 1e4, 0.0);
+    assert!(strict.complementarity > 9e-6, "{strict:?}");
+}

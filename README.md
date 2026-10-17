@@ -29,7 +29,11 @@ same SQP steps as Clarabel and makes the whole solve 5.4 to 6.4 times faster
 (the 164-variable orbit transfer: 2.99 s → 0.55 s). It gave the same status
 as Clarabel in all 4,500 paired stress runs. Clarabel remains the default.
 See [active-set-qp.md](docs/active-set-qp.md), and
-[gaps.md](docs/gaps.md) for the ranked weaknesses that motivated it.
+[gaps.md](docs/gaps.md) for the ranked weaknesses that motivated it. With
+that backend, `SqpOptions(qp_solver="active-set", elastic_mode=True)` solves
+every step QP as an ℓ1-elastic QP instead of entering feasibility
+restoration ([elastic-mode.md](docs/elastic-mode.md)); it is an option, not
+the default, because it does not reduce the local failures.
 
 See [plans and results](docs/performance/README.md) for all ten checkpoints,
 raw per-iteration measurements, final paired timings, numerical failure fixes
@@ -86,6 +90,8 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | `crates/activeset` (`sqp-craft-activeset`) | Dense dual active-set (Goldfarb–Idnani) QP backend, no dependencies |
 | [docs/gaps.md](docs/gaps.md) | Weaknesses compared with mature SQP codes, and the order of work |
 | [docs/active-set-qp.md](docs/active-set-qp.md) | The active-set backend: method, measurements, validation |
+| [docs/elastic-mode.md](docs/elastic-mode.md) | Elastic mode: the elastic QP, the driver rules, measurements |
+| `examples/stress_mpcc.py` | Random problems with complementarity constraints (degenerate QPs) |
 | `crates/python`, `python/sqp_craft` | PyO3 extension and typed Python API |
 | [docs/api.md](docs/api.md) | The contract: conventions, algorithm, options, statuses, errors |
 | `examples/restore_hs071.py` | Compare disabled restoration with the recovered HS071 solve |
