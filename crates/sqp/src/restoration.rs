@@ -39,20 +39,32 @@ fn merit(bounds: &Bounds, values: &[f64]) -> Result<f64> {
     finite(0.5 * total, "restoration merit")
 }
 
-fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -> Result<QpModel> {
+/// The Gauss–Newton model in the variables scaled by `scales`: with
+/// `p = D p̃` its Jacobian is `J D`, and the regularization and the trust
+/// bound apply to `p̃`. Rows stay in original units.
+fn model(
+    spec: &ProblemSpec,
+    x: &[f64],
+    e: &Evaluation,
+    settings: &SqpOptions,
+    scales: &Scales,
+) -> Result<QpModel> {
     let n = spec.n();
     let residuals = row_residuals(spec.constraints(), &e.constraints)?;
     let mut h = DMatrix::identity(n, n) * settings.restoration_regularization;
     let mut gradient = vec![0.0; n];
     let j = spec.jacobian();
     for (i, &residual) in residuals.iter().enumerate() {
-        if residual == 0.0 && spec.constraints().lower[i] != spec.constraints().upper[i] {
+        if residual == 0.0 && spec.constraints().lower[i] != spec.constraints().upper[i]
+            || spec.linear_rows()[i]
+        {
             continue;
         }
         let range = j.indptr[i]..j.indptr[i + 1];
+        let d = &scales.variables;
         for a in range.clone() {
             let col = j.indices[a];
-            let value = e.jacobian_values[a];
+            let value = e.jacobian_values[a] * d[col];
             gradient[col] = finite(
                 gradient[col] + finite(value * residual, "restoration gradient")?,
                 "restoration gradient",
@@ -61,7 +73,10 @@ fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -
                 let other = j.indices[b];
                 h[(col, other)] = finite(
                     h[(col, other)]
-                        + finite(value * e.jacobian_values[b], "restoration curvature")?,
+                        + finite(
+                            value * (e.jacobian_values[b] * d[other]),
+                            "restoration curvature",
+                        )?,
                     "restoration curvature",
                 )?;
             }
@@ -98,6 +113,17 @@ fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -
         },
         rows: Bounds::free(0),
     };
+    // Rows declared linear are satisfied at x and stay hard.
+    if spec.has_linear_rows() {
+        (q.matrix, q.rows) = super::linear::rows(spec, e)?;
+    }
+    if !scales.is_identity() {
+        // The Hessian and gradient above are already in scaled variables.
+        let gradient = std::mem::take(&mut q.gradient);
+        let ones = vec![1.0; q.m()];
+        scales.scale_qp(&mut q, &ones);
+        q.gradient = gradient;
+    }
     for k in 0..n {
         q.variables.lower[k] = q.variables.lower[k].max(-settings.restoration_step_limit);
         q.variables.upper[k] = q.variables.upper[k].min(settings.restoration_step_limit);
@@ -114,6 +140,7 @@ pub(super) fn step<B: QpBackend>(
     calls: &mut Calls<'_>,
     result: &mut SolveResult,
     options: &Options,
+    scales: &Scales,
 ) -> Result<Option<Status>> {
     if let Some(s) = calls.before_call() {
         return Ok(Some(s));
@@ -123,7 +150,7 @@ pub(super) fn step<B: QpBackend>(
     let x = result.candidate.as_ref().expect("complete point");
     let e = result.evaluation.as_ref().expect("complete point");
     let before = merit(spec.constraints(), &e.constraints)?;
-    let q = model(spec, x, e, settings)?;
+    let q = model(spec, x, e, settings, scales)?;
     let acceptance = options
         .feasibility_tolerance
         .min(settings.stationarity_tolerance)
@@ -137,6 +164,7 @@ pub(super) fn step<B: QpBackend>(
             .time_limit_seconds
             .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0)),
         elastic_weight: None,
+        hard_rows: Vec::new(),
     })?;
     let began = Instant::now();
     result.report.qp_solves += 1;
@@ -171,15 +199,23 @@ pub(super) fn step<B: QpBackend>(
         &q.variables,
         spec.variables(),
         options.feasibility_tolerance,
+        &scales.variables,
         &mut result.report,
     );
     if !q.accepts(&solution, acceptance)?.accepted {
         result.message = "restoration QP failed independent acceptance".into();
         return Ok(Some(Status::QpFailure));
     }
+    // Predicted decrease and trust bound in the scaled variables, the step
+    // itself in original units.
+    let predicted = finite(
+        -dot(&q.gradient, &solution.step)?,
+        "restoration predicted decrease",
+    )?;
+    let trust_limited = norm_inf(&solution.step) >= settings.restoration_step_limit * (1.0 - 1e-9);
+    let ones = vec![1.0; q.m()];
+    scales.unscale_solution(&mut solution, &ones);
     let p = &solution.step;
-    let predicted = finite(-dot(&q.gradient, p)?, "restoration predicted decrease")?;
-    let trust_limited = norm_inf(p) >= settings.restoration_step_limit * (1.0 - 1e-9);
     if predicted <= 0.0
         || norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x))
         || (!trust_limited && predicted <= STATIONARY_RATIO * before)
@@ -303,7 +339,14 @@ mod tests {
             primal_violation: 0.99,
             feasible_candidate: false,
         };
-        let q = model(&spec, &vec![0.1; n], &e, &SqpOptions::default()).unwrap();
+        let q = model(
+            &spec,
+            &vec![0.1; n],
+            &e,
+            &SqpOptions::default(),
+            &Scales::identity(n, n),
+        )
+        .unwrap();
         assert_eq!(q.hessian_lower.values.len(), n);
         assert_eq!(q.m(), 0);
         assert!(
@@ -332,7 +375,13 @@ mod tests {
             feasible_candidate: false,
         };
         assert!(matches!(
-            model(&spec, &[0.0], &evaluation, &SqpOptions::default()),
+            model(
+                &spec,
+                &[0.0],
+                &evaluation,
+                &SqpOptions::default(),
+                &Scales::identity(1, 1)
+            ),
             Err(Error::Evaluation(_))
         ));
     }

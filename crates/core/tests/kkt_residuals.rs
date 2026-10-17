@@ -193,3 +193,50 @@ fn elastic_residuals_treat_tolerance_level_violations_as_satisfied() {
     let strict = elastic(&spec, x, &m, 1e4, 0.0);
     assert!(strict.complementarity > 9e-6, "{strict:?}");
 }
+
+#[test]
+fn hard_rows_are_tested_as_ordinary_rows_in_the_elastic_residuals() {
+    // The violated row of the first test, but hard: its violation is primal
+    // again, and a multiplier above the weight is no longer an error.
+    let spec = toy_spec(Bounds::new(vec![5.0], vec![INF]));
+    let x = [1.5, 2.5];
+    let e = toy_evaluation(x);
+    let point = sqp_craft::kkt::KktPoint {
+        x: &x,
+        variable_bounds: spec.variables(),
+        rows: &e.constraints,
+        row_bounds: spec.constraints(),
+        gradient: &e.gradient,
+        jacobian: spec.jacobian(),
+        jacobian_values: &e.jacobian_values,
+    };
+    let m = multipliers(&[1.0], &[0.0, 0.0]);
+    let hard = |weight| {
+        sqp_craft::kkt::elastic_residuals_with_hard_rows(
+            &point,
+            &m,
+            weight,
+            &[true],
+            1e-7,
+            &mut Bounds::free(0),
+            &mut Vec::new(),
+        )
+        .unwrap()
+    };
+    let ordinary = nlp_residuals(&spec, &x, &e, &m).unwrap();
+    assert_eq!(hard(1.0), ordinary);
+    assert_eq!(hard(0.5).dual_sign, 0.0);
+    // One flag per row, or none.
+    assert!(
+        sqp_craft::kkt::elastic_residuals_with_hard_rows(
+            &point,
+            &m,
+            1.0,
+            &[true, false],
+            1e-7,
+            &mut Bounds::free(0),
+            &mut Vec::new(),
+        )
+        .is_err()
+    );
+}

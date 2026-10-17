@@ -200,9 +200,77 @@ pub fn elastic_residuals_with_workspace(
     relaxed: &mut Bounds,
     jt_lambda: &mut Vec<f64>,
 ) -> Result<KktResiduals> {
+    elastic_residuals_with_hard_rows(point, multipliers, weight, &[], slack, relaxed, jt_lambda)
+}
+
+/// [`elastic_residuals_with_workspace`] where the rows flagged in `hard`
+/// (empty: none) are not elastic: they are tested as in [`residuals`], with
+/// no bound on their multipliers.
+pub fn elastic_residuals_with_hard_rows(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    weight: f64,
+    hard: &[bool],
+    slack: f64,
+    relaxed: &mut Bounds,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
     ensure(weight.is_finite() && weight > 0.0, || {
         format!("elastic weight must be positive and finite, got {weight}")
     })?;
+    elastic_core(
+        point,
+        multipliers,
+        |_| weight,
+        hard,
+        slack,
+        relaxed,
+        jt_lambda,
+    )
+}
+
+/// [`elastic_residuals_with_hard_rows`] with one weight per row (`weights`,
+/// length `m`; entries of hard rows are ignored), as for an elastic QP
+/// solved in scaled rows.
+pub fn elastic_residuals_with_row_weights(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    weights: &[f64],
+    hard: &[bool],
+    slack: f64,
+    relaxed: &mut Bounds,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
+    ensure(weights.len() == point.rows.len(), || {
+        format!(
+            "elastic weights: length {}, expected {}",
+            weights.len(),
+            point.rows.len()
+        )
+    })?;
+    ensure(weights.iter().all(|w| w.is_finite() && *w > 0.0), || {
+        "elastic weights must be positive and finite".into()
+    })?;
+    elastic_core(
+        point,
+        multipliers,
+        |i| weights[i],
+        hard,
+        slack,
+        relaxed,
+        jt_lambda,
+    )
+}
+
+fn elastic_core(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    weight: impl Fn(usize) -> f64,
+    hard: &[bool],
+    slack: f64,
+    relaxed: &mut Bounds,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
     ensure(slack.is_finite() && slack >= 0.0, || {
         format!("elastic slack must be finite and nonnegative, got {slack}")
     })?;
@@ -214,6 +282,13 @@ pub fn elastic_residuals_with_workspace(
             multipliers.constraints.len()
         )
     })?;
+    ensure(hard.is_empty() || hard.len() == m, || {
+        format!(
+            "elastic hard rows: length {}, expected 0 or {m}",
+            hard.len()
+        )
+    })?;
+    let is_hard = |i: usize| hard.get(i).copied().unwrap_or(false);
     relaxed.lower.clear();
     relaxed.upper.clear();
     for i in 0..m {
@@ -223,8 +298,13 @@ pub fn elastic_residuals_with_workspace(
             point.row_bounds.lower[i],
             point.row_bounds.upper[i],
         );
-        relaxed.lower.push(if l - r > slack { r } else { l });
-        relaxed.upper.push(if r - u > slack { r } else { u });
+        let soft = !is_hard(i);
+        relaxed
+            .lower
+            .push(if soft && l - r > slack { r } else { l });
+        relaxed
+            .upper
+            .push(if soft && r - u > slack { r } else { u });
     }
     let mut result = residuals_with_workspace(
         &KktPoint {
@@ -235,12 +315,16 @@ pub fn elastic_residuals_with_workspace(
         jt_lambda,
     )?;
     for i in 0..m {
+        if is_hard(i) {
+            continue;
+        }
         let (r, l, u) = (
             point.rows[i],
             point.row_bounds.lower[i],
             point.row_bounds.upper[i],
         );
         let lambda = multipliers.constraints[i];
+        let weight = weight(i);
         result.dual_sign = result.dual_sign.max(lambda.abs() - weight);
         let product = if l - r > slack {
             crate::error::finite((l - r) * (weight - lambda).abs(), "elastic complementarity")?

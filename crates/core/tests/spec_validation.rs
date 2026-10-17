@@ -148,3 +148,22 @@ fn error_display_has_category() {
     );
     assert_eq!(Error::UndefinedPoint("x".into()).message(), "x");
 }
+
+#[test]
+fn linear_rows_are_validated_and_compared() {
+    let spec = ProblemSpec::new(Bounds::free(2), Bounds::free(3), CsrPattern::dense(3, 2)).unwrap();
+    assert!(!spec.has_linear_rows());
+    assert_eq!(spec.linear_rows(), &[false; 3]);
+    let linear = spec.clone().with_linear_rows(&[2, 0]).unwrap();
+    assert_eq!(linear.linear_rows(), &[true, false, true]);
+    assert!(linear.has_linear_rows());
+    assert_ne!(linear, spec);
+    assert_eq!(spec.clone().with_linear_rows(&[]).unwrap(), spec);
+    for (rows, message) in [(&[3][..], "out of range"), (&[1, 1][..], "repeated")] {
+        let error = spec.clone().with_linear_rows(rows).unwrap_err();
+        assert!(
+            matches!(&error, Error::InvalidInput(m) if m.contains(message)),
+            "{error}"
+        );
+    }
+}

@@ -96,6 +96,14 @@ jobs:
             python examples/stress_mpcc.py --qp-solver active-set --elastic --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
             python examples/stress_mpcc.py --qp-solver clarabel --seed $seed --count 300 --table >> "$GITHUB_STEP_SUMMARY"
           done
+      - name: Options from SNOPT (fails on a false convergence claim)
+        run: |
+          python examples/stress_linear.py --qp-solver active-set --declare --table >> "$GITHUB_STEP_SUMMARY"
+          python scripts/compare_variants.py --qp-solver active-set \
+            --variants default,augmented,al+vl,linear,scale-jacobian,augmented+al+vl+linear+scale-jacobian \
+            --families stress,mpcc,maratos,baseline,linear,stress-scaled >> "$GITHUB_STEP_SUMMARY"
+          python scripts/compare_variants.py --qp-solver clarabel --variants default,al,scale-jacobian \
+            --families stress,maratos >> "$GITHUB_STEP_SUMMARY"
 
   dummy-only:
     name: Python build without the native solver
