@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 mod bfgs;
+mod linear;
 mod merit;
 mod restoration;
 
@@ -778,6 +779,10 @@ fn status_message(status: Status) -> &'static str {
             "elastic mode stopped at a stationary point of the l1 penalty with violated \
              constraints at its largest weight; nonlinear infeasibility is not established"
         }
+        Status::LinearInfeasible => {
+            "the rows declared linear and the variable bounds have no common point (the \
+             proximal-point QP is infeasible)"
+        }
         Status::LineSearchFailure => "no acceptable step length within the backtracking limit",
         Status::NoDescent => "QP step is not a descent direction for the merit function",
         Status::Stalled => "QP step too small to change the iterate",
@@ -844,6 +849,40 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             r.evaluation = Some(evaluation);
             None
         };
+        // Rows declared linear: their Jacobian at the start, against which
+        // every later evaluation is checked, and a start on those rows.
+        let linear_reference = r
+            .evaluation
+            .as_ref()
+            .filter(|_| spec.has_linear_rows())
+            .map(|e| e.jacobian_values.clone());
+        if status.is_none()
+            && linear_reference.is_some()
+            && linear::violated(
+                spec,
+                r.evaluation.as_ref().expect("evaluated"),
+                options.feasibility_tolerance,
+            )
+        {
+            status = linear::project(
+                &mut self.qp,
+                spec,
+                model,
+                &mut calls,
+                &mut r,
+                options,
+                qp_acceptance,
+            )?;
+            if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
+                linear::check_constant(spec, reference, e)?;
+            }
+        }
+        // In elastic mode the rows declared linear stay hard.
+        let hard_rows = if settings.elastic_mode && spec.has_linear_rows() {
+            spec.linear_rows().to_vec()
+        } else {
+            Vec::new()
+        };
 
         let n = spec.n();
         let mut b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
@@ -869,7 +908,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         let mut have_penalties = false;
         let mut augmented = merit::AugmentedLagrangian::new(spec.m());
         // Rows kept out of the merit (linear rows kept feasible).
-        let skip_rows = vec![false; spec.m()];
+        let skip_rows = spec.linear_rows().to_vec();
         // SNOPT's violation limit, fixed at the start point.
         let limits: Option<Vec<f64>> = match (settings.violation_limit, r.evaluation.as_ref()) {
             (Some(tau), Some(e)) => Some(
@@ -935,6 +974,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 max_iterations: settings.qp_max_iterations,
                 time_limit_seconds: remaining,
                 elastic_weight,
+                hard_rows: hard_rows.clone(),
             })?;
             let t = Instant::now();
             r.report.qp_solves += 1;
@@ -966,6 +1006,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         restoration::step(&mut self.qp, spec, model, &mut calls, &mut r, options);
                     r.report.restoration_seconds += began.elapsed().as_secs_f64();
                     status = restored?;
+                    if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
+                        linear::check_constant(spec, reference, e)?;
+                    }
                     if status.is_some() {
                         break;
                     }
@@ -1058,10 +1101,11 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 &mut r.report,
             );
             let check = match elastic_weight {
-                Some(weight) => qp.accepts_elastic_with_workspace(
+                Some(weight) => qp.accepts_elastic_with_hard_rows(
                     &solution,
                     qp_acceptance,
                     weight,
+                    &hard_rows,
                     &mut qp_checks,
                 )?,
                 None => qp.accepts_with_workspace(&solution, qp_acceptance, &mut qp_checks)?,
@@ -1127,8 +1171,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             let elastic_rows: Vec<usize> = match elastic_weight {
                 Some(_) => (0..spec.m())
                     .filter(|&i| {
-                        rows.lower[i] - linear[i] > options.feasibility_tolerance
-                            || linear[i] - rows.upper[i] > options.feasibility_tolerance
+                        !spec.linear_rows()[i]
+                            && (rows.lower[i] - linear[i] > options.feasibility_tolerance
+                                || linear[i] - rows.upper[i] > options.feasibility_tolerance)
                     })
                     .collect(),
                 None => Vec::new(),
@@ -1139,7 +1184,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 // At a stationary point of f + γ·violation with violated rows
                 // a larger weight may still reach feasibility; past the last
                 // increase the point is reported as locally infeasible.
-                let k = sqp_craft::kkt::elastic_residuals_with_workspace(
+                let k = sqp_craft::kkt::elastic_residuals_with_hard_rows(
                     &sqp_craft::kkt::KktPoint {
                         x,
                         variable_bounds: spec.variables(),
@@ -1151,6 +1196,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     },
                     &solution.multipliers,
                     weight,
+                    &hard_rows,
                     options.feasibility_tolerance,
                     &mut relaxed,
                     &mut transpose,
@@ -1218,6 +1264,12 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     finite(*mu, "penalty")?;
                 }
                 have_penalties = true;
+                // Rows declared linear stay satisfied along the step.
+                for (mu, &linear) in penalties.iter_mut().zip(spec.linear_rows()) {
+                    if linear {
+                        *mu = 0.0;
+                    }
+                }
                 if let Some(weight) = elastic_weight {
                     // The elastic QP minimizes the model of f + γ·violation, so
                     // its step is a descent direction for that merit: rows it
@@ -1358,7 +1410,13 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         && noise_step.is_none()
                         && !record.second_order_correction;
                     let shift: Vec<f64> = if try_correction {
-                        values.1.iter().zip(&linear).map(|(c, l)| c - l).collect()
+                        values
+                            .1
+                            .iter()
+                            .zip(&linear)
+                            .zip(spec.linear_rows())
+                            .map(|((c, l), &exact)| if exact { 0.0 } else { c - l })
+                            .collect()
                     } else {
                         Vec::new()
                     };
@@ -1386,6 +1444,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                             max_iterations: settings.qp_max_iterations,
                             time_limit_seconds: remaining,
                             elastic_weight,
+                            hard_rows: hard_rows.clone(),
                         })?;
                         let t = Instant::now();
                         r.report.qp_solves += 1;
@@ -1404,10 +1463,11 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                                     &mut r.report,
                                 );
                                 let check = match elastic_weight {
-                                    Some(weight) => q.accepts_elastic_with_workspace(
+                                    Some(weight) => q.accepts_elastic_with_hard_rows(
                                         &s,
                                         qp_acceptance,
                                         weight,
+                                        &hard_rows,
                                         &mut qp_checks,
                                     )?,
                                     None => {
@@ -1543,6 +1603,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             }
 
             // 4. Accept the step and update B.
+            if let Some(reference) = &linear_reference {
+                linear::check_constant(spec, reference, &next_evaluation)?;
+            }
             let s: Vec<f64> = next.iter().zip(x).map(|(&a, &b)| a - b).collect();
             let old_l = lagrangian_gradient(spec, e, &solution.multipliers)?;
             let new_l = lagrangian_gradient(spec, &next_evaluation, &solution.multipliers)?;

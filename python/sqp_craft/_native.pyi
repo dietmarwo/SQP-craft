@@ -19,6 +19,7 @@ class ProblemSpec:
         constraint_upper: Iterable[float],
         jacobian_indptr: Iterable[int],
         jacobian_indices: Iterable[int],
+        linear_rows: Optional[Iterable[int]] = None,
     ) -> None: ...
     @property
     def n(self) -> int: ...
@@ -38,6 +39,8 @@ class ProblemSpec:
     def jacobian_indptr(self) -> list[int]: ...
     @property
     def jacobian_indices(self) -> list[int]: ...
+    @property
+    def linear_rows(self) -> list[int]: ...
 
 class Cancellation:
     """Cooperative cancellation flag; checked between model calls."""

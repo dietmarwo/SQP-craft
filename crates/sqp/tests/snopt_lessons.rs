@@ -343,3 +343,198 @@ fn elastic_steps_keep_the_l1_merit_under_the_augmented_lagrangian() {
     assert_eq!(r.report.history[0].max_penalty, weight);
     assert!(r.report.history[1..].iter().all(|h| h.max_penalty < weight));
 }
+
+fn line_spec(rows: &[usize]) -> ProblemSpec {
+    ProblemSpec::new(
+        Bounds::new(vec![-20.0; 2], vec![20.0; 2]),
+        Bounds::fixed(vec![1.0]),
+        CsrPattern::dense(1, 2),
+    )
+    .unwrap()
+    .with_linear_rows(rows)
+    .unwrap()
+}
+
+#[test]
+fn a_start_off_the_linear_rows_is_projected_onto_them() {
+    let plain = solve::<ActiveSetQp>(
+        &line_spec(&[]),
+        &mut Flat,
+        &[3.0, -1.0],
+        updating(HessianUpdate::Damped),
+    );
+    for backend in ["active-set", "clarabel"] {
+        let settings = updating(HessianUpdate::Damped);
+        let r = match backend {
+            "active-set" => {
+                solve::<ActiveSetQp>(&line_spec(&[0]), &mut Flat, &[3.0, -1.0], settings)
+            }
+            _ => solve::<ClarabelQp>(&line_spec(&[0]), &mut Flat, &[3.0, -1.0], settings),
+        };
+        converged(&r);
+        assert!(r.report.linear_projection, "{backend}");
+        // The smallest move onto x₀ + x₁ = 1 is (−½, −½); every iterate
+        // after it is on the line.
+        let first = r.report.history[0];
+        assert!(first.primal_violation <= 1e-9, "{backend}: {first:?}");
+        assert!(r.report.history.iter().all(|h| h.primal_violation <= 1e-9));
+        // Projection plus one more evaluation each.
+        assert_eq!(r.counts.functions, r.iterations + 2, "{backend}");
+        let (a, b) = (
+            r.candidate.as_ref().unwrap(),
+            plain.candidate.as_ref().unwrap(),
+        );
+        assert!((a[0] - b[0]).abs() < 1e-6 && (a[1] - b[1]).abs() < 1e-6);
+    }
+    // A start on the rows is not moved.
+    let r = solve::<ActiveSetQp>(
+        &line_spec(&[0]),
+        &mut Flat,
+        &[0.5, 0.5],
+        updating(HessianUpdate::Damped),
+    );
+    converged(&r);
+    assert!(!r.report.linear_projection);
+}
+
+#[test]
+fn inconsistent_linear_rows_end_the_solve_as_linear_infeasible() {
+    // x₀ + x₁ ≥ 3 on the unit box.
+    let spec = ProblemSpec::new(
+        Bounds::new(vec![0.0; 2], vec![1.0; 2]),
+        Bounds::new(vec![3.0], vec![f64::INFINITY]),
+        CsrPattern::dense(1, 2),
+    )
+    .unwrap()
+    .with_linear_rows(&[0])
+    .unwrap();
+    let a = solve::<ActiveSetQp>(&spec, &mut Flat, &[0.5, 0.5], SqpOptions::default());
+    let b = solve::<ClarabelQp>(&spec, &mut Flat, &[0.5, 0.5], SqpOptions::default());
+    for r in [a, b] {
+        assert_eq!(r.status, Status::LinearInfeasible, "{}", r.message);
+        assert_eq!(r.candidate.as_deref(), Some(&[0.5, 0.5][..]));
+        assert_eq!(r.iterations, 0);
+    }
+}
+
+/// min x² + (y − ½)² subject to x ≥ 1 (linear) and y² = x, from (1, 0).
+/// The model is undefined for x < ½. The linearization −1 − p_x = 0 of the
+/// parabola contradicts x ≥ 1, so the step QP is inconsistent.
+struct Parabola {
+    pull: f64,
+}
+
+impl NlpProblem for Parabola {
+    fn functions(&mut self, x: &[f64], c: &mut [f64]) -> Result<f64> {
+        if x[0] < 0.5 {
+            return Err(sqp_craft::Error::UndefinedPoint("x < 1/2".into()));
+        }
+        c[0] = x[0];
+        c[1] = x[1] * x[1] - x[0];
+        Ok((x[0] - self.pull).powi(2) + (x[1] - 0.5).powi(2))
+    }
+    fn derivatives(&mut self, x: &[f64], g: &mut [f64], j: &mut [f64]) -> Result<()> {
+        g.copy_from_slice(&[2.0 * (x[0] - self.pull), 2.0 * (x[1] - 0.5)]);
+        j.copy_from_slice(&[1.0, -1.0, 2.0 * x[1]]);
+        Ok(())
+    }
+}
+
+fn parabola(rows: &[usize]) -> ProblemSpec {
+    ProblemSpec::new(
+        Bounds::new(vec![-5.0; 2], vec![5.0; 2]),
+        Bounds::new(vec![1.0, 0.0], vec![f64::INFINITY, 0.0]),
+        CsrPattern {
+            rows: 2,
+            cols: 2,
+            indptr: vec![0, 1, 3],
+            indices: vec![0, 0, 1],
+        },
+    )
+    .unwrap()
+    .with_linear_rows(rows)
+    .unwrap()
+}
+
+#[test]
+fn declared_rows_stay_hard_in_the_elastic_qp() {
+    // The objective pulls x down. Undeclared, the elastic QP violates x ≥ 1
+    // (at the same cost γ as the parabola) and the full step lands where the
+    // model is undefined; declared, it keeps x = 1 and reaches (1, 1) at once.
+    let elastic = SqpOptions {
+        elastic_mode: true,
+        record_history: true,
+        ..SqpOptions::default()
+    };
+    let soft = solve::<ActiveSetQp>(
+        &parabola(&[]),
+        &mut Parabola { pull: 0.0 },
+        &[1.0, 0.0],
+        elastic.clone(),
+    );
+    let hard = solve::<ActiveSetQp>(
+        &parabola(&[0]),
+        &mut Parabola { pull: 0.0 },
+        &[1.0, 0.0],
+        elastic,
+    );
+    converged(&soft);
+    converged(&hard);
+    assert!(soft.report.undefined_trials >= 1);
+    assert_eq!(hard.report.undefined_trials, 0);
+    assert_eq!(hard.iterations, 1);
+    let x = hard.candidate.as_ref().unwrap();
+    assert!(
+        (x[0] - 1.0).abs() < 1e-9 && (x[1] - 1.0).abs() < 1e-9,
+        "{x:?}"
+    );
+}
+
+#[test]
+fn restoration_keeps_declared_rows_satisfied() {
+    // Restoration reduces the parabola's violation through x alone (its y
+    // derivative is 0 at y = 0). Undeclared, it leaves x ≥ 1 for the
+    // undefined region; declared, it stops at once without leaving it.
+    let soft = solve::<ActiveSetQp>(
+        &parabola(&[]),
+        &mut Parabola { pull: 2.0 },
+        &[1.0, 0.0],
+        SqpOptions::default(),
+    );
+    let hard = solve::<ActiveSetQp>(
+        &parabola(&[0]),
+        &mut Parabola { pull: 2.0 },
+        &[1.0, 0.0],
+        SqpOptions::default(),
+    );
+    assert_eq!(soft.status, Status::RestorationFailed);
+    assert_eq!(hard.status, Status::RestorationFailed);
+    assert!(soft.candidate.as_ref().unwrap()[0] < 1.0);
+    assert!(soft.report.undefined_trials >= 1);
+    assert_eq!(hard.candidate.as_deref(), Some(&[1.0, 0.0][..]));
+    assert_eq!(hard.report.undefined_trials, 0);
+}
+
+#[test]
+fn a_row_wrongly_declared_linear_is_an_error() {
+    // The parabola's Jacobian changes with y, which the first step changes.
+    // (A wrong declaration can also make the start projection infeasible and
+    // the status `linear_infeasible` wrong: the status relies on it.)
+    let error = NativeSqp::<ActiveSetQp> {
+        settings: SqpOptions::default(),
+        qp: ActiveSetQp::default(),
+    }
+    .solve(
+        &parabola(&[0, 1]),
+        &mut Parabola { pull: 2.0 },
+        &[1.0, 1.0],
+        &Options::default(),
+        &CancellationToken::default(),
+        None,
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&error, sqp_craft::Error::InvalidInput(m) if m.contains("row 1 is declared linear")),
+        "{error}"
+    );
+}

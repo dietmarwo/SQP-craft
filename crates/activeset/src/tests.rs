@@ -487,6 +487,55 @@ fn contradicting_rows_are_both_violated_at_the_elastic_weight() {
 }
 
 #[test]
+fn hard_rows_stay_satisfied_in_an_elastic_qp() {
+    // p ≥ 1 (hard) and p ≤ −1 (soft, γ = 3): min ½p² + 3·max(p + 1, 0) on
+    // p ≥ 1 gives p = 1, λ = (4, −3). The hard multiplier exceeds γ.
+    let model = qp(
+        &[&[1.]],
+        &[0.],
+        (&[-INF], &[INF]),
+        &[&[1.], &[1.]],
+        (&[1., -INF], &[INF, -1.]),
+    );
+    let mut b = ActiveSetQp::default();
+    b.configure(&QpOptions {
+        elastic_weight: Some(3.0),
+        hard_rows: vec![true, false],
+        ..Default::default()
+    })
+    .unwrap();
+    let QpOutcome::Optimal(s) = b
+        .solve(&model, None, &CancellationToken::default())
+        .unwrap()
+    else {
+        panic!("expected an optimal solution")
+    };
+    close(&s.step, &[1.0], 1e-14);
+    close(&s.multipliers.constraints, &[4.0, -3.0], 1e-14);
+    let mut ws = QpResidualWorkspace::default();
+    let hard = [true, false];
+    assert!(
+        model
+            .accepts_elastic_with_hard_rows(&s, 1e-9, 3.0, &hard, &mut ws)
+            .unwrap()
+            .accepted
+    );
+    // As an all-soft solution it is wrong: |λ₀| > γ.
+    assert!(!model.accepts_elastic(&s, 1e-9, 3.0).unwrap().accepted);
+    // One flag per row, or none.
+    b.configure(&QpOptions {
+        elastic_weight: Some(3.0),
+        hard_rows: vec![true],
+        ..Default::default()
+    })
+    .unwrap();
+    assert!(matches!(
+        b.solve(&model, None, &CancellationToken::default()),
+        Err(Error::InvalidInput(_))
+    ));
+}
+
+#[test]
 fn a_small_weight_caps_the_multiplier_and_lets_the_row_be_violated() {
     // min ½(p − 3)² s.t. p ≤ 1: λ = −2 in the ordinary QP. With γ = 1 the
     // row is violated: p = 2, λ = −1. With γ = 5 nothing changes.

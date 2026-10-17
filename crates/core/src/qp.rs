@@ -8,7 +8,7 @@
 
 use crate::error::{Error, Result, ensure, first_non_finite};
 use crate::kkt::{
-    KktPoint, KktResiduals, elastic_residuals_with_workspace, residuals_with_workspace,
+    KktPoint, KktResiduals, elastic_residuals_with_hard_rows, residuals_with_workspace,
 };
 use crate::solver::{CancellationToken, Multipliers};
 use crate::spec::{Bounds, CsrMatrix};
@@ -166,13 +166,26 @@ impl QpModel {
         slack: f64,
         workspace: &mut QpResidualWorkspace,
     ) -> Result<KktResiduals> {
-        self.checked_residuals(solution, Some((weight, slack)), workspace)
+        self.checked_residuals(solution, Some((weight, slack, &[])), workspace)
+    }
+
+    /// [`Self::elastic_residuals_with_workspace`] where the rows flagged in
+    /// `hard` (see [`QpOptions::hard_rows`]) stay hard.
+    pub fn elastic_residuals_with_hard_rows(
+        &self,
+        solution: &QpSolution,
+        weight: f64,
+        hard: &[bool],
+        slack: f64,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<KktResiduals> {
+        self.checked_residuals(solution, Some((weight, slack, hard)), workspace)
     }
 
     fn checked_residuals(
         &self,
         solution: &QpSolution,
-        elastic: Option<(f64, f64)>,
+        elastic: Option<(f64, f64, &[bool])>,
         workspace: &mut QpResidualWorkspace,
     ) -> Result<KktResiduals> {
         self.validate()?;
@@ -216,14 +229,15 @@ impl QpModel {
             jacobian: &self.matrix.pattern,
             jacobian_values: &self.matrix.values,
         };
-        let Some((weight, slack)) = elastic else {
+        let Some((weight, slack, hard)) = elastic else {
             return residuals_with_workspace(&point, &solution.multipliers, transpose);
         };
         let mut relaxed = Bounds::new(std::mem::take(relaxed_lower), std::mem::take(relaxed_upper));
-        let result = elastic_residuals_with_workspace(
+        let result = elastic_residuals_with_hard_rows(
             &point,
             &solution.multipliers,
             weight,
+            hard,
             slack,
             &mut relaxed,
             transpose,
@@ -281,14 +295,37 @@ impl QpModel {
         weight: f64,
         workspace: &mut QpResidualWorkspace,
     ) -> Result<QpAcceptance> {
-        self.checked_acceptance(solution, tolerance, Some((weight, tolerance)), workspace)
+        self.checked_acceptance(
+            solution,
+            tolerance,
+            Some((weight, tolerance, &[])),
+            workspace,
+        )
+    }
+
+    /// [`Self::accepts_elastic_with_workspace`] where the rows flagged in
+    /// `hard` (see [`QpOptions::hard_rows`]) stay hard.
+    pub fn accepts_elastic_with_hard_rows(
+        &self,
+        solution: &QpSolution,
+        tolerance: f64,
+        weight: f64,
+        hard: &[bool],
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<QpAcceptance> {
+        self.checked_acceptance(
+            solution,
+            tolerance,
+            Some((weight, tolerance, hard)),
+            workspace,
+        )
     }
 
     fn checked_acceptance(
         &self,
         solution: &QpSolution,
         tolerance: f64,
-        elastic: Option<(f64, f64)>,
+        elastic: Option<(f64, f64, &[bool])>,
         workspace: &mut QpResidualWorkspace,
     ) -> Result<QpAcceptance> {
         ensure(tolerance.is_finite() && tolerance > 0.0, || {
@@ -513,6 +550,11 @@ pub struct QpOptions {
     /// are checked by [`QpModel::accepts_elastic_with_workspace`]. Only
     /// backends whose [`QpBackend::supports_elastic`] is true accept it.
     pub elastic_weight: Option<f64>,
+    /// Rows that stay hard in an elastic QP (empty: none; otherwise one flag
+    /// per row). The SQP driver passes the rows declared linear, which its
+    /// iterates keep satisfied. Without an elastic weight every row is hard
+    /// and this is ignored.
+    pub hard_rows: Vec<bool>,
 }
 impl Default for QpOptions {
     fn default() -> Self {
@@ -523,6 +565,7 @@ impl Default for QpOptions {
             max_iterations: 200,
             time_limit_seconds: None,
             elastic_weight: None,
+            hard_rows: Vec::new(),
         }
     }
 }

@@ -46,7 +46,9 @@ fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -
     let mut gradient = vec![0.0; n];
     let j = spec.jacobian();
     for (i, &residual) in residuals.iter().enumerate() {
-        if residual == 0.0 && spec.constraints().lower[i] != spec.constraints().upper[i] {
+        if residual == 0.0 && spec.constraints().lower[i] != spec.constraints().upper[i]
+            || spec.linear_rows()[i]
+        {
             continue;
         }
         let range = j.indptr[i]..j.indptr[i + 1];
@@ -98,6 +100,10 @@ fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -
         },
         rows: Bounds::free(0),
     };
+    // Rows declared linear are satisfied at x and stay hard.
+    if spec.has_linear_rows() {
+        (q.matrix, q.rows) = super::linear::rows(spec, e)?;
+    }
     for k in 0..n {
         q.variables.lower[k] = q.variables.lower[k].max(-settings.restoration_step_limit);
         q.variables.upper[k] = q.variables.upper[k].min(settings.restoration_step_limit);
@@ -137,6 +143,7 @@ pub(super) fn step<B: QpBackend>(
             .time_limit_seconds
             .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0)),
         elastic_weight: None,
+        hard_rows: Vec::new(),
     })?;
     let began = Instant::now();
     result.report.qp_solves += 1;

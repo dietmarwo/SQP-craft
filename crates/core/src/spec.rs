@@ -275,6 +275,7 @@ pub struct ProblemSpec {
     variables: Bounds,
     constraints: Bounds,
     jacobian: CsrPattern,
+    linear: Vec<bool>,
 }
 
 impl ProblemSpec {
@@ -303,7 +304,39 @@ impl ProblemSpec {
             variables,
             constraints,
             jacobian,
+            linear: vec![false; m],
         })
+    }
+
+    /// Declares the rows `rows` linear: `c_i(x) = a_iᵀx + b_i`, so their
+    /// Jacobian rows are constant. A solver may then keep them satisfied at
+    /// every iterate and leave them out of its merit function; the native
+    /// SQP ends a solve with `InvalidInput` if a declared row's Jacobian
+    /// entries change. Indices must be distinct and smaller than `m`.
+    pub fn with_linear_rows(mut self, rows: &[usize]) -> Result<Self> {
+        let mut linear = vec![false; self.m()];
+        for &i in rows {
+            ensure(i < self.m(), || {
+                format!(
+                    "linear rows: index {i} is out of range for m = {}",
+                    self.m()
+                )
+            })?;
+            ensure(!linear[i], || format!("linear rows: index {i} is repeated"))?;
+            linear[i] = true;
+        }
+        self.linear = linear;
+        Ok(self)
+    }
+
+    /// Per row, whether it was declared linear (length `m`).
+    pub fn linear_rows(&self) -> &[bool] {
+        &self.linear
+    }
+
+    /// Whether any row was declared linear.
+    pub fn has_linear_rows(&self) -> bool {
+        self.linear.iter().any(|&l| l)
     }
 
     /// Number of variables `n`.

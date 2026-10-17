@@ -72,6 +72,7 @@ Status = Literal[
     "restoration_failed",
     "restoration_limit",
     "locally_infeasible",
+    "linear_infeasible",
     "line_search_failure",
     "no_descent",
     "stalled",
@@ -274,6 +275,7 @@ class RunReport:
     elastic_steps: int
     elastic_weight: Optional[float]
     elastic_weight_increases: int
+    linear_projection: bool
     violation_limit_rejections: int
     second_order_corrections: int
     second_order_steps: int

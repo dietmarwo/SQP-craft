@@ -36,6 +36,10 @@ pub enum Status {
     /// which constraints are still violated, with the elastic weight at its
     /// largest value. Not an infeasibility certificate.
     LocallyInfeasible,
+    /// The rows declared linear and the variable bounds have no common
+    /// point, as judged by the QP solver. Since these rows are exactly
+    /// linear, this concerns the problem itself, not a linearization.
+    LinearInfeasible,
     /// Native SQP termination: line_search_failure.
     LineSearchFailure,
     /// Native SQP termination: no_descent.
@@ -61,6 +65,7 @@ impl Status {
             Status::RestorationFailed => "restoration_failed",
             Status::RestorationLimit => "restoration_limit",
             Status::LocallyInfeasible => "locally_infeasible",
+            Status::LinearInfeasible => "linear_infeasible",
             Status::LineSearchFailure => "line_search_failure",
             Status::NoDescent => "no_descent",
             Status::Stalled => "stalled",
@@ -310,6 +315,9 @@ pub struct RunReport {
     /// Trial points rejected by the violation limit before their derivatives
     /// were evaluated.
     pub violation_limit_rejections: u64,
+    /// The start point violated a row declared linear and was moved onto
+    /// those rows by the proximal-point QP before the first iteration.
+    pub linear_projection: bool,
     /// Second-order corrections evaluated after a rejected full step.
     pub second_order_corrections: u64,
     /// Second-order corrections accepted as the step.

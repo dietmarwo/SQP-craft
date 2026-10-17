@@ -106,7 +106,8 @@ struct PyProblemSpec {
 #[pymethods]
 impl PyProblemSpec {
     #[new]
-    #[pyo3(signature = (*, lower, upper, constraint_lower, constraint_upper, jacobian_indptr, jacobian_indices))]
+    #[pyo3(signature = (*, lower, upper, constraint_lower, constraint_upper, jacobian_indptr, jacobian_indices, linear_rows=None))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         lower: &Bound<'_, PyAny>,
         upper: &Bound<'_, PyAny>,
@@ -114,6 +115,7 @@ impl PyProblemSpec {
         constraint_upper: &Bound<'_, PyAny>,
         jacobian_indptr: &Bound<'_, PyAny>,
         jacobian_indices: &Bound<'_, PyAny>,
+        linear_rows: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         let variables = Bounds::new(floats(lower, "lower")?, floats(upper, "upper")?);
         let constraints = Bounds::new(
@@ -126,7 +128,12 @@ impl PyProblemSpec {
             indptr: indices(jacobian_indptr, "jacobian_indptr")?,
             indices: indices(jacobian_indices, "jacobian_indices")?,
         };
-        let inner = ProblemSpec::new(variables, constraints, jacobian).map_err(to_py_err)?;
+        let mut inner = ProblemSpec::new(variables, constraints, jacobian).map_err(to_py_err)?;
+        if let Some(rows) = linear_rows {
+            inner = inner
+                .with_linear_rows(&indices(rows, "linear_rows")?)
+                .map_err(to_py_err)?;
+        }
         Ok(Self { inner })
     }
 
@@ -178,6 +185,14 @@ impl PyProblemSpec {
         self.inner.jacobian().indices.clone()
     }
 
+    /// Rows declared linear, in increasing order.
+    #[getter]
+    fn linear_rows(&self) -> Vec<usize> {
+        (0..self.inner.m())
+            .filter(|&i| self.inner.linear_rows()[i])
+            .collect()
+    }
+
     /// Supports pickling, so a spec can be sent to worker processes.
     fn __getnewargs_ex__<'py>(
         &self,
@@ -190,6 +205,7 @@ impl PyProblemSpec {
         kwargs.set_item("constraint_upper", self.constraint_upper())?;
         kwargs.set_item("jacobian_indptr", self.jacobian_indptr())?;
         kwargs.set_item("jacobian_indices", self.jacobian_indices())?;
+        kwargs.set_item("linear_rows", self.linear_rows())?;
         Ok((PyTuple::empty(py), kwargs))
     }
 
@@ -566,6 +582,7 @@ fn solve_native<'py>(
         "elastic_weight_increases",
         r.report.elastic_weight_increases,
     )?;
+    report.set_item("linear_projection", r.report.linear_projection)?;
     report.set_item(
         "violation_limit_rejections",
         r.report.violation_limit_rejections,

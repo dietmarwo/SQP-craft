@@ -200,6 +200,21 @@ pub fn elastic_residuals_with_workspace(
     relaxed: &mut Bounds,
     jt_lambda: &mut Vec<f64>,
 ) -> Result<KktResiduals> {
+    elastic_residuals_with_hard_rows(point, multipliers, weight, &[], slack, relaxed, jt_lambda)
+}
+
+/// [`elastic_residuals_with_workspace`] where the rows flagged in `hard`
+/// (empty: none) are not elastic: they are tested as in [`residuals`], with
+/// no bound on their multipliers.
+pub fn elastic_residuals_with_hard_rows(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    weight: f64,
+    hard: &[bool],
+    slack: f64,
+    relaxed: &mut Bounds,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
     ensure(weight.is_finite() && weight > 0.0, || {
         format!("elastic weight must be positive and finite, got {weight}")
     })?;
@@ -214,6 +229,13 @@ pub fn elastic_residuals_with_workspace(
             multipliers.constraints.len()
         )
     })?;
+    ensure(hard.is_empty() || hard.len() == m, || {
+        format!(
+            "elastic hard rows: length {}, expected 0 or {m}",
+            hard.len()
+        )
+    })?;
+    let is_hard = |i: usize| hard.get(i).copied().unwrap_or(false);
     relaxed.lower.clear();
     relaxed.upper.clear();
     for i in 0..m {
@@ -223,8 +245,13 @@ pub fn elastic_residuals_with_workspace(
             point.row_bounds.lower[i],
             point.row_bounds.upper[i],
         );
-        relaxed.lower.push(if l - r > slack { r } else { l });
-        relaxed.upper.push(if r - u > slack { r } else { u });
+        let soft = !is_hard(i);
+        relaxed
+            .lower
+            .push(if soft && l - r > slack { r } else { l });
+        relaxed
+            .upper
+            .push(if soft && r - u > slack { r } else { u });
     }
     let mut result = residuals_with_workspace(
         &KktPoint {
@@ -235,6 +262,9 @@ pub fn elastic_residuals_with_workspace(
         jt_lambda,
     )?;
     for i in 0..m {
+        if is_hard(i) {
+            continue;
+        }
         let (r, l, u) = (
             point.rows[i],
             point.row_bounds.lower[i],

@@ -22,7 +22,14 @@ Families:
 - stress: examples/stress_random.py, seeds 1–5, 1,500 problems;
 - mpcc: examples/stress_mpcc.py, seeds 1–2, 600 problems;
 - maratos: 200 starts of Nocedal & Wright's Example 15.4;
-- baseline: the 13 cases of examples/compare_baseline.py.
+- baseline: the 13 cases of examples/compare_baseline.py;
+- linear: examples/stress_linear.py, seeds 1–2, 600 problems whose model is
+  undefined outside linear rows.
+
+The variant "linear" declares the rows each family knows to be linear:
+- the sum row of the mpcc family;
+- the duration rows of the linear family;
+- x₀ + x₁ = 1 and u(t_f) = 0 in the baseline cases.
 
 Further families are added by later steps.
 """
@@ -40,10 +47,11 @@ sys.path.insert(0, str(root / "examples"))
 sys.path.insert(0, str(root / "scripts"))
 import compare_baseline as cb  # noqa: E402
 import compare_corrections as cc  # noqa: E402
+import stress_linear as sl  # noqa: E402
 import stress_mpcc as sm  # noqa: E402
 import stress_random as sr  # noqa: E402
 
-from sqp_craft import SqpOptions, solve  # noqa: E402
+from sqp_craft import ProblemSpec, SqpOptions, solve  # noqa: E402
 
 VARIANTS: dict[str, dict] = {
     "default": {},
@@ -52,56 +60,76 @@ VARIANTS: dict[str, dict] = {
     "al": dict(merit="augmented-lagrangian"),
     "vl": dict(violation_limit=10.0),
     "elastic": dict(elastic_mode=True),
+    # Declare the family's linear rows (no solver option).
+    "linear": dict(_linear=True),
 }
 
 COUNTERS = ["bfgs_damped_updates", "bfgs_modified_updates",
             "hessian_resets", "restoration_steps", "elastic_steps", "second_order_steps",
-            "undefined_trials", "violation_limit_rejections"]
+            "undefined_trials", "violation_limit_rejections", "linear_projection"]
 
 
-def generated(problem, seeds, count=300):
+def generated(problem, seeds, count=300, linear=lambda spec: []):
     for seed in seeds:
         rng = sr.np.random.default_rng(seed)
         for k in range(count):
             spec, model, start = problem(rng)
-            yield f"{seed}/{k}", cb.Case("generated", spec, model, start, 0.0, math.inf)
+            yield (f"{seed}/{k}", cb.Case("generated", spec, model, start, 0.0, math.inf),
+                   linear(spec))
+
+
+def declared(spec: ProblemSpec, rows: list[int]) -> ProblemSpec:
+    """`spec` with `rows` declared linear."""
+    _, kwargs = spec.__getnewargs_ex__()
+    return ProblemSpec(**{**kwargs, "linear_rows": rows})
 
 
 def maratos():
     for k, (spec, model, start) in enumerate(cc.maratos_problems()):
-        yield str(k), cb.Case("maratos", spec, model, start, 0.0, math.inf)
+        yield str(k), cb.Case("maratos", spec, model, start, 0.0, math.inf), []
 
 
 def baseline():
     for k, case in enumerate(cb.cases()):
-        yield f"{case.name}/{k}", case
+        if case.name == "equality":
+            rows = [0]  # x₀ + x₁ = 1
+        elif case.name.startswith("orbit"):
+            rows = [case.spec.m - 2]  # u(t_f) = 0
+        else:
+            rows = []
+        yield f"{case.name}/{k}", case, rows
 
 
 FAMILIES = {
     "stress": lambda: generated(sr.problem, range(1, 6)),
-    "mpcc": lambda: generated(sm.problem, range(1, 3)),
+    "mpcc": lambda: generated(sm.problem, range(1, 3), linear=lambda spec: [spec.m - 1]),
     "maratos": maratos,
     "baseline": baseline,
+    "linear": lambda: generated(sl.problem, range(1, 3),
+                                linear=lambda spec: list(range(spec.m - 2))),
 }
 
 
-def options_for(variant: str, qp_solver: str) -> dict:
+def options_for(variant: str, qp_solver: str) -> tuple[dict, bool]:
+    """The SQP settings of `variant` and whether it declares linear rows."""
     settings = dict(max_iterations=300, qp_solver=qp_solver, record_history=True)
     for part in variant.split("+"):
         if part not in VARIANTS:
             sys.exit(f"unknown variant {part!r}; known: {', '.join(VARIANTS)}")
         settings.update(VARIANTS[part])
-    return settings
+    return settings, bool(settings.pop("_linear", False))
 
 
 def run_family(name: str, variants: list[str], qp_solver: str, false_claims: list) -> dict:
     cases = list(FAMILIES[name]())
     results = {}
     for variant in variants:
-        options = SqpOptions(**options_for(variant, qp_solver))
+        settings, linear = options_for(variant, qp_solver)
+        options = SqpOptions(**settings)
         records = []
-        for key, case in cases:
-            r = solve(case.spec, case.make_model(), case.start, method="sqp",
+        for key, case, rows in cases:
+            spec = declared(case.spec, rows) if linear and rows else case.spec
+            r = solve(spec, case.make_model(), case.start, method="sqp",
                       method_options=options)
             check = cb.evaluate(case, r.candidate, r.multipliers) if r.candidate else None
             ok = sr.first_order_ok(check)

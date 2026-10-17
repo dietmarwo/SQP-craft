@@ -109,6 +109,13 @@ impl QpBackend for ActiveSetQp {
         if let Some(w) = warm {
             w.validate(model.n(), model.m())?;
         }
+        let hard = self.settings.hard_rows.len();
+        if hard != 0 && hard != model.m() {
+            return Err(Error::InvalidInput(format!(
+                "QP hard rows: {hard} flags for {} rows",
+                model.m()
+            )));
+        }
         self.last = QpReport {
             backend: BACKEND.into(),
             ..Default::default()
@@ -150,8 +157,12 @@ impl ActiveSetQp {
             return Ok(self.stopped(stop));
         }
         let t = Instant::now();
-        self.work
-            .load(model, self.settings.tolerance, self.settings.elastic_weight);
+        self.work.load(
+            model,
+            self.settings.tolerance,
+            self.settings.elastic_weight,
+            &self.settings.hard_rows,
+        );
         self.norms.clear();
         self.norms.extend((0..model.m()).map(|i| {
             let range = model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1];
@@ -183,10 +194,11 @@ impl ActiveSetQp {
                     let solution = self.work.solution(&sources, budget.changes);
                     let tolerance = self.settings.acceptance_tolerance;
                     let check = match self.settings.elastic_weight {
-                        Some(weight) => model.accepts_elastic_with_workspace(
+                        Some(weight) => model.accepts_elastic_with_hard_rows(
                             &solution,
                             tolerance,
                             weight,
+                            &self.settings.hard_rows,
                             &mut self.checks,
                         )?,
                         None => {
@@ -408,6 +420,8 @@ struct Work {
     entered: Vec<bool>,
     /// Elastic weight `γ` of an elastic QP; rows are then soft.
     weight: Option<f64>,
+    /// Rows that stay hard in an elastic QP (empty: none).
+    hard: Vec<bool>,
     /// Per source, the signed count of elastic sides: `σ` when the row may
     /// violate its side `σ` at a fixed multiplier `σγ` (a linear term
     /// `−γσa` in the objective). Opposite entries cancel.
@@ -424,7 +438,7 @@ struct Work {
 }
 
 impl Work {
-    fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>) {
+    fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>, hard: &[bool]) {
         let n = model.n();
         self.n = n;
         self.l.clear();
@@ -459,6 +473,8 @@ impl Work {
         self.elastic.clear();
         self.elastic.resize(n + model.m(), 0.0);
         self.weight = weight;
+        self.hard.clear();
+        self.hard.extend_from_slice(hard);
         self.tolerance = tolerance;
     }
 
@@ -526,7 +542,9 @@ impl Work {
     /// The member for side `sigma` of source `s`, with the multiplier bounds
     /// of its kind.
     fn member(&self, sources: &Sources, s: usize, sigma: f64, rhs: f64, equality: bool) -> Member {
-        let soft = self.weight.filter(|_| s >= sources.n());
+        let soft = self.weight.filter(|_| {
+            s >= sources.n() && !self.hard.get(s - sources.n()).copied().unwrap_or(false)
+        });
         let (low, high) = match (soft, equality) {
             (None, false) => (0.0, f64::INFINITY),
             (None, true) => (f64::NEG_INFINITY, f64::INFINITY),
