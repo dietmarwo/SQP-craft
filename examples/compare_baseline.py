@@ -29,8 +29,6 @@ from dataclasses import dataclass
 from time import perf_counter
 
 import numpy as np
-import scipy
-from scipy.optimize import minimize
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import orbit_transfer  # noqa: E402
@@ -249,6 +247,8 @@ def run_active_set(case: Case) -> dict:
 
 
 def run_slsqp(case: Case) -> dict:
+    from scipy.optimize import minimize  # only the SLSQP baseline needs SciPy
+
     spec, model = case.spec, Counted(case.make_model())
     n, m = spec.n, spec.m
     indptr, indices = spec.jacobian_indptr, spec.jacobian_indices
@@ -293,6 +293,8 @@ def run() -> dict:
             record = runner(case)
             record.update(case=case.name, start=[float(v) for v in case.start][:4])
             runs.append(record)
+    import scipy
+
     return dict(scipy=scipy.__version__, numpy=np.__version__,
                 thresholds=dict(primal=PRIMAL, stationarity=STATIONARITY,
                                 complementarity=COMPLEMENTARITY, dual_sign=SIGN),
