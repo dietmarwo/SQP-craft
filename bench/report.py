@@ -200,7 +200,9 @@ def render(selection: dict, records: list[dict], environments: list[dict]) -> st
            "[benchmark-results.md](../benchmark-results.md).", ""]
     if environments:
         e = environments[0]
-        out += [f"- sqp-craft {e.get('sqp_craft')} at `{(e.get('sqp_craft_commit') or '?')[:10]}`, "
+        commits = sorted({(x.get("sqp_craft_commit") or "?")[:10] for x in environments})
+        out += [f"- sqp-craft {e.get('sqp_craft')} at " + ", ".join(f"`{c}`" for c in commits)
+                + ", "
                 f"S2MPJ `{(e.get('s2mpj_commit') or '?')[:10]}`, Uno {e.get('uno')}, "
                 f"SciPy {e.get('scipy')}, NumPy {e.get('numpy')}, Python {e.get('python')}",
                 f"- {e.get('cpu')}, {e.get('cpus')} CPUs, two solves in parallel", ""]

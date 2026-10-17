@@ -19,35 +19,38 @@ defaults are your decision, and none was changed.
   problems and the active-set backend 799. The active-set backend solves 54
   that Clarabel does not; 47 of those end in `qp_failure` with Clarabel.
   Clarabel solves 9 that the active-set backend does not. The active-set
-  backend is also 2% cheaper in callbacks and 4% in time.
+  backend is also 2% cheaper in callbacks and 4.5% in time.
 - **Elastic mode is the only solver option that pays on its own.** It adds
-  14 problems net to the active-set backend (813) at 0.7% more callbacks.
+  14 problems net to the active-set backend (813) at 0.6% more callbacks.
   Declaring the linear rows, which is input rather than an option, adds 10
   (809).
 - **The other options do not pay on CUTEst.** The second-order correction,
   the augmented-Lagrangian merit, the curvature repair and Jacobian scaling
   each solve 2–6 fewer problems than the plain active-set backend, at equal or
   higher cost.
-- **sqp-craft is ahead of every quasi-Newton comparator here.**
+- **The active-set backend is ahead of every quasi-Newton comparator
+  here.**
   - Uno with the filterSQP preset and L-BFGS solves 760; the active-set
     backend solves 84 problems Uno does not, and Uno 45 it does not.
   - On problems both solve, the active-set backend needs 7% fewer callbacks
-    and 15% less time.
+    and 14% less time.
   - SLSQP solves 631 and Uno with the IPOPT preset 713.
+  - The current default, Clarabel, trails Uno's filterSQP slightly (754
+    against 760).
 - **Second derivatives are the largest lever.** Uno's filterSQP with exact
   Hessians solves 845 problems against 760 with L-BFGS. It needs 54% fewer
   callbacks, and 70% fewer than sqp-craft on the control problems.
 - **The failures point to three cheap fixes and one large item:**
-  - **The first step:** on 34 problems sqp-craft fails at iteration 0, where
-    the BFGS start B₀ = I gives a step too long for 25 halvings (on 32 of
-    them ‖∇f(x₀)‖∞ is between 10⁴ and 10²⁷). A crude emulation of a
+  - **The first step:** on 34 problems the first line search fails. On 32
+    of them ‖∇f(x₀)‖∞ is 10⁴ or more, up to 2·10²⁷, and the BFGS start
+    B₀ = I gives a step too long for 25 halvings. A crude emulation of a
     first-step rule recovers 16 problems net.
   - **Nonfinite values:** 20 runs on 6 problems end in an exception instead
     of a status.
   - **Infeasible problems:** 93 of the 131 problems no solver solves are
-    probably infeasible from their start. sqp-craft reports
-    `restoration_limit` there, or `locally_infeasible` with elastic mode,
-    without a certificate.
+    probably infeasible from their start. The active-set backend ends 81
+    of them in `restoration_limit` or `restoration_failed`, and elastic mode
+    ends 47 `locally_infeasible`; neither comes with a certificate.
   - **Exact Hessians** (gap 2) are the large item.
 
 ## What was run
@@ -78,7 +81,9 @@ were clipped into them, for every solver alike.
 - One experiment (below).
 
 Budgets were 500 iterations and 60 s for every solve, and 5,000 callbacks
-for sqp-craft. The main run took about 3 hours 20 minutes on two cores of an
+for sqp-craft. The runs record two sqp-craft commits, `4d776bb` (main) and
+`8eddb8b` (the harness's first commit). Their solver code is identical; the
+second adds only `bench/` and its tests. The main run took about 3 hours 20 minutes on two cores of an
 Intel Xeon at 2.1 GHz, two solves at a time.
 
 **The check.** A run is *solved* when the independent first-order check
@@ -88,10 +93,11 @@ passes at its point:
   10⁻⁶·max(1, ‖∇f‖∞).
 
 The check uses the solver's multipliers, or least-squares multipliers.
-sqp-craft's own test is the same absolute 10⁻⁶. The ranking does not hinge
-on that: with every threshold of the check 100 times looser, the order of the
-solvers is unchanged (active-set 815, Uno filterSQP 788, Uno with exact
-Hessians 862; see the sensitivity table).
+sqp-craft's own test is the same absolute 10⁻⁶. The main comparisons do not
+hinge on that. With every threshold of the check 100 times looser, the
+active-set backend (815), Uno's filterSQP with L-BFGS (788) and with exact
+Hessians (862) keep their order. Uno's IPOPT preset gains most (713 → 784)
+and then passes Clarabel (767). See the sensitivity table.
 
 ## Headline numbers
 
@@ -142,7 +148,7 @@ The active-set backend solves 45 more problems net (54 against 9).
   QPs fail on degenerate and nearly infeasible subproblems, as on the
   complementarity family (gap 6).
 - **Cost:** on the 745 problems both solve, the active-set backend needs 2%
-  fewer callbacks (42.9 → 42.0) and 4% less time (0.275 → 0.263 s, shifted
+  fewer callbacks (42.9 → 42.0) and 4.5% less time (0.275 → 0.263 s, shifted
   geometric means). 610 of the 745 take the same number of callbacks.
 - **Clarabel's 9:** the active-set backend ends 3 of them in
   `line_search_failure` and 2 in `qp_failure`.
@@ -168,13 +174,13 @@ The smooth merit's gains on the stress families
 ### Q3: the curvature repair
 
 `hessian_update="augmented"` solves 1 problem the damped update does not,
-and loses 3. It costs 0.7% more callbacks.
+and loses 3. It costs 0.8% more callbacks.
 
 **Recommendation:** keep damping.
 
 ### Q4: scaling
 
-- **Jacobian scaling:** 8 more problems and 11 fewer, and 6.6% more
+- **Jacobian scaling:** 8 more problems and 11 fewer, and 6.5% more
   callbacks, the largest cost of any option. CUTEst problems come in units
   their authors chose; the badly scaled orbit copies that Jacobian scaling
   rescued are not represented here.
@@ -204,10 +210,10 @@ rows. The harness does so in its `+linear` configurations.
 ### Q6: elastic mode
 
 Elastic mode solves 22 problems the active-set backend does not (12 of them
-end in `restoration_limit` without it) and loses 8. It costs 0.7% more
+end in `restoration_limit` without it) and loses 8. It costs 0.6% more
 callbacks. It also changes how failures end:
-- Of the active-set backend's 121 restoration failures, elastic mode solves
-  10 and ends 52 as `locally_infeasible`.
+- Of the active-set backend's 119 unsolved runs that end in restoration,
+  elastic mode solves 13 and ends 51 as `locally_infeasible`.
 - In all, 60 unsolved runs end `locally_infeasible`. That verdict is local:
   on 11 of those problems another sqp-craft configuration finds a KKT point,
   and on 4 a comparator does.
@@ -276,8 +282,8 @@ L-BFGS:
   iteration limit, exact Hessians solve 13.
 
 For the trajectory application, where each callback is a propagation, exact
-or better second-order information (gap 2) is worth about a factor of three
-in callbacks. It is not needed for robustness on constrained problems.
+or better second-order information (gap 2) is worth about a factor of two
+in callbacks overall, and about three on the control problems. It is not needed for robustness on constrained problems.
 
 ### Q9: what fails, and why
 
@@ -287,7 +293,7 @@ The active-set backend leaves 237 problems unsolved; elastic mode leaves 223.
 | --- | --- | --- | --- | --- |
 | restoration limit or failure | 119 | – | 20 | mostly infeasible starts: 97 on problems where some solver reports infeasibility |
 | `locally_infeasible` | – | 60 | – | elastic mode's verdict on most of the same problems |
-| `line_search_failure` | 56 | 55 | 38 | 34 at iteration 0 with huge gradients, the first step |
+| `line_search_failure` | 56 | 55 | 38 | 34 at iteration 0, 32 of them with ‖∇f(x₀)‖∞ ≥ 10⁴: the first step |
 | `iteration_limit` | 27 | 29 | 15 | slow BFGS convergence; exact Hessians solve 13 |
 | `qp_failure` | 24 | 36 | 15 | degenerate or inconsistent QPs |
 | `numerical_failure`, stalled, others | 10 | 42 | – | |
@@ -301,10 +307,12 @@ as many rows as variables, and 49 are the `…NE` versions of data-fitting
 problems.
 
 **The first step.** sqp-craft starts BFGS from B₀ = I. When ‖∇f(x₀)‖∞ is
-10⁴ to 10²⁷, as in the NIST data-fitting problems (CHWIRUT*, GAUSS*, MISRA*,
+10⁴ or more, as in the NIST data-fitting problems (CHWIRUT*, GAUSS*, MISRA*,
 THURBER, …), the first step is as long as the gradient, and 25 halvings
-cannot shorten it enough. That happens on 34 problems: 30 unconstrained and
-4 constrained. On 25 of them some comparator succeeds, most often Uno with
+cannot shorten it enough. The first line search fails on 34 problems, 30
+unconstrained and 4 constrained; on 32 of them the gradient is between 10⁴
+and 2·10²⁷. Two (BYRDSPHR, OSCIGRNE) fail with a small gradient, for
+another reason. On 25 of them some comparator succeeds, most often Uno with
 exact Hessians (22).
 
 **Exceptions instead of statuses.** 20 runs of the 11 configurations, on 6

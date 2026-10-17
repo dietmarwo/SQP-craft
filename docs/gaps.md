@@ -165,7 +165,7 @@ presets, judged by one independent check
   - Uno's filterSQP with L-BFGS 760, and 845 with exact Hessians;
   - SLSQP 631.
 - **Weaknesses it found that were not on this list:**
-  - the first step from B₀ = I fails on 34 badly scaled problems;
+  - the first step from B₀ = I fails on 32 problems with large gradients;
   - nonfinite values end 20 runs in an exception instead of a status;
   - most unsolved problems are probably infeasible, and nothing certifies it.
 
