@@ -153,7 +153,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("selection", type=pathlib.Path)
     parser.add_argument("output", type=pathlib.Path)
-    parser.add_argument("--solvers", default=",".join(list(solvers.SQP_VARIANTS) + solvers.COMPARATORS),
+    parser.add_argument("--solvers",
+                        default=",".join(list(solvers.SQP_VARIANTS) + solvers.COMPARATORS),
                         help="default: the sqp-craft variants and the comparators; "
                         "experiments (bench/solvers.py EXPERIMENTS) only when named")
     parser.add_argument("--problems", help="comma-separated names (default: the selection)")

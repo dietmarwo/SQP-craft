@@ -90,6 +90,15 @@ def test_adapter_extends_a_pattern_the_structure_misses():
     assert p.pattern_extended and p.indices == [0, 1, 0, 2]
 
 
+def test_adapter_drops_declared_rows_that_are_not_linear():
+    # S2MPJ lists a row in `lincons` when its group has no nonlinear elements,
+    # even under a nonlinear group function (ALSOTAME); such rows are dropped.
+    raw = Raw()
+    raw.grftype = np.array([None, "gSINE", None], dtype=object)
+    p = S2mpjProblem(raw)
+    assert p.linear_rows == [] and p.linear_rows_dropped == 1
+
+
 def test_adapter_counts_distinct_points():
     p = S2mpjProblem(Raw())
     x, y = p.x0, p.x0 + 0.1

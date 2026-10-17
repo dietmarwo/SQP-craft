@@ -1,7 +1,12 @@
 """The selection rules of the benchmark, applied to the catalog, and the
 subsets the report splits it into.
 
-    python -m bench.selection catalog.json selection.json
+    python -m bench.selection catalog.json selection.json [--frozen OLD.json]
+
+The timing rules make a fresh selection vary between catalog runs (one
+evaluation of the slowest problems varies by up to ±50%), so a selection is
+frozen once made: `--frozen` keeps the problems of an earlier selection and
+re-derives only their attributes (subset, linear rows) from the catalog.
 
 Rules (docs/benchmark-harness-plan.md):
 - n ≤ 256 (the dense cap) and m ≤ 512;
@@ -56,10 +61,12 @@ def control(name: str) -> bool:
     return bool(CONTROL_NAMES.match(name))
 
 
-def select(catalog: dict) -> dict:
+def select(catalog: dict, frozen: set | None = None) -> dict:
     selected, excluded = [], {}
     for entry in catalog["problems"]:
         why = reason(entry)
+        if frozen is not None:
+            why = None if entry["name"] in frozen else (why or "not in the frozen selection")
         if why is None:
             selected.append(dict(name=entry["name"], n=entry["n"], m=entry["m"],
                                  subset=subset(entry), control=control(entry["name"]),
@@ -77,8 +84,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("catalog", type=pathlib.Path)
     parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("--frozen", type=pathlib.Path,
+                        help="keep the problems of this earlier selection")
     args = parser.parse_args()
-    selection = select(json.loads(args.catalog.read_text()))
+    frozen = ({e["name"] for e in json.loads(args.frozen.read_text())["problems"]}
+              if args.frozen else None)
+    selection = select(json.loads(args.catalog.read_text()), frozen)
+    if frozen is not None:
+        selection["frozen_from"] = str(args.frozen.name)
     args.output.write_text(json.dumps(selection, indent=1))
     counts: dict = {}
     for e in selection["problems"]:

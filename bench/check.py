@@ -48,7 +48,8 @@ def check(problem, x, constraint_multipliers=None, variable_multipliers=None) ->
         f = problem.objective(x)
         c = problem.constraints(x)
         g = problem.gradient(x)
-        J = problem.dense_jacobian(problem.jacobian_values(x)) if problem.m else np.zeros((0, problem.n))
+        J = (problem.dense_jacobian(problem.jacobian_values(x)) if problem.m
+             else np.zeros((0, problem.n)))
     except Exception as error:
         return dict(accepted=False, reason=f"evaluation failed: {type(error).__name__}")
     if not (np.isfinite(f) and np.all(np.isfinite(c)) and np.all(np.isfinite(g))

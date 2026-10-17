@@ -53,6 +53,17 @@ Each helps on its own mechanism and costs elsewhere, so all stay off. Jacobian
 scaling, for example, solves all 40 badly scaled orbit transfers instead of 20.
 On well-scaled problems it takes 2–24% more iterations.
 
+**A CUTEst benchmark** ([benchmark-results.md](docs/benchmark-results.md))
+runs 1,036 problems from S2MPJ against SciPy SLSQP and Uno, with one
+independent first-order check for every solver:
+- **sqp-craft:** the default (Clarabel) solves 754 problems, the active-set
+  backend 799, and 813 with elastic mode. It made no false claim.
+- **The comparators:** Uno's filterSQP preset solves 760 with L-BFGS and 845
+  with exact Hessians; SLSQP solves 631.
+
+The results recommend the active-set backend with elastic mode as the
+default; the defaults stay unchanged until that is decided.
+
 See [plans and results](docs/performance/README.md) for all ten checkpoints,
 raw per-iteration measurements, final paired timings, numerical failure fixes
 and independent validation. Numerical tolerances and model callbacks were
@@ -107,6 +118,8 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter (default backend) |
 | `crates/activeset` (`sqp-craft-activeset`) | Dense dual active-set (Goldfarb–Idnani) QP backend, no dependencies |
 | [docs/gaps.md](docs/gaps.md) | Weaknesses compared with mature SQP codes, and the order of work |
+| `bench/` | CUTEst benchmark harness: S2MPJ access, adapter, solvers, independent check, isolated workers, report |
+| [docs/benchmark-results.md](docs/benchmark-results.md) | CUTEst results: the open defaults, the comparators, the failure classes |
 | [docs/active-set-qp.md](docs/active-set-qp.md) | The active-set backend: method, measurements, validation |
 | [docs/elastic-mode.md](docs/elastic-mode.md) | Elastic mode: the elastic QP, the driver rules, measurements |
 | `examples/stress_mpcc.py` | Random problems with complementarity constraints (degenerate QPs) |
@@ -144,6 +157,9 @@ works without Python: `cargo test -p sqp-craft`. For the SLSQP comparison:
 Use `python examples/stress_random.py --reuse-workspace --table` to exercise
 reuse, `--qp-solver active-set` for the active-set backend, and `python examples/compare_workspace.py --repeats 5 > workspace-results.json`
 for the alternating-order timing comparison. These commands require SciPy.
+For the CUTEst benchmark: `python -m pip install ".[bench]" unopy`, then the
+commands at the end of [benchmark-results.md](docs/benchmark-results.md)
+(`python -m bench.s2mpj fetch` first).
 
 ## License
 

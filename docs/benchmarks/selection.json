@@ -1,0 +1,9408 @@
+{
+ "s2mpj_commit": "fea6a70048eaad28b13a08703ddbfdbf65cd9c30",
+ "rules": {
+  "max_n": 256,
+  "max_m": 512,
+  "smooth": true,
+  "defined": true,
+  "max_setup_seconds": 30.0,
+  "max_evaluation_seconds": 0.2
+ },
+ "problems": [
+  {
+   "name": "ACOPP14",
+   "n": 38,
+   "m": 68,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-38-68"
+  },
+  {
+   "name": "ACOPP30",
+   "n": 72,
+   "m": 142,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-72-142"
+  },
+  {
+   "name": "ACOPR14",
+   "n": 38,
+   "m": 82,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-38-82"
+  },
+  {
+   "name": "ACOPR30",
+   "n": 72,
+   "m": 172,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-72-172"
+  },
+  {
+   "name": "AGG",
+   "n": 163,
+   "m": 488,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 488,
+   "pbclass": "C-CLLR2-AN-163-488"
+  },
+  {
+   "name": "AIRCRFTA",
+   "n": 8,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-5"
+  },
+  {
+   "name": "AIRCRFTB",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CSXR2-RN-8-0"
+  },
+  {
+   "name": "ALJAZZAF",
+   "n": 10,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "ALLINIT",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AY-4-0"
+  },
+  {
+   "name": "ALLINITA",
+   "n": 4,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COOR2-AY-4-4"
+  },
+  {
+   "name": "ALLINITC",
+   "n": 4,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-4-1"
+  },
+  {
+   "name": "ALLINITU",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-4-0"
+  },
+  {
+   "name": "ALSOTAME",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-2-1"
+  },
+  {
+   "name": "ANTWERP",
+   "n": 27,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CSLR2-RN-27-8-0-3-24-0-2-0-8-0-0-0"
+  },
+  {
+   "name": "ARGAUSS",
+   "n": 3,
+   "m": 15,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-15"
+  },
+  {
+   "name": "ARGLALE",
+   "n": 4,
+   "m": 6,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 6,
+   "pbclass": "C-CNLR2-AN-V-V"
+  },
+  {
+   "name": "ARGLBLE",
+   "n": 4,
+   "m": 6,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 6,
+   "pbclass": "C-CNLR2-AN-V-V"
+  },
+  {
+   "name": "ARGLINA",
+   "n": 200,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "ARGLINB",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "ARGTRIG",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "ARGTRIGLS",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "ARTIF",
+   "n": 12,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "ARWHEAD",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "AVGASA",
+   "n": 8,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CQLR2-AN-8-10"
+  },
+  {
+   "name": "AVGASB",
+   "n": 8,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CQLR2-AN-8-10"
+  },
+  {
+   "name": "AVION2",
+   "n": 49,
+   "m": 15,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 15,
+   "pbclass": "C-COLR2-RN-49-15"
+  },
+  {
+   "name": "BARD",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "BARDNE",
+   "n": 3,
+   "m": 15,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-15"
+  },
+  {
+   "name": "BATCH",
+   "n": 48,
+   "m": 73,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 72,
+   "pbclass": "C-COOR2-AN-46-73"
+  },
+  {
+   "name": "BAmL1SP",
+   "n": 57,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-57-12"
+  },
+  {
+   "name": "BAmL1SPLS",
+   "n": 57,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-57-0"
+  },
+  {
+   "name": "BDQRTIC",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "BEALE",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "BEALENE",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-2-3"
+  },
+  {
+   "name": "BENNETT5",
+   "n": 3,
+   "m": 154,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-154"
+  },
+  {
+   "name": "BENNETT5LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "BIGGS3",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSXR2-AN-6-0"
+  },
+  {
+   "name": "BIGGS6",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-6-0"
+  },
+  {
+   "name": "BIGGS6NE",
+   "n": 6,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-6-13"
+  },
+  {
+   "name": "BIGGSB1",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-V"
+  },
+  {
+   "name": "BIGGSC4",
+   "n": 4,
+   "m": 7,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 7,
+   "pbclass": "C-CQLR2-AN-4-7"
+  },
+  {
+   "name": "BLOCKQP1",
+   "n": 25,
+   "m": 11,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "BLOCKQP2",
+   "n": 25,
+   "m": 11,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "BLOCKQP3",
+   "n": 25,
+   "m": 11,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "BLOWEYA",
+   "n": 22,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CQLR2-MN-V-V"
+  },
+  {
+   "name": "BLOWEYB",
+   "n": 22,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CQLR2-MN-V-V"
+  },
+  {
+   "name": "BLOWEYC",
+   "n": 22,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CQLR2-MN-V-V"
+  },
+  {
+   "name": "BOOTH",
+   "n": 2,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNLR2-AN-2-2"
+  },
+  {
+   "name": "BOX2",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSXR2-AN-3-0"
+  },
+  {
+   "name": "BOX3",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "BOXBOD",
+   "n": 2,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-6"
+  },
+  {
+   "name": "BOXBODLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "BQP1VAR",
+   "n": 1,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-1-0"
+  },
+  {
+   "name": "BQPGABIM",
+   "n": 50,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-50-0"
+  },
+  {
+   "name": "BQPGASIM",
+   "n": 50,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-50-0"
+  },
+  {
+   "name": "BRANIN",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "BRATU1D",
+   "n": 13,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MN-V-0"
+  },
+  {
+   "name": "BRATU2D",
+   "n": 49,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "BRATU2DT",
+   "n": 49,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "BRATU3D",
+   "n": 27,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "BRKMCC",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "BROWNAL",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "BROWNBS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "BROWNBSNE",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AN-2-3"
+  },
+  {
+   "name": "BROWNDEN",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-4-0"
+  },
+  {
+   "name": "BROWNDENE",
+   "n": 4,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-4-20"
+  },
+  {
+   "name": "BROYDN3D",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-V-V"
+  },
+  {
+   "name": "BROYDN3DLS",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "BROYDNBDLS",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "BRYBND",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "BT1",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-1"
+  },
+  {
+   "name": "BT10",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-2-2"
+  },
+  {
+   "name": "BT11",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COOR2-AY-5-3"
+  },
+  {
+   "name": "BT12",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-5-3"
+  },
+  {
+   "name": "BT13",
+   "n": 5,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AY-5-1"
+  },
+  {
+   "name": "BT2",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AY-3-1"
+  },
+  {
+   "name": "BT3",
+   "n": 5,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CSLR2-AY-5-3"
+  },
+  {
+   "name": "BT4",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQQR2-AN-3-2"
+  },
+  {
+   "name": "BT5",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQQR2-AN-3-2"
+  },
+  {
+   "name": "BT6",
+   "n": 5,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-5-2"
+  },
+  {
+   "name": "BT7",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-5-3"
+  },
+  {
+   "name": "BT8",
+   "n": 5,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-5-2"
+  },
+  {
+   "name": "BT9",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-4-2"
+  },
+  {
+   "name": "BURKEHAN",
+   "n": 1,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-1-1"
+  },
+  {
+   "name": "BYRDSPHR",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-3-2"
+  },
+  {
+   "name": "CAMEL6",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "CAMSHAPE",
+   "n": 10,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CLOR2-AN-V-V"
+  },
+  {
+   "name": "CANTILVR",
+   "n": 5,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-MN-5-1"
+  },
+  {
+   "name": "CATENARY",
+   "n": 15,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AY-V-V"
+  },
+  {
+   "name": "CATMIX",
+   "n": 33,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-V-V"
+  },
+  {
+   "name": "CB2",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-3"
+  },
+  {
+   "name": "CB3",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-3"
+  },
+  {
+   "name": "CBRATU2D",
+   "n": 32,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "CBRATU3D",
+   "n": 54,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "CHACONN1",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AY-3-3"
+  },
+  {
+   "name": "CHACONN2",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AY-3-3"
+  },
+  {
+   "name": "CHANDHEQ",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-V-V"
+  },
+  {
+   "name": "CHARDIS0",
+   "n": 40,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AY-V-V"
+  },
+  {
+   "name": "CHARDIS02",
+   "n": 40,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AY-V-V"
+  },
+  {
+   "name": "CHARDIS1",
+   "n": 40,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "CHARDIS12",
+   "n": 40,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "CHEBYQAD",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-V-0"
+  },
+  {
+   "name": "CHEMRCTA",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 4,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "CHENHARK",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-V"
+  },
+  {
+   "name": "CHNROSNB",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "CHNRSNBM",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "CHWIRUT1LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "CHWIRUT2",
+   "n": 3,
+   "m": 54,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-54"
+  },
+  {
+   "name": "CHWIRUT2LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "CLIFF",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "CLNLBEAM",
+   "n": 33,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "CLPLATEA",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MN-V-0"
+  },
+  {
+   "name": "CLPLATEB",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MN-V-0"
+  },
+  {
+   "name": "CLUSTER",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "CLUSTERLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "CONGIGMZ",
+   "n": 3,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CLQR2-AN-3-5"
+  },
+  {
+   "name": "COOLHANS",
+   "n": 9,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-RN-9-9"
+  },
+  {
+   "name": "COOLHANSLS",
+   "n": 9,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-RN-9-0"
+  },
+  {
+   "name": "CORKSCRW",
+   "n": 96,
+   "m": 70,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 60,
+   "pbclass": "C-CSOR2-AN-V-V"
+  },
+  {
+   "name": "COSHFUN",
+   "n": 25,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-V-V"
+  },
+  {
+   "name": "COSINE",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "CRAGGLVY",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-V-0"
+  },
+  {
+   "name": "CRESC4",
+   "n": 6,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MY-6-8"
+  },
+  {
+   "name": "CRESC50",
+   "n": 6,
+   "m": 100,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MY-6-100"
+  },
+  {
+   "name": "CSFI1",
+   "n": 5,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-RN-5-4"
+  },
+  {
+   "name": "CSFI2",
+   "n": 5,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-RN-5-4"
+  },
+  {
+   "name": "CUBE",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "CUBENE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "CURLY10",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "CURLY20",
+   "n": 25,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "CURLY30",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "CVXQP1",
+   "n": 10,
+   "m": 5,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "CYCLIC3",
+   "n": 12,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AN-V-0"
+  },
+  {
+   "name": "CYCLIC3LS",
+   "n": 12,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "CYCLOOCF",
+   "n": 20,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-MN-V-V"
+  },
+  {
+   "name": "CYCLOOCFLS",
+   "n": 20,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "CYCLOOCT",
+   "n": 24,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-MN-V-V"
+  },
+  {
+   "name": "CYCLOOCTLS",
+   "n": 24,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-V-0"
+  },
+  {
+   "name": "DALLASS",
+   "n": 46,
+   "m": 31,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 31,
+   "pbclass": "C-CONR2-MN-46-31"
+  },
+  {
+   "name": "DANIWOOD",
+   "n": 2,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-6"
+  },
+  {
+   "name": "DANIWOODLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "DANWOOD",
+   "n": 2,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-6"
+  },
+  {
+   "name": "DANWOODLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "DECONVB",
+   "n": 63,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-61-0"
+  },
+  {
+   "name": "DECONVBNE",
+   "n": 63,
+   "m": 40,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-61-0"
+  },
+  {
+   "name": "DECONVC",
+   "n": 63,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-MN-61-1"
+  },
+  {
+   "name": "DECONVU",
+   "n": 63,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSXR2-MN-61-0"
+  },
+  {
+   "name": "DEGDIAG",
+   "n": 11,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DEGENLPA",
+   "n": 20,
+   "m": 15,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 15,
+   "pbclass": "C-CLLR2-AN-20-15"
+  },
+  {
+   "name": "DEGENLPB",
+   "n": 20,
+   "m": 15,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 15,
+   "pbclass": "C-CLLR2-AN-20-15"
+  },
+  {
+   "name": "DEGTRID",
+   "n": 11,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DEGTRID2",
+   "n": 11,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DEMBO7",
+   "n": 16,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQOR2-MN-16-20"
+  },
+  {
+   "name": "DEMYMALO",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLQR2-AN-3-3"
+  },
+  {
+   "name": "DENSCHNA",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "DENSCHNB",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "DENSCHNBNE",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AN-2-3"
+  },
+  {
+   "name": "DENSCHNC",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "DENSCHND",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "DENSCHNDNE",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-3"
+  },
+  {
+   "name": "DENSCHNE",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "DENSCHNF",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AY-2-0"
+  },
+  {
+   "name": "DENSCHNFNE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AY-2-2"
+  },
+  {
+   "name": "DEVGLA1",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-4-0"
+  },
+  {
+   "name": "DEVGLA1NE",
+   "n": 4,
+   "m": 24,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-4-24"
+  },
+  {
+   "name": "DEVGLA2",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-5-0"
+  },
+  {
+   "name": "DEVGLA2B",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-5-0"
+  },
+  {
+   "name": "DEVGLA2NE",
+   "n": 5,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-5-16"
+  },
+  {
+   "name": "DGOSPEC",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-3-0"
+  },
+  {
+   "name": "DIAGIQB",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DIAGIQE",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DIAGIQT",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DIAGPQB",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DIAGPQE",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DIAGPQT",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "DIPIGRI",
+   "n": 7,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-4"
+  },
+  {
+   "name": "DISC2",
+   "n": 29,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-MY-29-23"
+  },
+  {
+   "name": "DISCS",
+   "n": 36,
+   "m": 66,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-MY-36-66"
+  },
+  {
+   "name": "DITTERT",
+   "n": 61,
+   "m": 37,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-COQR2-AN-V-V"
+  },
+  {
+   "name": "DIXCHLNG",
+   "n": 10,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSOR2-AN-10-5"
+  },
+  {
+   "name": "DIXCHLNV",
+   "n": 10,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSOR2-AN-V-V"
+  },
+  {
+   "name": "DIXMAANA1",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANB",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANC",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAAND",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANE1",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANF",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANG",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANH",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANI1",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANJ",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANK",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANL",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANM1",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANN",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANO",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXMAANP",
+   "n": 15,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DIXON3DQ",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-AN-V-0"
+  },
+  {
+   "name": "DJTL",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "DNIEPER",
+   "n": 61,
+   "m": 24,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MN-61-24"
+  },
+  {
+   "name": "DQRTIC",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "DRCAV1LQ",
+   "n": 196,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MY-V-V"
+  },
+  {
+   "name": "DRCAV2LQ",
+   "n": 196,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MY-V-V"
+  },
+  {
+   "name": "DRCAV3LQ",
+   "n": 196,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MY-V-V"
+  },
+  {
+   "name": "DRCAVTY1",
+   "n": 196,
+   "m": 100,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "DRCAVTY2",
+   "n": 196,
+   "m": 100,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "DRCAVTY3",
+   "n": 196,
+   "m": 100,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "DRUGDIS",
+   "n": 34,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-MN-V-V"
+  },
+  {
+   "name": "DRUGDISE",
+   "n": 63,
+   "m": 50,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-MY-V-V"
+  },
+  {
+   "name": "DTOC1L",
+   "n": 58,
+   "m": 36,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 36,
+   "pbclass": "C-COLR2-AN-V-V"
+  },
+  {
+   "name": "DTOC1NA",
+   "n": 58,
+   "m": 36,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-V-V"
+  },
+  {
+   "name": "DTOC1NB",
+   "n": 58,
+   "m": 36,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-V-V"
+  },
+  {
+   "name": "DTOC1NC",
+   "n": 58,
+   "m": 36,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-V-V"
+  },
+  {
+   "name": "DTOC1ND",
+   "n": 58,
+   "m": 36,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-V-V"
+  },
+  {
+   "name": "DTOC2",
+   "n": 58,
+   "m": 36,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-V-V"
+  },
+  {
+   "name": "DTOC3",
+   "n": 29,
+   "m": 18,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 18,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "DTOC4",
+   "n": 29,
+   "m": 18,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 9,
+   "pbclass": "C-CQOR2-AN-V-V"
+  },
+  {
+   "name": "DTOC5",
+   "n": 19,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "DTOC6",
+   "n": 21,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-V-V"
+  },
+  {
+   "name": "DUAL1",
+   "n": 85,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-MN-85-1"
+  },
+  {
+   "name": "DUAL2",
+   "n": 96,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-MN-96-1"
+  },
+  {
+   "name": "DUAL4",
+   "n": 75,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-MN-75-1"
+  },
+  {
+   "name": "DUALC1",
+   "n": 9,
+   "m": 215,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 215,
+   "pbclass": "C-CQLR2-MN-9-215"
+  },
+  {
+   "name": "ECKERLE4",
+   "n": 3,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-35"
+  },
+  {
+   "name": "ECKERLE4LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "EDENSCH",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "EG1",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AY-3-0"
+  },
+  {
+   "name": "EG2",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-1000-0"
+  },
+  {
+   "name": "EGGCRATE",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-4-0"
+  },
+  {
+   "name": "EGGCRATEB",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-4-0"
+  },
+  {
+   "name": "EGGCRATENE",
+   "n": 2,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-MN-4-2"
+  },
+  {
+   "name": "EIGENA",
+   "n": 6,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "EIGENA2",
+   "n": 6,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "EIGENACO",
+   "n": 6,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-V-V"
+  },
+  {
+   "name": "EIGENALS",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "EIGENB",
+   "n": 6,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "EIGENB2",
+   "n": 6,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "EIGENBCO",
+   "n": 6,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-V-V"
+  },
+  {
+   "name": "EIGENBLS",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "EIGMAXA",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "EIGMINA",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "ELATTAR",
+   "n": 7,
+   "m": 102,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-7-102"
+  },
+  {
+   "name": "ELATVIDU",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "ELATVIDUB",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-2-0"
+  },
+  {
+   "name": "ELATVIDUNE",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-3"
+  },
+  {
+   "name": "ELEC",
+   "n": 75,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-V-V"
+  },
+  {
+   "name": "ENGVAL1",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "ENGVAL2",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "ENGVAL2NE",
+   "n": 3,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AN-3-5"
+  },
+  {
+   "name": "ENSO",
+   "n": 9,
+   "m": 168,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-9-168"
+  },
+  {
+   "name": "ENSOLS",
+   "n": 9,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-9-0"
+  },
+  {
+   "name": "EQC",
+   "n": 9,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-COLR2-MY-9-3"
+  },
+  {
+   "name": "ERRINBAR",
+   "n": 18,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLOR2-MY-18-9"
+  },
+  {
+   "name": "ERRINROS",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "ERRINROSNE",
+   "n": 10,
+   "m": 18,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "ERRINRSM",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "ERRINRSMNE",
+   "n": 10,
+   "m": 18,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "EXP2B",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-2-0"
+  },
+  {
+   "name": "EXP2NE",
+   "n": 2,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-10"
+  },
+  {
+   "name": "EXPFIT",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "EXPFITA",
+   "n": 5,
+   "m": 22,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 22,
+   "pbclass": "C-COLR2-AN-5-22"
+  },
+  {
+   "name": "EXPFITB",
+   "n": 5,
+   "m": 102,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 102,
+   "pbclass": "C-COLR2-AN-5-102"
+  },
+  {
+   "name": "EXPFITC",
+   "n": 5,
+   "m": 502,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 502,
+   "pbclass": "C-COLR2-AN-5-502"
+  },
+  {
+   "name": "EXPLIN",
+   "n": 12,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-V-V"
+  },
+  {
+   "name": "EXPLIN2",
+   "n": 12,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-V-V"
+  },
+  {
+   "name": "EXPQUAD",
+   "n": 12,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-V-V"
+  },
+  {
+   "name": "EXTRASIM",
+   "n": 2,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLLR2-AN-2-1"
+  },
+  {
+   "name": "EXTROSNB",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "EXTROSNBNE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "FCCU",
+   "n": 19,
+   "m": 8,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CSLR2-MN-19-8"
+  },
+  {
+   "name": "FEEDLOC",
+   "n": 90,
+   "m": 259,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 170,
+   "pbclass": "C-CLOR2-AN-90-259"
+  },
+  {
+   "name": "FERRISDC",
+   "n": 16,
+   "m": 7,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 7,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "FLETBV3M",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "FLETCBV2",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "FLETCBV3",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "FLETCHBV",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "FLETCHCR",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "FLETCHER",
+   "n": 4,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQOR2-AN-4-4"
+  },
+  {
+   "name": "FLOSP2HH",
+   "n": 27,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 18,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "FLOSP2HL",
+   "n": 27,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 18,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "FLOSP2HM",
+   "n": 27,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 18,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "FLOSP2TH",
+   "n": 27,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 18,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "FLOSP2TL",
+   "n": 27,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 18,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "FLOSP2TM",
+   "n": 27,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 18,
+   "pbclass": "C-CNQR2-MY-V-V"
+  },
+  {
+   "name": "FLT",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-2-2"
+  },
+  {
+   "name": "FMINSRF2",
+   "n": 16,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-MY-V-0"
+  },
+  {
+   "name": "FMINSURF",
+   "n": 16,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-MY-V-0"
+  },
+  {
+   "name": "FREURONE",
+   "n": 4,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "FREUROTH",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "GAUSS1LS",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-8-0"
+  },
+  {
+   "name": "GAUSS2LS",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-8-0"
+  },
+  {
+   "name": "GAUSS3LS",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-8-0"
+  },
+  {
+   "name": "GAUSSIAN",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "GENHS28",
+   "n": 10,
+   "m": 8,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CQLR2-AY-10-8"
+  },
+  {
+   "name": "GENHUMPS",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "GENROSE",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "GENROSEB",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-V-0"
+  },
+  {
+   "name": "GENROSEBNE",
+   "n": 10,
+   "m": 18,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "GIGOMEZ1",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLQR2-AN-3-3"
+  },
+  {
+   "name": "GIGOMEZ2",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AY-3-3"
+  },
+  {
+   "name": "GIGOMEZ3",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AY-3-3"
+  },
+  {
+   "name": "GILBERT",
+   "n": 10,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-1"
+  },
+  {
+   "name": "GOFFIN",
+   "n": 51,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CLLR2-AN-51-50"
+  },
+  {
+   "name": "GOTTFR",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-2-2"
+  },
+  {
+   "name": "GOULDQP1",
+   "n": 32,
+   "m": 17,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 17,
+   "pbclass": "C-CQLR2-AN-32-17"
+  },
+  {
+   "name": "GROWTH",
+   "n": 3,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-12"
+  },
+  {
+   "name": "GROWTHLS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "GULF",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "GULFNE",
+   "n": 3,
+   "m": 99,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-99"
+  },
+  {
+   "name": "HADAMALS",
+   "n": 100,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-RN-V-V"
+  },
+  {
+   "name": "HADAMARD",
+   "n": 101,
+   "m": 255,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 200,
+   "pbclass": "C-CLQR2-RN-V-V"
+  },
+  {
+   "name": "HAGER1",
+   "n": 21,
+   "m": 10,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 10,
+   "pbclass": "C-CSLR2-AN-V-V"
+  },
+  {
+   "name": "HAGER2",
+   "n": 21,
+   "m": 10,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 10,
+   "pbclass": "C-COLR2-AN-V-V"
+  },
+  {
+   "name": "HAGER3",
+   "n": 11,
+   "m": 5,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 5,
+   "pbclass": "C-CSLR2-AY-V-V"
+  },
+  {
+   "name": "HAGER4",
+   "n": 21,
+   "m": 10,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 10,
+   "pbclass": "C-COLR2-AN-V-V"
+  },
+  {
+   "name": "HAHN1",
+   "n": 7,
+   "m": 236,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-7-37"
+  },
+  {
+   "name": "HAHN1LS",
+   "n": 7,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-7-0"
+  },
+  {
+   "name": "HAIFAS",
+   "n": 13,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CLQR2-AN-13-9"
+  },
+  {
+   "name": "HAIRY",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-2-0"
+  },
+  {
+   "name": "HALDMADS",
+   "n": 6,
+   "m": 42,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-6-42"
+  },
+  {
+   "name": "HANGING",
+   "n": 27,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AY-V-V"
+  },
+  {
+   "name": "HARKERP2",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-V"
+  },
+  {
+   "name": "HART6",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-6-0"
+  },
+  {
+   "name": "HATFLDA",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-4-0"
+  },
+  {
+   "name": "HATFLDANE",
+   "n": 4,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-4-4"
+  },
+  {
+   "name": "HATFLDB",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-4-0"
+  },
+  {
+   "name": "HATFLDBNE",
+   "n": 4,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-4-4"
+  },
+  {
+   "name": "HATFLDC",
+   "n": 25,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-25-0"
+  },
+  {
+   "name": "HATFLDCNE",
+   "n": 25,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AN-25-25"
+  },
+  {
+   "name": "HATFLDD",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "HATFLDDNE",
+   "n": 3,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-10"
+  },
+  {
+   "name": "HATFLDE",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "HATFLDENE",
+   "n": 3,
+   "m": 21,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-21"
+  },
+  {
+   "name": "HATFLDF",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-3"
+  },
+  {
+   "name": "HATFLDFL",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "HATFLDFLNE",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-3"
+  },
+  {
+   "name": "HATFLDFLS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "HATFLDG",
+   "n": 25,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AY-25-25"
+  },
+  {
+   "name": "HATFLDH",
+   "n": 4,
+   "m": 7,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 7,
+   "pbclass": "C-CQLR2-AN-4-7"
+  },
+  {
+   "name": "HEART6LS",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-6-0"
+  },
+  {
+   "name": "HEART8LS",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-8-0"
+  },
+  {
+   "name": "HELIX",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "HELIXNE",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-3-3"
+  },
+  {
+   "name": "HILBERTA",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-AN-V-0"
+  },
+  {
+   "name": "HILBERTB",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-AN-V-0"
+  },
+  {
+   "name": "HIMMELBA",
+   "n": 2,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNLR2-AN-2-2"
+  },
+  {
+   "name": "HIMMELBB",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "HIMMELBC",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-2-2"
+  },
+  {
+   "name": "HIMMELBCLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "HIMMELBD",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-2-2"
+  },
+  {
+   "name": "HIMMELBF",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-4-0"
+  },
+  {
+   "name": "HIMMELBFNE",
+   "n": 4,
+   "m": 7,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-4-7"
+  },
+  {
+   "name": "HIMMELBG",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "HIMMELBH",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "HIMMELBI",
+   "n": 100,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-COLR2-MN-100-12"
+  },
+  {
+   "name": "HIMMELBJ",
+   "n": 45,
+   "m": 14,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 14,
+   "pbclass": "C-COLR2-MY-45-14"
+  },
+  {
+   "name": "HIMMELBK",
+   "n": 24,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLOR2-MN-24-14"
+  },
+  {
+   "name": "HIMMELP1",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "HIMMELP2",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-2-1"
+  },
+  {
+   "name": "HIMMELP3",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-2-2"
+  },
+  {
+   "name": "HIMMELP4",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-2-3"
+  },
+  {
+   "name": "HIMMELP5",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-2-3"
+  },
+  {
+   "name": "HIMMELP6",
+   "n": 2,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COQR2-AN-2-5"
+  },
+  {
+   "name": "HONG",
+   "n": 4,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AN-4-1"
+  },
+  {
+   "name": "HS1",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-2-0"
+  },
+  {
+   "name": "HS10",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-2-1"
+  },
+  {
+   "name": "HS100",
+   "n": 7,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-4"
+  },
+  {
+   "name": "HS100LNP",
+   "n": 7,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-2"
+  },
+  {
+   "name": "HS100MOD",
+   "n": 7,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-4"
+  },
+  {
+   "name": "HS101",
+   "n": 7,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-5"
+  },
+  {
+   "name": "HS102",
+   "n": 7,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-5"
+  },
+  {
+   "name": "HS103",
+   "n": 7,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-5"
+  },
+  {
+   "name": "HS104",
+   "n": 8,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-8-5"
+  },
+  {
+   "name": "HS105",
+   "n": 8,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AY-8-1"
+  },
+  {
+   "name": "HS106",
+   "n": 8,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CLQR2-MN-8-6"
+  },
+  {
+   "name": "HS107",
+   "n": 9,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MY-9-6"
+  },
+  {
+   "name": "HS108",
+   "n": 9,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AY-9-13"
+  },
+  {
+   "name": "HS109",
+   "n": 9,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COOR2-AY-9-10"
+  },
+  {
+   "name": "HS11",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-1"
+  },
+  {
+   "name": "HS111",
+   "n": 10,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-10-3"
+  },
+  {
+   "name": "HS112",
+   "n": 10,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-COLR2-MY-10-3"
+  },
+  {
+   "name": "HS113",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQQR2-AN-10-8"
+  },
+  {
+   "name": "HS114",
+   "n": 10,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CQOR2-MY-10-11"
+  },
+  {
+   "name": "HS116",
+   "n": 13,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-CLQR2-MN-13-14"
+  },
+  {
+   "name": "HS117",
+   "n": 15,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-15-5"
+  },
+  {
+   "name": "HS118",
+   "n": 15,
+   "m": 17,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 17,
+   "pbclass": "C-CQLR2-AN-15-17"
+  },
+  {
+   "name": "HS119",
+   "n": 16,
+   "m": 8,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-COLR2-AN-16-8"
+  },
+  {
+   "name": "HS12",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-1"
+  },
+  {
+   "name": "HS13",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-2-1"
+  },
+  {
+   "name": "HS14",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSQR2-AN-2-2"
+  },
+  {
+   "name": "HS15",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-2"
+  },
+  {
+   "name": "HS16",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-2"
+  },
+  {
+   "name": "HS17",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-2"
+  },
+  {
+   "name": "HS18",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-2"
+  },
+  {
+   "name": "HS19",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-2-2"
+  },
+  {
+   "name": "HS1NE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "HS2",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-2-0"
+  },
+  {
+   "name": "HS20",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-3"
+  },
+  {
+   "name": "HS21",
+   "n": 2,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-AN-2-1"
+  },
+  {
+   "name": "HS21MOD",
+   "n": 7,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-AN-7-1"
+  },
+  {
+   "name": "HS22",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQQR2-AN-2-2"
+  },
+  {
+   "name": "HS23",
+   "n": 2,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQQR2-AN-2-5"
+  },
+  {
+   "name": "HS24",
+   "n": 2,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-COLR2-AN-2-3"
+  },
+  {
+   "name": "HS25",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-3-0"
+  },
+  {
+   "name": "HS25NE",
+   "n": 3,
+   "m": 99,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-99"
+  },
+  {
+   "name": "HS26",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-3-1"
+  },
+  {
+   "name": "HS268",
+   "n": 5,
+   "m": 5,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CQLR2-AN-5-5"
+  },
+  {
+   "name": "HS27",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-3-1"
+  },
+  {
+   "name": "HS28",
+   "n": 3,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-AY-3-1"
+  },
+  {
+   "name": "HS29",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-3-1"
+  },
+  {
+   "name": "HS2NE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "HS3",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-2-0"
+  },
+  {
+   "name": "HS30",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-3-1"
+  },
+  {
+   "name": "HS31",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-3-1"
+  },
+  {
+   "name": "HS32",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSOR2-AY-3-2"
+  },
+  {
+   "name": "HS33",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-3-2"
+  },
+  {
+   "name": "HS34",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-2"
+  },
+  {
+   "name": "HS35",
+   "n": 3,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-AN-3-1"
+  },
+  {
+   "name": "HS35I",
+   "n": 3,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-AN-3-1"
+  },
+  {
+   "name": "HS35MOD",
+   "n": 3,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-AN-3-1"
+  },
+  {
+   "name": "HS36",
+   "n": 3,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AN-3-1"
+  },
+  {
+   "name": "HS37",
+   "n": 3,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COLR2-AN-3-2"
+  },
+  {
+   "name": "HS38",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-4-0"
+  },
+  {
+   "name": "HS39",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-4-2"
+  },
+  {
+   "name": "HS3MOD",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-2-0"
+  },
+  {
+   "name": "HS4",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "HS40",
+   "n": 4,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-4-3"
+  },
+  {
+   "name": "HS41",
+   "n": 4,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AN-4-1"
+  },
+  {
+   "name": "HS42",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSQR2-AN-4-2"
+  },
+  {
+   "name": "HS43",
+   "n": 4,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-4-3"
+  },
+  {
+   "name": "HS44",
+   "n": 4,
+   "m": 6,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 6,
+   "pbclass": "C-CQLR2-AN-4-6"
+  },
+  {
+   "name": "HS44NEW",
+   "n": 4,
+   "m": 6,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 6,
+   "pbclass": "C-CQLR2-AN-4-6"
+  },
+  {
+   "name": "HS45",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-5-0"
+  },
+  {
+   "name": "HS46",
+   "n": 5,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-5-2"
+  },
+  {
+   "name": "HS47",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-5-3"
+  },
+  {
+   "name": "HS48",
+   "n": 5,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CSLR2-AY-5-2"
+  },
+  {
+   "name": "HS49",
+   "n": 5,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COLR2-AY-5-2"
+  },
+  {
+   "name": "HS5",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "HS50",
+   "n": 5,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-COLR2-AY-5-3"
+  },
+  {
+   "name": "HS51",
+   "n": 5,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQLR2-AY-5-3"
+  },
+  {
+   "name": "HS52",
+   "n": 5,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQLR2-AY-5-3"
+  },
+  {
+   "name": "HS53",
+   "n": 5,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQLR2-AY-5-3"
+  },
+  {
+   "name": "HS54",
+   "n": 6,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AN-6-1"
+  },
+  {
+   "name": "HS55",
+   "n": 6,
+   "m": 6,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 6,
+   "pbclass": "C-COLR2-AN-6-6"
+  },
+  {
+   "name": "HS56",
+   "n": 7,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-4"
+  },
+  {
+   "name": "HS57",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-AN-2-1"
+  },
+  {
+   "name": "HS59",
+   "n": 2,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-2-3"
+  },
+  {
+   "name": "HS6",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-1"
+  },
+  {
+   "name": "HS60",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-3-1"
+  },
+  {
+   "name": "HS61",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-3-2"
+  },
+  {
+   "name": "HS62",
+   "n": 3,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AY-3-1"
+  },
+  {
+   "name": "HS63",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQQR2-AY-3-2"
+  },
+  {
+   "name": "HS64",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-3-1"
+  },
+  {
+   "name": "HS65",
+   "n": 3,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-3-1"
+  },
+  {
+   "name": "HS66",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-2"
+  },
+  {
+   "name": "HS68",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-4-2"
+  },
+  {
+   "name": "HS69",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-4-2"
+  },
+  {
+   "name": "HS7",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-2-1"
+  },
+  {
+   "name": "HS70",
+   "n": 4,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSQR2-MN-4-1"
+  },
+  {
+   "name": "HS71",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-4-2"
+  },
+  {
+   "name": "HS72",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-MN-4-2"
+  },
+  {
+   "name": "HS73",
+   "n": 4,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLOR2-MN-4-3"
+  },
+  {
+   "name": "HS74",
+   "n": 4,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COOR2-AY-4-5"
+  },
+  {
+   "name": "HS75",
+   "n": 4,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COOR2-AY-4-5"
+  },
+  {
+   "name": "HS76",
+   "n": 4,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQLR2-AN-4-3"
+  },
+  {
+   "name": "HS76I",
+   "n": 4,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQLR2-AN-4-3"
+  },
+  {
+   "name": "HS77",
+   "n": 5,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-5-2"
+  },
+  {
+   "name": "HS78",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-5-3"
+  },
+  {
+   "name": "HS79",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-5-3"
+  },
+  {
+   "name": "HS8",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CCQR2-AN-2-2"
+  },
+  {
+   "name": "HS80",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-5-3"
+  },
+  {
+   "name": "HS81",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-5-3"
+  },
+  {
+   "name": "HS83",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-5-3"
+  },
+  {
+   "name": "HS84",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-5-3"
+  },
+  {
+   "name": "HS86",
+   "n": 5,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-COLR2-AN-5-10"
+  },
+  {
+   "name": "HS88",
+   "n": 6,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MN-5-1"
+  },
+  {
+   "name": "HS89",
+   "n": 6,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MN-5-1"
+  },
+  {
+   "name": "HS9",
+   "n": 2,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AN-2-1"
+  },
+  {
+   "name": "HS90",
+   "n": 6,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MN-5-1"
+  },
+  {
+   "name": "HS91",
+   "n": 6,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MN-5-1"
+  },
+  {
+   "name": "HS92",
+   "n": 6,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MN-5-1"
+  },
+  {
+   "name": "HS93",
+   "n": 6,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MY-6-2"
+  },
+  {
+   "name": "HS95",
+   "n": 6,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-6-4"
+  },
+  {
+   "name": "HS96",
+   "n": 6,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-6-4"
+  },
+  {
+   "name": "HS97",
+   "n": 6,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-6-4"
+  },
+  {
+   "name": "HS98",
+   "n": 6,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-6-4"
+  },
+  {
+   "name": "HS99",
+   "n": 7,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-7-2"
+  },
+  {
+   "name": "HS99EXP",
+   "n": 31,
+   "m": 21,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AN-31-21"
+  },
+  {
+   "name": "HUBFIT",
+   "n": 2,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COLR2-AN-2-1"
+  },
+  {
+   "name": "HUESTIS",
+   "n": 10,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CQLR2-MN-V-V"
+  },
+  {
+   "name": "HUESmMOD",
+   "n": 10,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CQLR2-MN-V-V"
+  },
+  {
+   "name": "HUMPS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "HYDC20LS",
+   "n": 99,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-99-00"
+  },
+  {
+   "name": "HYDCAR20",
+   "n": 99,
+   "m": 99,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-99-99"
+  },
+  {
+   "name": "HYDCAR6",
+   "n": 29,
+   "m": 29,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-29-29"
+  },
+  {
+   "name": "HYDCAR6LS",
+   "n": 29,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-29-0"
+  },
+  {
+   "name": "HYPCIR",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-2-2"
+  },
+  {
+   "name": "INDEF",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "INDEFM",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "INTEGREQ",
+   "n": 52,
+   "m": 50,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "INTEQNE",
+   "n": 12,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "INTEQNELS",
+   "n": 12,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "JANNSON3",
+   "n": 6,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COQR2-AN-V-3"
+  },
+  {
+   "name": "JANNSON4",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-V-2"
+  },
+  {
+   "name": "JENSMP",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "JNLBRNG1",
+   "n": 25,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "JNLBRNG2",
+   "n": 25,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "JNLBRNGA",
+   "n": 25,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "JNLBRNGB",
+   "n": 25,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "JUDGE",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "JUDGEB",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-2-0"
+  },
+  {
+   "name": "JUNKTURN",
+   "n": 60,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-MN-V-V"
+  },
+  {
+   "name": "KIRBY2LS",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-5-0"
+  },
+  {
+   "name": "KISSING",
+   "n": 76,
+   "m": 325,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-RN-V-V"
+  },
+  {
+   "name": "KIWCRESC",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-3-2"
+  },
+  {
+   "name": "KOEBHELB",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-3-0"
+  },
+  {
+   "name": "KOEBHELBNE",
+   "n": 3,
+   "m": 156,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-3-156"
+  },
+  {
+   "name": "KOWOSB",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-4-0"
+  },
+  {
+   "name": "KOWOSBNE",
+   "n": 4,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-4-11"
+  },
+  {
+   "name": "KSS",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "KSSLS",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LAKES",
+   "n": 90,
+   "m": 78,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 60,
+   "pbclass": "C-CQOR2-RN-90-78"
+  },
+  {
+   "name": "LANCZOS1",
+   "n": 6,
+   "m": 24,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-6-24"
+  },
+  {
+   "name": "LANCZOS1LS",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-6-0"
+  },
+  {
+   "name": "LANCZOS2",
+   "n": 6,
+   "m": 24,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-6-24"
+  },
+  {
+   "name": "LANCZOS2LS",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-6-0"
+  },
+  {
+   "name": "LANCZOS3",
+   "n": 6,
+   "m": 24,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-6-24"
+  },
+  {
+   "name": "LANCZOS3LS",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-6-0"
+  },
+  {
+   "name": "LAUNCH",
+   "n": 25,
+   "m": 28,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 18,
+   "pbclass": "C-COOR2-MY-25-28"
+  },
+  {
+   "name": "LEAKNET",
+   "n": 156,
+   "m": 153,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 73,
+   "pbclass": "C-CLOR2-RN-156-153"
+  },
+  {
+   "name": "LEVYMONE",
+   "n": 5,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CNOR2-AY-V-V"
+  },
+  {
+   "name": "LEVYMONE10",
+   "n": 10,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CNOR2-AY-10-20"
+  },
+  {
+   "name": "LEVYMONE5",
+   "n": 2,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-AY-2-4"
+  },
+  {
+   "name": "LEVYMONE6",
+   "n": 5,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CNOR2-AY-3-6"
+  },
+  {
+   "name": "LEVYMONE7",
+   "n": 5,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CNOR2-AY-4-8"
+  },
+  {
+   "name": "LEVYMONE8",
+   "n": 5,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CNOR2-AY-5-10"
+  },
+  {
+   "name": "LEVYMONE9",
+   "n": 8,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CNOR2-AY-8-16"
+  },
+  {
+   "name": "LEVYMONT",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-V-0"
+  },
+  {
+   "name": "LEVYMONT10",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-10-0"
+  },
+  {
+   "name": "LEVYMONT5",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-2-0"
+  },
+  {
+   "name": "LEVYMONT6",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-3-0"
+  },
+  {
+   "name": "LEVYMONT7",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-4-0"
+  },
+  {
+   "name": "LEVYMONT8",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-5-0"
+  },
+  {
+   "name": "LEVYMONT9",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-8-0"
+  },
+  {
+   "name": "LEWISPOL",
+   "n": 6,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CQOR2-AN-6-9"
+  },
+  {
+   "name": "LIARWHD",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LIARWHDNE",
+   "n": 10,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LIN",
+   "n": 4,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-COLR2-AY-4-2"
+  },
+  {
+   "name": "LINSPANH",
+   "n": 97,
+   "m": 33,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 33,
+   "pbclass": "C-CLNR2-MN-97-33"
+  },
+  {
+   "name": "LINVERSE",
+   "n": 19,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-V-0"
+  },
+  {
+   "name": "LINVERSENE",
+   "n": 19,
+   "m": 27,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LIPPERT1",
+   "n": 74,
+   "m": 150,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 30,
+   "pbclass": "C-CLQR2-MN-V-V"
+  },
+  {
+   "name": "LIPPERT2",
+   "n": 74,
+   "m": 150,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 30,
+   "pbclass": "C-CLQR2-MN-V-V"
+  },
+  {
+   "name": "LISWET1",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET10",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET11",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET12",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET2",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET3",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET4",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET5",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET6",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET7",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET8",
+   "n": 53,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LISWET9",
+   "n": 52,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "LMINSURF",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MY-V-0"
+  },
+  {
+   "name": "LOADBAL",
+   "n": 31,
+   "m": 31,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 31,
+   "pbclass": "C-COLR2-MN-31-31"
+  },
+  {
+   "name": "LOGHAIRY",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "LOGROS",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "LOOTSMA",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-3-2"
+  },
+  {
+   "name": "LOTSCHD",
+   "n": 12,
+   "m": 7,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 7,
+   "pbclass": "C-CQLR2-AN-12-7"
+  },
+  {
+   "name": "LSC1",
+   "n": 3,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-6"
+  },
+  {
+   "name": "LSC1LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "LSC2",
+   "n": 3,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-6"
+  },
+  {
+   "name": "LSC2LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "LSNNODOC",
+   "n": 5,
+   "m": 4,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-CONR2-AY-5-4"
+  },
+  {
+   "name": "LSQFIT",
+   "n": 2,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-AN-2-1"
+  },
+  {
+   "name": "LUBRIF",
+   "n": 76,
+   "m": 50,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 26,
+   "pbclass": "C-CQOR2-MN-V-V"
+  },
+  {
+   "name": "LUBRIFC",
+   "n": 76,
+   "m": 50,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 26,
+   "pbclass": "C-CQOR2-MN-V-V"
+  },
+  {
+   "name": "LUKSAN11",
+   "n": 100,
+   "m": 198,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 99,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN11LS",
+   "n": 100,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKSAN12",
+   "n": 98,
+   "m": 192,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 32,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN12LS",
+   "n": 98,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKSAN13",
+   "n": 98,
+   "m": 224,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN13LS",
+   "n": 98,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKSAN14",
+   "n": 98,
+   "m": 224,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 160,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN14LS",
+   "n": 98,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKSAN17",
+   "n": 100,
+   "m": 196,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN17LS",
+   "n": 100,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKSAN21",
+   "n": 100,
+   "m": 100,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN21LS",
+   "n": 100,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKSAN22",
+   "n": 100,
+   "m": 198,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "LUKSAN22LS",
+   "n": 100,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "LUKVLE1",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE10",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE11",
+   "n": 8,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE12",
+   "n": 7,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE13",
+   "n": 20,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE14",
+   "n": 20,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE15",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE16",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE17",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE18",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE2",
+   "n": 10,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE3",
+   "n": 10,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE4",
+   "n": 10,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE4C",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE5",
+   "n": 12,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE6",
+   "n": 9,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE7",
+   "n": 10,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE8",
+   "n": 50,
+   "m": 48,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLE9",
+   "n": 10,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI1",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI10",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI11",
+   "n": 8,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI12",
+   "n": 7,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI13",
+   "n": 8,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI14",
+   "n": 8,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI15",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI16",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI17",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI18",
+   "n": 17,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI2",
+   "n": 10,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI3",
+   "n": 10,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI4",
+   "n": 10,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI4C",
+   "n": 10,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI5",
+   "n": 12,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI6",
+   "n": 9,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI7",
+   "n": 10,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI8",
+   "n": 50,
+   "m": 48,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "LUKVLI9",
+   "n": 10,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-AY-V-V"
+  },
+  {
+   "name": "MADSEN",
+   "n": 3,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-6"
+  },
+  {
+   "name": "MADSSCHJ",
+   "n": 5,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "MAKELA1",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLQR2-AN-3-2"
+  },
+  {
+   "name": "MAKELA2",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-3-3"
+  },
+  {
+   "name": "MAKELA3",
+   "n": 21,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-21-20"
+  },
+  {
+   "name": "MAKELA4",
+   "n": 21,
+   "m": 40,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 40,
+   "pbclass": "C-CLLR2-AN-21-40"
+  },
+  {
+   "name": "MANCINO",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "MANCINONE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "MANNE",
+   "n": 12,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 4,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "MARATOS",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-1"
+  },
+  {
+   "name": "MARATOSB",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "MATRIX2",
+   "n": 6,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-6-2"
+  },
+  {
+   "name": "MAXLIKA",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AY-8-0"
+  },
+  {
+   "name": "MCCORMCK",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AY-V-0"
+  },
+  {
+   "name": "MDHOLE",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-2-0"
+  },
+  {
+   "name": "MESH",
+   "n": 41,
+   "m": 48,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 28,
+   "pbclass": "C-COOR2-AY-41-48"
+  },
+  {
+   "name": "METHANB8",
+   "n": 31,
+   "m": 31,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-31-31"
+  },
+  {
+   "name": "METHANB8LS",
+   "n": 31,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-31-0"
+  },
+  {
+   "name": "METHANL8",
+   "n": 31,
+   "m": 31,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-31-31"
+  },
+  {
+   "name": "METHANL8LS",
+   "n": 31,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-31-0"
+  },
+  {
+   "name": "MEXHAT",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "MEYER3",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-RN-3-0"
+  },
+  {
+   "name": "MEYER3NE",
+   "n": 3,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-3-16"
+  },
+  {
+   "name": "MGH09",
+   "n": 4,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-4-11"
+  },
+  {
+   "name": "MGH09LS",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-4-0"
+  },
+  {
+   "name": "MGH10",
+   "n": 3,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-16"
+  },
+  {
+   "name": "MGH10LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "MGH10SLS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "MGH17LS",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-5-0"
+  },
+  {
+   "name": "MGH17SLS",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-5-33"
+  },
+  {
+   "name": "MIFFLIN1",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLQR2-AN-3-2"
+  },
+  {
+   "name": "MIFFLIN2",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-3-2"
+  },
+  {
+   "name": "MINC44",
+   "n": 51,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "MINMAXBD",
+   "n": 5,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-5-20"
+  },
+  {
+   "name": "MINMAXRB",
+   "n": 3,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLQR2-AN-3-4"
+  },
+  {
+   "name": "MINPERM",
+   "n": 5,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "MINSURF",
+   "n": 64,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MY-64-0"
+  },
+  {
+   "name": "MINSURFO",
+   "n": 86,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-V-V"
+  },
+  {
+   "name": "MISRA1A",
+   "n": 2,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-14"
+  },
+  {
+   "name": "MISRA1ALS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "MISRA1B",
+   "n": 2,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-14"
+  },
+  {
+   "name": "MISRA1BLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "MISRA1C",
+   "n": 2,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-14"
+  },
+  {
+   "name": "MISRA1CLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "MISRA1D",
+   "n": 2,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-14"
+  },
+  {
+   "name": "MISRA1DLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "MISTAKE",
+   "n": 9,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AY-9-13"
+  },
+  {
+   "name": "MODBEALE",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "MODBEALENE",
+   "n": 10,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "MOREBV",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "MOSARQP1",
+   "n": 36,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "MOSARQP2",
+   "n": 36,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "MRIBASIS",
+   "n": 36,
+   "m": 55,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 44,
+   "pbclass": "C-CLOR2-MY-36-55"
+  },
+  {
+   "name": "MSQRTA",
+   "n": 25,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-V-V"
+  },
+  {
+   "name": "MSQRTALS",
+   "n": 25,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-V"
+  },
+  {
+   "name": "MSQRTB",
+   "n": 25,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-V-V"
+  },
+  {
+   "name": "MSQRTBLS",
+   "n": 25,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-V"
+  },
+  {
+   "name": "MSS1",
+   "n": 90,
+   "m": 73,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-90-73"
+  },
+  {
+   "name": "MUONSINE",
+   "n": 1,
+   "m": 512,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-1-512"
+  },
+  {
+   "name": "MUONSINELS",
+   "n": 1,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-1-0"
+  },
+  {
+   "name": "MWRIGHT",
+   "n": 5,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-5-3"
+  },
+  {
+   "name": "NASH",
+   "n": 72,
+   "m": 24,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 24,
+   "pbclass": "C-CQLR2-AN-72-24"
+  },
+  {
+   "name": "NCB20",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "NCB20B",
+   "n": 21,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "NCVXBQP1",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "NCVXBQP2",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "NCVXBQP3",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "NCVXQP1",
+   "n": 50,
+   "m": 25,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 25,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP2",
+   "n": 50,
+   "m": 25,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 25,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP3",
+   "n": 50,
+   "m": 25,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 25,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP4",
+   "n": 50,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP5",
+   "n": 50,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP6",
+   "n": 50,
+   "m": 12,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 12,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP7",
+   "n": 50,
+   "m": 36,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 36,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP8",
+   "n": 50,
+   "m": 36,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 36,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NCVXQP9",
+   "n": 50,
+   "m": 36,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 36,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "NELSON",
+   "n": 3,
+   "m": 128,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-128"
+  },
+  {
+   "name": "NELSONLS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "NOBNDTOR",
+   "n": 36,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "NONCVXU2",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "NONCVXUN",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "NONDIA",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "NONDQUAR",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "NONSCOMP",
+   "n": 25,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-V-0"
+  },
+  {
+   "name": "NONSCOMPNE",
+   "n": 25,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "NUFFIELD",
+   "n": 85,
+   "m": 350,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 305,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "NYSTROM5",
+   "n": 18,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CNOR2-RY-18-20"
+  },
+  {
+   "name": "OBSTCLAE",
+   "n": 100,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "OBSTCLAL",
+   "n": 100,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "OBSTCLBL",
+   "n": 100,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "OBSTCLBM",
+   "n": 100,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "OBSTCLBU",
+   "n": 100,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AY-V-0"
+  },
+  {
+   "name": "ODFITS",
+   "n": 10,
+   "m": 6,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 6,
+   "pbclass": "C-COLR2-MN-10-6"
+  },
+  {
+   "name": "OPTCNTRL",
+   "n": 32,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 10,
+   "pbclass": "C-CQQR2-AN-32-20"
+  },
+  {
+   "name": "OPTMASS",
+   "n": 70,
+   "m": 55,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 44,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "OPTPRLOC",
+   "n": 30,
+   "m": 30,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CQQR2-AN-30-30"
+  },
+  {
+   "name": "ORTHRDM2",
+   "n": 103,
+   "m": 50,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "ORTHRDS2",
+   "n": 23,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "ORTHREGA",
+   "n": 37,
+   "m": 16,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "ORTHREGB",
+   "n": 27,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-27-6"
+  },
+  {
+   "name": "ORTHREGC",
+   "n": 25,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-V-V"
+  },
+  {
+   "name": "ORTHREGD",
+   "n": 23,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "ORTHREGE",
+   "n": 36,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "ORTHREGF",
+   "n": 80,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "ORTHRGDM",
+   "n": 23,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "ORTHRGDS",
+   "n": 43,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-V-V"
+  },
+  {
+   "name": "OSBORNE1",
+   "n": 5,
+   "m": 33,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-5-33"
+  },
+  {
+   "name": "OSBORNE2",
+   "n": 11,
+   "m": 65,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-11-65"
+  },
+  {
+   "name": "OSBORNEA",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-5-0"
+  },
+  {
+   "name": "OSBORNEB",
+   "n": 11,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-11-0"
+  },
+  {
+   "name": "OSCIGRAD",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "OSCIGRNE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "OSCIPANE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "OSCIPATH",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "OSLBQP",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-8-0"
+  },
+  {
+   "name": "PALMER1",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER1A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER1ANE",
+   "n": 6,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-35"
+  },
+  {
+   "name": "PALMER1B",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER1BNE",
+   "n": 4,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-4-35"
+  },
+  {
+   "name": "PALMER1C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER1D",
+   "n": 7,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-7-0"
+  },
+  {
+   "name": "PALMER1E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER1ENE",
+   "n": 8,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-35"
+  },
+  {
+   "name": "PALMER1NE",
+   "n": 4,
+   "m": 31,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-4-31"
+  },
+  {
+   "name": "PALMER2",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER2A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER2ANE",
+   "n": 6,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-23"
+  },
+  {
+   "name": "PALMER2B",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER2BNE",
+   "n": 4,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-4-23"
+  },
+  {
+   "name": "PALMER2C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER2E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER2ENE",
+   "n": 8,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-23"
+  },
+  {
+   "name": "PALMER3",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER3A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER3ANE",
+   "n": 6,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-23"
+  },
+  {
+   "name": "PALMER3B",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER3BNE",
+   "n": 4,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-4-23"
+  },
+  {
+   "name": "PALMER3C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER3E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER3ENE",
+   "n": 8,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-23"
+  },
+  {
+   "name": "PALMER4",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER4A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER4ANE",
+   "n": 6,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-23"
+  },
+  {
+   "name": "PALMER4B",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-4-0"
+  },
+  {
+   "name": "PALMER4BNE",
+   "n": 4,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-4-23"
+  },
+  {
+   "name": "PALMER4C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER4E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER4ENE",
+   "n": 8,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-23"
+  },
+  {
+   "name": "PALMER5A",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER5ANE",
+   "n": 8,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-12"
+  },
+  {
+   "name": "PALMER5B",
+   "n": 9,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-9-0"
+  },
+  {
+   "name": "PALMER5BNE",
+   "n": 9,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-9-12"
+  },
+  {
+   "name": "PALMER5C",
+   "n": 6,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-6-0"
+  },
+  {
+   "name": "PALMER5E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER5ENE",
+   "n": 8,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-12"
+  },
+  {
+   "name": "PALMER6A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER6ANE",
+   "n": 6,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-13"
+  },
+  {
+   "name": "PALMER6C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER6E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER6ENE",
+   "n": 8,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-13"
+  },
+  {
+   "name": "PALMER7A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER7ANE",
+   "n": 6,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-13"
+  },
+  {
+   "name": "PALMER7C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER7E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER7ENE",
+   "n": 8,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-13"
+  },
+  {
+   "name": "PALMER8A",
+   "n": 6,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-6-0"
+  },
+  {
+   "name": "PALMER8ANE",
+   "n": 6,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-6-12"
+  },
+  {
+   "name": "PALMER8C",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-RN-8-0"
+  },
+  {
+   "name": "PALMER8E",
+   "n": 8,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-8-0"
+  },
+  {
+   "name": "PALMER8ENE",
+   "n": 8,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-RN-8-12"
+  },
+  {
+   "name": "PDE1",
+   "n": 65,
+   "m": 156,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 156,
+   "pbclass": "C-CLLR2-AN-V-V"
+  },
+  {
+   "name": "PDE2",
+   "n": 112,
+   "m": 156,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 156,
+   "pbclass": "C-CLLR2-AN-V-V"
+  },
+  {
+   "name": "PENALTY1",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "PENALTY2",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "PENLT1NE",
+   "n": 10,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "PENLT2NE",
+   "n": 10,
+   "m": 20,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "PENTAGON",
+   "n": 6,
+   "m": 15,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 15,
+   "pbclass": "C-COLR2-AY-6-15"
+  },
+  {
+   "name": "PENTDI",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-0"
+  },
+  {
+   "name": "PFIT1LS",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-3-0"
+  },
+  {
+   "name": "PFIT2LS",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-3-0"
+  },
+  {
+   "name": "PFIT3LS",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-3-0"
+  },
+  {
+   "name": "PFIT4LS",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-3-0"
+  },
+  {
+   "name": "POLAK1",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-2"
+  },
+  {
+   "name": "POLAK2",
+   "n": 11,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-11-2"
+  },
+  {
+   "name": "POLAK3",
+   "n": 12,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-12-10"
+  },
+  {
+   "name": "POLAK4",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-3-3"
+  },
+  {
+   "name": "POLAK5",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-2"
+  },
+  {
+   "name": "POLAK6",
+   "n": 5,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-5-4"
+  },
+  {
+   "name": "POROUS1",
+   "n": 25,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "POROUS2",
+   "n": 25,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "PORTFL1",
+   "n": 12,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-MN-12-1"
+  },
+  {
+   "name": "PORTFL2",
+   "n": 12,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-MN-12-1"
+  },
+  {
+   "name": "PORTFL3",
+   "n": 12,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-MN-12-1"
+  },
+  {
+   "name": "PORTFL4",
+   "n": 12,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-MN-12-1"
+  },
+  {
+   "name": "PORTFL6",
+   "n": 12,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CSLR2-MN-12-1"
+  },
+  {
+   "name": "PORTSNQP",
+   "n": 10,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CQLR2-AN-V-1"
+  },
+  {
+   "name": "POWELLBC",
+   "n": 24,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-V-0"
+  },
+  {
+   "name": "POWELLBS",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "POWELLBSLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "POWELLSG",
+   "n": 12,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "POWELLSQ",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "POWELLSQLS",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "POWER",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "POWERSUM",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "POWERSUMB",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-V-0"
+  },
+  {
+   "name": "POWERSUMNE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "PRICE3B",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-V-0"
+  },
+  {
+   "name": "PRICE3NE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-2"
+  },
+  {
+   "name": "PRICE4B",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-2-0"
+  },
+  {
+   "name": "PRICE4NE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-2-2"
+  },
+  {
+   "name": "PRODPL0",
+   "n": 60,
+   "m": 29,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 25,
+   "pbclass": "C-CLQR2-RY-60-29"
+  },
+  {
+   "name": "PRODPL1",
+   "n": 60,
+   "m": 29,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 25,
+   "pbclass": "C-CLQR2-RY-60-29"
+  },
+  {
+   "name": "PSPDOC",
+   "n": 4,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AY-4-0"
+  },
+  {
+   "name": "PT",
+   "n": 2,
+   "m": 501,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 501,
+   "pbclass": "C-CLLR2-AN-2-V"
+  },
+  {
+   "name": "QC",
+   "n": 9,
+   "m": 4,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-COLR2-MY-9-4"
+  },
+  {
+   "name": "QCNEW",
+   "n": 9,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-COLR2-MY-9-3"
+  },
+  {
+   "name": "QING",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "QINGB",
+   "n": 5,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-V-0"
+  },
+  {
+   "name": "QINGNE",
+   "n": 5,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-V-V"
+  },
+  {
+   "name": "QPBAND",
+   "n": 100,
+   "m": 50,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 50,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "QPCBLEND",
+   "n": 83,
+   "m": 74,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 74,
+   "pbclass": "C-CQLR2-MN-83-74"
+  },
+  {
+   "name": "QPNBLEND",
+   "n": 83,
+   "m": 74,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 74,
+   "pbclass": "C-CQLR2-MN-83-74"
+  },
+  {
+   "name": "QR3D",
+   "n": 40,
+   "m": 40,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNQR2-AN-V-V"
+  },
+  {
+   "name": "QR3DLS",
+   "n": 40,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-V-V"
+  },
+  {
+   "name": "QRTQUAD",
+   "n": 101,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-MN-V-0"
+  },
+  {
+   "name": "QUARTC",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "QUDLIN",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-V-V"
+  },
+  {
+   "name": "RAT42",
+   "n": 3,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-9"
+  },
+  {
+   "name": "RAT42LS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "RAT43",
+   "n": 4,
+   "m": 15,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-4-15"
+  },
+  {
+   "name": "RAT43LS",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-4-0"
+  },
+  {
+   "name": "RAYBENDL",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COXR2-MY-V-0"
+  },
+  {
+   "name": "RDW2D51F",
+   "n": 50,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "RDW2D51U",
+   "n": 50,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "RDW2D52B",
+   "n": 50,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "RDW2D52F",
+   "n": 50,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "RDW2D52U",
+   "n": 50,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "READING1",
+   "n": 22,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "READING2",
+   "n": 33,
+   "m": 20,
+   "subset": "linear",
+   "control": true,
+   "linear_rows": 20,
+   "pbclass": "C-CLLR2-MN-V-V"
+  },
+  {
+   "name": "READING3",
+   "n": 12,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 1,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "READING4",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "READING5",
+   "n": 6,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "READING9",
+   "n": 6,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "RECIPE",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AY-3-3"
+  },
+  {
+   "name": "RECIPELS",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AY-3-0"
+  },
+  {
+   "name": "REPEAT",
+   "n": 100,
+   "m": 201,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 201,
+   "pbclass": "C-CNLR2-AN-V-V"
+  },
+  {
+   "name": "RES",
+   "n": 20,
+   "m": 14,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 14,
+   "pbclass": "C-CNLR2-MN-20-14"
+  },
+  {
+   "name": "RK23",
+   "n": 17,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-CLOR2-RN-17-11"
+  },
+  {
+   "name": "ROBOT",
+   "n": 14,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-MY-14-2"
+  },
+  {
+   "name": "ROSENBR",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "ROSENBRTU",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "ROSENMMX",
+   "n": 5,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-5-4"
+  },
+  {
+   "name": "ROSEPETAL",
+   "n": 2,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "ROSEPETAL2",
+   "n": 11,
+   "m": 21,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 20,
+   "pbclass": "C-CLQR2-AN-V-V"
+  },
+  {
+   "name": "ROSZMAN1",
+   "n": 4,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-4-25"
+  },
+  {
+   "name": "ROSZMAN1LS",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-4-0"
+  },
+  {
+   "name": "RSNBRNE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-2-2"
+  },
+  {
+   "name": "S268",
+   "n": 5,
+   "m": 5,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 5,
+   "pbclass": "C-CQLR2-AN-5-5"
+  },
+  {
+   "name": "S308",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "S316m322",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-1"
+  },
+  {
+   "name": "S365",
+   "n": 7,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-7-5"
+  },
+  {
+   "name": "S365MOD",
+   "n": 7,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AY-7-5"
+  },
+  {
+   "name": "S368",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-MN-V-0"
+  },
+  {
+   "name": "SANTA",
+   "n": 21,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-21-23"
+  },
+  {
+   "name": "SANTALS",
+   "n": 21,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-21-0"
+  },
+  {
+   "name": "SBRYBND",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "SCHMVETT",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-V-0"
+  },
+  {
+   "name": "SCOND1LS",
+   "n": 12,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-AN-V-V"
+  },
+  {
+   "name": "SCOSINE",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SCURLY10",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SCURLY20",
+   "n": 25,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SCURLY30",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SCW1",
+   "n": 9,
+   "m": 8,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CSLR2-MN-V-V"
+  },
+  {
+   "name": "SCW2",
+   "n": 23,
+   "m": 11,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CSLR2-MN-V-V"
+  },
+  {
+   "name": "SEMICN2U",
+   "n": 12,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "SEMICON1",
+   "n": 12,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "SEMICON2",
+   "n": 12,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "SENSORS",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SIM2BQP",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-2-0"
+  },
+  {
+   "name": "SIMBQP",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-AN-2-0"
+  },
+  {
+   "name": "SIMPLLPA",
+   "n": 2,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLLR2-AN-2-2"
+  },
+  {
+   "name": "SIMPLLPB",
+   "n": 2,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CLLR2-AN-2-3"
+  },
+  {
+   "name": "SINEALI",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COBR2-AN-V-0"
+  },
+  {
+   "name": "SINEVAL",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-2-0"
+  },
+  {
+   "name": "SINQUAD",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-V-0"
+  },
+  {
+   "name": "SINQUAD2",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-V-0"
+  },
+  {
+   "name": "SINROSNB",
+   "n": 10,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-V-V"
+  },
+  {
+   "name": "SISSER",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "SISSER2",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "SNAIL",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-2-0"
+  },
+  {
+   "name": "SNAKE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-2-2"
+  },
+  {
+   "name": "SOSQP1",
+   "n": 20,
+   "m": 11,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "SOSQP2",
+   "n": 20,
+   "m": 11,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "SPANHYD",
+   "n": 97,
+   "m": 33,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 33,
+   "pbclass": "C-CONR2-RN-97-33"
+  },
+  {
+   "name": "SPARSINE",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SPARSQUR",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SPIN2LS",
+   "n": 12,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "SPINLS",
+   "n": 67,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "SPINOP",
+   "n": 7,
+   "m": 5,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-V-V"
+  },
+  {
+   "name": "SPIRAL",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-2"
+  },
+  {
+   "name": "SREADIN3",
+   "n": 22,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "SSBRYBND",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "SSBRYBNDNE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "SSCOSINE",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "SSEBNLN",
+   "n": 194,
+   "m": 96,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 72,
+   "pbclass": "C-CLQR2-RN-194-96"
+  },
+  {
+   "name": "SSI",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-3-0"
+  },
+  {
+   "name": "SSINE",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-3-2"
+  },
+  {
+   "name": "STNQP1",
+   "n": 17,
+   "m": 8,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "STNQP2",
+   "n": 17,
+   "m": 8,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "STREG",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-4-0"
+  },
+  {
+   "name": "STREGNE",
+   "n": 4,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-4-2"
+  },
+  {
+   "name": "STRTCHDV",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "SUPERSIM",
+   "n": 2,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CLLR2-AN-2-2"
+  },
+  {
+   "name": "SVANBERG",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-V-V"
+  },
+  {
+   "name": "SWOPF",
+   "n": 83,
+   "m": 92,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 43,
+   "pbclass": "C-CLQR2-RN-83-92"
+  },
+  {
+   "name": "SYNTHES1",
+   "n": 6,
+   "m": 6,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 4,
+   "pbclass": "C-COOR2-AN-6-6"
+  },
+  {
+   "name": "SYNTHES2",
+   "n": 11,
+   "m": 14,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-COOR2-AN-11-14"
+  },
+  {
+   "name": "SYNTHES3",
+   "n": 17,
+   "m": 23,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 19,
+   "pbclass": "C-COOR2-AN-17-19"
+  },
+  {
+   "name": "TAME",
+   "n": 2,
+   "m": 1,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQLR2-AN-2-1"
+  },
+  {
+   "name": "TARGUS",
+   "n": 162,
+   "m": 63,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 63,
+   "pbclass": "C-CQLR2-RN-162-63"
+  },
+  {
+   "name": "TENBARS1",
+   "n": 18,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLOR2-MY-18-9"
+  },
+  {
+   "name": "TENBARS2",
+   "n": 18,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-MY-18-8"
+  },
+  {
+   "name": "TENBARS3",
+   "n": 18,
+   "m": 8,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-MY-18-8"
+  },
+  {
+   "name": "TENBARS4",
+   "n": 18,
+   "m": 9,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLOR2-MY-18-9"
+  },
+  {
+   "name": "TFI1",
+   "n": 3,
+   "m": 101,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQOR2-AN-3-V"
+  },
+  {
+   "name": "TFI2",
+   "n": 3,
+   "m": 101,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 101,
+   "pbclass": "C-CLLR2-AN-3-V"
+  },
+  {
+   "name": "TFI3",
+   "n": 3,
+   "m": 101,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 101,
+   "pbclass": "C-COLR2-AN-3-V"
+  },
+  {
+   "name": "THURBER",
+   "n": 7,
+   "m": 37,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-7-37"
+  },
+  {
+   "name": "THURBERLS",
+   "n": 7,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-7-0"
+  },
+  {
+   "name": "TOINTGOR",
+   "n": 50,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-MN-50-0"
+  },
+  {
+   "name": "TOINTGSS",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AY-V-0"
+  },
+  {
+   "name": "TOINTPSP",
+   "n": 50,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-50-0"
+  },
+  {
+   "name": "TOINTQOR",
+   "n": 50,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-MN-50-0"
+  },
+  {
+   "name": "TORSION1",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSION2",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSION3",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSION4",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSION5",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSION6",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSIONA",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSIONB",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSIONC",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSIOND",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSIONE",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TORSIONF",
+   "n": 16,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQBR2-MY-V-0"
+  },
+  {
+   "name": "TQUARTIC",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "TQUARTICNE",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "TRAINF",
+   "n": 48,
+   "m": 22,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 11,
+   "pbclass": "C-CQQR2-MN-V-V"
+  },
+  {
+   "name": "TRAINH",
+   "n": 48,
+   "m": 22,
+   "subset": "nonlinear",
+   "control": true,
+   "linear_rows": 11,
+   "pbclass": "C-CQOR2-MN-V-V"
+  },
+  {
+   "name": "TRIDIA",
+   "n": 5,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-AN-V-0"
+  },
+  {
+   "name": "TRIGON1",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "TRIGON1B",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-V-0"
+  },
+  {
+   "name": "TRIGON2",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-V-0"
+  },
+  {
+   "name": "TRIGON2B",
+   "n": 10,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-V-0"
+  },
+  {
+   "name": "TRO3X3",
+   "n": 30,
+   "m": 13,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLOR2-RN-30-13"
+  },
+  {
+   "name": "TRO4X4",
+   "n": 63,
+   "m": 25,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLOR2-RN-63-25"
+  },
+  {
+   "name": "TRO6X2",
+   "n": 45,
+   "m": 21,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLOR2-RN-45-21"
+  },
+  {
+   "name": "TRUSPYR1",
+   "n": 11,
+   "m": 4,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLQR2-MN-11-4"
+  },
+  {
+   "name": "TRUSPYR2",
+   "n": 11,
+   "m": 11,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CLQR2-MN-11-11"
+  },
+  {
+   "name": "TRYmB",
+   "n": 2,
+   "m": 1,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-1"
+  },
+  {
+   "name": "TWOBARS",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-MN-2-2"
+  },
+  {
+   "name": "TWOD",
+   "n": 31,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "UBH5",
+   "n": 110,
+   "m": 70,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 60,
+   "pbclass": "C-CLQR2-MN-V-V"
+  },
+  {
+   "name": "VANDERM1",
+   "n": 10,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "VANDERM2",
+   "n": 10,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "VANDERM3",
+   "n": 10,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "VANDERM4",
+   "n": 10,
+   "m": 19,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 9,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "VARDIM",
+   "n": 10,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "VARDIMNE",
+   "n": 10,
+   "m": 12,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 11,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "VAREIGVL",
+   "n": 20,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COUR2-AN-V-0"
+  },
+  {
+   "name": "VIBRBEAM",
+   "n": 8,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-8-0"
+  },
+  {
+   "name": "VIBRBEAMNE",
+   "n": 8,
+   "m": 30,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-8-30"
+  },
+  {
+   "name": "WACHBIEG",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CLQR2-AN-3-2"
+  },
+  {
+   "name": "WATER",
+   "n": 31,
+   "m": 10,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 10,
+   "pbclass": "C-CONR2-MN-31-10"
+  },
+  {
+   "name": "WATSON",
+   "n": 12,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "WATSONNE",
+   "n": 12,
+   "m": 31,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-AN-V-31"
+  },
+  {
+   "name": "WAYSEA1",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-2-0"
+  },
+  {
+   "name": "WAYSEA1B",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-2-0"
+  },
+  {
+   "name": "WAYSEA1NE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-MN-2-2"
+  },
+  {
+   "name": "WAYSEA2B",
+   "n": 2,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-2-0"
+  },
+  {
+   "name": "WAYSEA2NE",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CNOR2-MN-2-2"
+  },
+  {
+   "name": "WEEDS",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-RN-3-0"
+  },
+  {
+   "name": "WOMFLET",
+   "n": 3,
+   "m": 3,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CLOR2-AN-3-3"
+  },
+  {
+   "name": "YAO",
+   "n": 22,
+   "m": 20,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 20,
+   "pbclass": "C-CQLR2-AN-V-V"
+  },
+  {
+   "name": "YATP1CLS",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-V"
+  },
+  {
+   "name": "YATP1CNE",
+   "n": 35,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "YATP1LS",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-V"
+  },
+  {
+   "name": "YATP2CLS",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-V"
+  },
+  {
+   "name": "YATP2CNE",
+   "n": 35,
+   "m": 35,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "YATP2LS",
+   "n": 35,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-V"
+  },
+  {
+   "name": "YFIT",
+   "n": 3,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-3-0"
+  },
+  {
+   "name": "YFITNE",
+   "n": 3,
+   "m": 17,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CNOR2-MN-3-17"
+  },
+  {
+   "name": "YFITU",
+   "n": 3,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-MN-3-0"
+  },
+  {
+   "name": "ZAMB2m8",
+   "n": 138,
+   "m": 48,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-RN-138-48"
+  },
+  {
+   "name": "ZAMB2m9",
+   "n": 138,
+   "m": 48,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COOR2-RN-138-48"
+  },
+  {
+   "name": "ZANGWIL2",
+   "n": 2,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQUR2-AN-2-0"
+  },
+  {
+   "name": "ZANGWIL3",
+   "n": 3,
+   "m": 3,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 3,
+   "pbclass": "C-CNLR2-AN-3-3"
+  },
+  {
+   "name": "ZECEVIC2",
+   "n": 2,
+   "m": 2,
+   "subset": "linear",
+   "control": false,
+   "linear_rows": 2,
+   "pbclass": "C-CQLR2-AN-2-2"
+  },
+  {
+   "name": "ZECEVIC3",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CQQR2-AN-2-2"
+  },
+  {
+   "name": "ZECEVIC4",
+   "n": 2,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 1,
+   "pbclass": "C-CQQR2-AN-2-2"
+  },
+  {
+   "name": "ZY2",
+   "n": 3,
+   "m": 2,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-COQR2-AN-3-2"
+  },
+  {
+   "name": "n10FOLDTR",
+   "n": 10,
+   "m": 10,
+   "subset": "nonlinear",
+   "control": false,
+   "linear_rows": 8,
+   "pbclass": "C-CNOR2-AN-V-V"
+  },
+  {
+   "name": "n10FOLDTRLS",
+   "n": 4,
+   "m": 0,
+   "subset": "unconstrained",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSUR2-AN-V-0"
+  },
+  {
+   "name": "n3PK",
+   "n": 30,
+   "m": 0,
+   "subset": "bounds",
+   "control": false,
+   "linear_rows": 0,
+   "pbclass": "C-CSBR2-MN-30-0"
+  }
+ ],
+ "excluded": {
+  "AIRPORT": "evaluation over 0.2 s",
+  "CHANDHEU": "undefined at the start: setup or evaluation over 60 s",
+  "CHANDHEULS": "undefined at the start: setup or evaluation over 60 s",
+  "CONCON": "not smooth",
+  "CORE1": "not smooth",
+  "CORE2": "not smooth",
+  "CmRELOAD": "n > 256",
+  "DIAMON2D": "undefined at the start: setup or evaluation over 60 s",
+  "DIAMON2DLS": "undefined at the start: setup or evaluation over 60 s",
+  "DIAMON3D": "undefined at the start: setup or evaluation over 60 s",
+  "DIAMON3DLS": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15102": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15102LS": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15103": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15103LS": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15332": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15332LS": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15333": "undefined at the start: setup or evaluation over 60 s",
+  "DMN15333LS": "undefined at the start: setup or evaluation over 60 s",
+  "DMN37142": "undefined at the start: setup or evaluation over 60 s",
+  "DMN37142LS": "undefined at the start: setup or evaluation over 60 s",
+  "DMN37143": "undefined at the start: setup or evaluation over 60 s",
+  "DMN37143LS": "undefined at the start: setup or evaluation over 60 s",
+  "FBRAIN2LS": "evaluation over 0.2 s",
+  "FBRAIN3LS": "evaluation over 0.2 s",
+  "GASOIL": "n > 256",
+  "GPP": "evaluation over 0.2 s",
+  "HETmZ": "m > 512",
+  "HS67": "not smooth",
+  "HS85": "not smooth",
+  "HS87": "not smooth",
+  "KISSING2": "m > 512",
+  "LEVYM": "undefined at the start: ModuleNotFoundError: No module named 's2xlib'",
+  "LEVYMONT8C": "undefined at the start: ModuleNotFoundError: No module named 's2xlib'",
+  "MCONCON": "not smooth",
+  "NET1": "not smooth",
+  "OET1": "m > 512",
+  "OET2": "m > 512",
+  "OET3": "m > 512",
+  "OET4": "m > 512",
+  "OET5": "m > 512",
+  "OET6": "m > 512",
+  "OET7": "m > 512",
+  "ROTDISC": "n > 256",
+  "SIPOW1": "m > 512",
+  "SIPOW2": "m > 512",
+  "SIPOW2M": "m > 512",
+  "SIPOW3": "m > 512",
+  "SIPOW4": "m > 512",
+  "SPECAN": "evaluation over 0.2 s",
+  "SPECANNE": "m > 512",
+  "SPMSRTLS": "n > 256",
+  "STANCMIN": "not smooth",
+  "TAX13322": "m > 512",
+  "TWIRIBG1": "n > 256",
+  "TWIRIMD1": "n > 256",
+  "VESUVIA": "m > 512",
+  "VESUVIALS": "evaluation over 0.2 s",
+  "VESUVIO": "m > 512",
+  "VESUVIOLS": "evaluation over 0.2 s",
+  "VESUVIOU": "m > 512",
+  "VESUVIOULS": "evaluation over 0.2 s",
+  "WOODS": "n > 256",
+  "YORKNET": "n > 256",
+  "ZAMB2": "n > 256",
+  "ZAMB211": "undefined at the start: AttributeError: module 'ZAMB211' has no attribute 'ZAMB211'",
+  "ZAMB2m10": "n > 256",
+  "ZAMB2m11": "n > 256"
+ },
+ "frozen_from": "the first catalog run (17 October 2026)"
+}

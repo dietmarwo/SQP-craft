@@ -1,12 +1,14 @@
 # Gaps compared with mature SQP codes
 
 16 October 2026, version 0.14.0 (the reviewed performance release),
-updated 17 October 2026 for the [options from SNOPT](snopt-lessons.md). The
-comparison is with SNOPT, filterSQP, NLPQL and SLSQP, and for
-second-derivative use also with the IPOPT, WORHP and KNITRO family. It is
-ranked by expected impact on the target use, trajectory transcriptions.
-Measurements come from this repository's fixtures; statements about other
-codes describe their published methods, not runs made here.
+updated 17 October 2026 for the [options from SNOPT](snopt-lessons.md) and
+the [CUTEst benchmark](benchmark-results.md). The comparison is with SNOPT,
+filterSQP, NLPQL and SLSQP, and for second-derivative use also with the
+IPOPT, WORHP and KNITRO family. It is ranked by expected impact on the target
+use, trajectory transcriptions. Measurements come from this repository's
+fixtures and from the benchmark, which also runs SLSQP and Uno's filterSQP
+and IPOPT presets. Other statements about other codes describe their
+published methods.
 
 ## 1. QP subproblems: cold interior point on a dense Hessian
 
@@ -151,6 +153,22 @@ Mangasarian–Fromovitz condition fails at every feasible point.
 - The 9,000 stress runs of both backends are bit-identical with and without
   the guard.
 
+**Status:** measured. A benchmark harness (`bench/`,
+[benchmark-harness-plan.md](benchmark-harness-plan.md)) runs 1,036 CUTEst
+problems from S2MPJ against SciPy SLSQP and Uno's filterSQP and IPOPT
+presets, judged by one independent check
+([benchmark-results.md](benchmark-results.md)):
+- **No false claim:** none in 12,432 sqp-craft runs.
+- **Solved:**
+  - the default (Clarabel) solves 754;
+  - the active-set backend 799, and 813 with elastic mode;
+  - Uno's filterSQP with L-BFGS 760, and 845 with exact Hessians;
+  - SLSQP 631.
+- **Weaknesses it found that were not on this list:**
+  - the first step from B₀ = I fails on 34 badly scaled problems;
+  - nonfinite values end 20 runs in an exception instead of a status;
+  - most unsolved problems are probably infeasible, and nothing certifies it.
+
 ## What to keep
 
 These properties should survive every change:
@@ -180,4 +198,21 @@ These properties should survive every change:
 5. Sparse or limited-memory curvature with a sparse QP when the application
    needs more than a few hundred variables (gap 2).
 6. A CUTEst subset through a Python interface, to measure gaps 3–5 instead
-   of reasoning about them (gap 6).
+   of reasoning about them (gap 6). Done: 1,036 problems with SLSQP and Uno
+   as comparators ([benchmark-results.md](benchmark-results.md)). Its
+   recommendations, which are your decision:
+   - the active-set backend with elastic mode as the default (813 problems
+     solved against 754);
+   - the other options stay off, because none pays on CUTEst.
+
+The benchmark orders what follows:
+
+7. A first-step safeguard against the 34 iteration-0 line-search failures,
+   such as a step limit or a rescaled B₀ after the first step. A crude
+   emulation recovers 16 problems net.
+8. Statuses instead of exceptions for nonfinite QP steps, merits and
+   residuals (6 problems).
+9. Infeasibility: a certificate for `locally_infeasible`, since 93 of the
+   131 problems no solver solves are probably infeasible (gap 4).
+10. Second-order information (gap 2): exact Hessians cut Uno's callbacks by
+    54%, and by 70% against sqp-craft on the control problems.

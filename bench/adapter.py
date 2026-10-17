@@ -39,11 +39,10 @@ class S2mpjProblem:
         else:
             self.clower = self.cupper = np.zeros(0)
         self.has_objective = len(np.asarray(getattr(raw, "objgrps", [])).reshape(-1)) > 0
-        self.linear_rows = sorted(int(i) for i in np.asarray(getattr(raw, "lincons", []))
-                                  .reshape(-1))
         self.function_points: set = set()
         self.derivative_points: set = set()
         self._pattern(seed)
+        self._linear_rows()
 
     # --- structure -------------------------------------------------------
     def _structural_rows(self) -> list[set]:
@@ -67,6 +66,7 @@ class S2mpjProblem:
     def _pattern(self, seed: int) -> None:
         rows = self._structural_rows() if self.m else []
         self.pattern_extended = False
+        self._sampled: list[np.ndarray] = []
         if self.m:
             rng = np.random.default_rng(seed)
             points = [self.x0]
@@ -79,6 +79,7 @@ class S2mpjProblem:
                     J = self._jacobian(x)
                 except Exception:
                     continue
+                self._sampled.append(J)
                 for i, j in zip(*np.nonzero(J)):
                     if int(j) not in rows[i]:
                         rows[i].add(int(j))
@@ -91,6 +92,35 @@ class S2mpjProblem:
         self.nnz = len(self.indices)
         self._rows = np.repeat(np.arange(self.m), np.diff(self.indptr))
         self._cols = np.asarray(self.indices, dtype=int)
+
+    def _linear_rows(self) -> None:
+        """S2MPJ's `lincons`, less the rows that are not linear: S2MPJ marks a
+        row linear when its group has no nonlinear elements, even when the
+        group function itself is nonlinear (ALSOTAME's sin(x − y)). A row is
+        kept only if its group has no elements and no group function, and its
+        Jacobian is the same at the sampled points."""
+        raw = self.raw
+        declared = sorted(int(i) for i in np.asarray(getattr(raw, "lincons", [])).reshape(-1))
+        groups = np.asarray(getattr(raw, "congrps", np.arange(self.m))).reshape(-1)
+        grelt = getattr(raw, "grelt", None) or []
+        grftype = list(getattr(raw, "grftype", None) if getattr(raw, "grftype", None) is not None
+                       else [])
+        kept = []
+        for i in declared:
+            if i >= self.m:
+                continue
+            g = int(groups[i])
+            if g < len(grelt) and np.asarray(grelt[g]).size:
+                continue
+            if g < len(grftype) and grftype[g] is not None:
+                continue
+            if self._sampled and any(
+                    not np.allclose(J[i], self._sampled[0][i], rtol=1e-9, atol=1e-12)
+                    for J in self._sampled[1:]):
+                continue
+            kept.append(i)
+        self.linear_rows = kept
+        self.linear_rows_dropped = len(declared) - len(kept)
 
     # --- evaluations ------------------------------------------------------
     def _column(self, x):

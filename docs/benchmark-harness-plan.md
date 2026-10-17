@@ -60,6 +60,9 @@ it.
 - setup within 30 s, and one evaluation of f, c, ∇f and J within 0.2 s, to
   bound the run time.
 
+The timing rules vary between catalog runs, so the selection is frozen once
+made (`--frozen`); later catalog runs update only the problems' attributes.
+
 **Subsets reported separately:**
 - unconstrained;
 - bound-constrained (including fixed variables);
@@ -80,7 +83,9 @@ One `S2mpjProblem` serves every solver.
   of `A` plus the variables of each group's elements. It is verified against
   evaluated Jacobians at the start and two nearby points, and extended where
   needed; the catalog records when that happens.
-- **Linear rows** are S2MPJ's `lincons`.
+- **Linear rows** are S2MPJ's `lincons`, less the rows whose group has a
+  nonlinear group function or whose Jacobian changes between the sampled
+  points: S2MPJ ignores group functions when it marks rows linear.
 - **Evaluations** are counted the same way for every solver, as distinct
   points. One *function evaluation* is a point where f and c are computed,
   one *derivative evaluation* a point where ∇f and J are computed. Solvers

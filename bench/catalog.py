@@ -37,6 +37,7 @@ def describe(name: str, cache=None) -> dict:
                  setup_seconds=setup)
     problem = S2mpjProblem(raw)
     entry.update(nnz=problem.nnz, linear_rows=len(problem.linear_rows),
+                 linear_rows_dropped=problem.linear_rows_dropped,
                  pattern_extended=problem.pattern_extended,
                  start_clipped=problem.start_clipped)
     began = time.perf_counter()
