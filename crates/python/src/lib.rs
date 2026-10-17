@@ -473,6 +473,12 @@ fn solve_native<'py>(
                             "second_order_correction" => {
                                 settings.second_order_correction = value.extract()?
                             }
+                            "hessian_update" => {
+                                let name: String = value.extract()?;
+                                settings.hessian_update =
+                                    sqp_craft_solver::HessianUpdate::parse(&name)
+                                        .map_err(to_py_err)?;
+                            }
                             "qp_solver" => qp_solver = value.extract()?,
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
                             "record_history" => settings.record_history = value.extract()?,
@@ -541,6 +547,8 @@ fn solve_native<'py>(
     report.set_item("rejected_trials", r.report.rejected_trials)?;
     report.set_item("undefined_trials", r.report.undefined_trials)?;
     report.set_item("hessian_resets", r.report.hessian_resets)?;
+    report.set_item("bfgs_damped_updates", r.report.bfgs_damped_updates)?;
+    report.set_item("bfgs_modified_updates", r.report.bfgs_modified_updates)?;
     report.set_item("block_hessian_fallbacks", r.report.block_hessian_fallbacks)?;
     report.set_item(
         "qp_not_positive_definite",
@@ -607,6 +615,7 @@ fn solve_native<'py>(
         d.set_item("max_penalty", h.max_penalty)?;
         d.set_item("qp_iterations", h.qp_iterations)?;
         d.set_item("second_order_correction", h.second_order_correction)?;
+        d.set_item("curvature", h.curvature.map(|c| c.as_str()))?;
         history.append(d)?;
     }
     report.set_item("history", history)?;

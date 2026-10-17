@@ -289,6 +289,12 @@ pub struct RunReport {
     pub undefined_trials: u64,
     /// Positive-diagonal Hessian resets.
     pub hessian_resets: u64,
+    /// BFGS updates that used Powell's damping (`sᵀy < 0.2·sᵀBs` and, with
+    /// the augmented-Lagrangian repair, no repair available).
+    pub bfgs_damped_updates: u64,
+    /// BFGS updates whose `y` was repaired by SNOPT's augmented-Lagrangian
+    /// modification.
+    pub bfgs_modified_updates: u64,
     /// Switches from requested block curvature to full BFGS after a failed update.
     pub block_hessian_fallbacks: u64,
     /// Step QPs the backend rejected as `QpOutcome::NotPositiveDefinite`; each
@@ -379,6 +385,38 @@ pub struct IterationRecord {
     pub qp_iterations: u64,
     /// The accepted step is a second-order correction of the QP step.
     pub second_order_correction: bool,
+    /// How the Hessian approximation was updated after the step; `None` if
+    /// no step was taken.
+    pub curvature: Option<CurvatureUpdate>,
+}
+
+/// How the quasi-Newton matrix `B` was updated after an accepted step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum CurvatureUpdate {
+    /// Plain BFGS: the curvature `sᵀy` was at least `0.2·sᵀBs`.
+    Exact,
+    /// Powell's damped BFGS: `y` was blended with `Bs`.
+    Damped,
+    /// `y` was repaired by the augmented-Lagrangian modification (SNOPT).
+    Modified,
+    /// The displacement was negligible, so `B` was kept unchanged.
+    Negligible,
+    /// The update failed numerically and `B` was reset (or the solve stopped).
+    Reset,
+}
+
+impl CurvatureUpdate {
+    /// Stable lowercase name, as used by the Python binding.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CurvatureUpdate::Exact => "exact",
+            CurvatureUpdate::Damped => "damped",
+            CurvatureUpdate::Modified => "modified",
+            CurvatureUpdate::Negligible => "negligible",
+            CurvatureUpdate::Reset => "reset",
+        }
+    }
 }
 impl SolveResult {
     /// Empty result before a complete evaluation exists.

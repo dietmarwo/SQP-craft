@@ -148,6 +148,12 @@ class SqpOptions:
     """When the full step fails the merit test and increases the constraint
     violation, re-solve the step QP with the constraints shifted by their
     second-order change along the step and try that step before backtracking."""
+    hessian_update: Literal["damped", "augmented"] = "damped"
+    """What to do when a step has too little curvature for a plain BFGS update
+    (``sᵀy < 0.2·sᵀBs``): ``"damped"`` blends ``y`` with ``Bs`` (Powell);
+    ``"augmented"`` adds SNOPT's augmented-Lagrangian term
+    ``(J(x⁺) − J(x))ᵀ Ω d_L`` built from the departure from linearity of the
+    constraints (SNOPT), and damps when no such term exists."""
     elastic_weight: float = 1e4
     """Initial elastic weight relative to ``max(1, ‖∇f(x0)‖∞)``; multiplied by 10
     (at most six times) at a stationary point of the penalty with violated rows."""
@@ -216,6 +222,10 @@ class IterationRecord:
     max_penalty: float
     qp_iterations: int
     second_order_correction: bool
+    curvature: Optional[str]
+    """How ``B`` was updated after the step: ``"exact"``, ``"damped"``,
+    ``"modified"``, ``"negligible"`` or ``"reset"``; ``None`` when no step was
+    taken."""
 
 
 @dataclass(frozen=True)
@@ -246,6 +256,8 @@ class RunReport:
     rejected_trials: int
     undefined_trials: int
     hessian_resets: int
+    bfgs_damped_updates: int
+    bfgs_modified_updates: int
     block_hessian_fallbacks: int
     qp_not_positive_definite: int
     elastic_steps: int

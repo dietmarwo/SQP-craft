@@ -32,9 +32,9 @@ use nalgebra::DMatrix;
 use sqp_craft::kkt::nlp_residuals;
 use sqp_craft::qp::{QpBackend, QpModel, QpOptions, QpOutcome, QpSolution, QpWarmStart};
 use sqp_craft::{
-    Bounds, CancellationToken, Control, CsrMatrix, CsrPattern, Error, Evaluation, EvaluationCounts,
-    IterationRecord, Multipliers, NlpProblem, Observer, Options, ProblemSpec, Progress, Result,
-    SolveResult, SqpSolver, Status,
+    Bounds, CancellationToken, Control, CsrMatrix, CsrPattern, CurvatureUpdate, Error, Evaluation,
+    EvaluationCounts, IterationRecord, Multipliers, NlpProblem, Observer, Options, ProblemSpec,
+    Progress, Result, SolveResult, SqpSolver, Status,
 };
 
 /// Largest number of variables the dense pilot accepts.
@@ -54,6 +54,47 @@ const MAX_NOISE_STEPS: u32 = 3;
 /// the ℓ1 penalty with violated constraints before it reports
 /// `locally_infeasible`.
 const MAX_ELASTIC_INCREASES: u64 = 6;
+
+/// How the BFGS update treats a step with too little curvature,
+/// `sᵀy < 0.2·sᵀBs`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum HessianUpdate {
+    /// Powell's damping: blend `y` with `Bs` until the curvature is
+    /// `0.2·sᵀBs` (default).
+    #[default]
+    Damped,
+    /// SNOPT's second modification (Gill, Murray and Saunders 2005, §2.10):
+    /// add the gradient change of the augmented modified Lagrangian,
+    /// `(J(x⁺) − J(x))ᵀ Ω d_L` with the departure from linearity
+    /// `d_L = c(x⁺) − c(x) − J(x)s` and minimum-norm weights `Ω ≥ 0`, so
+    /// that the curvature becomes `0.2·sᵀBs`. If no such weights exist, or
+    /// the change exceeds `100·‖Bs‖`, the update is damped as with
+    /// [`Self::Damped`]. SNOPT skips the update instead; here that left a
+    /// `B` that overestimated the curvature unchanged for hundreds of steps
+    /// on complementarity problems.
+    Augmented,
+}
+
+impl HessianUpdate {
+    /// Stable lowercase name, as used by the Python binding.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            HessianUpdate::Damped => "damped",
+            HessianUpdate::Augmented => "augmented",
+        }
+    }
+
+    /// Parses [`Self::as_str`].
+    pub fn parse(name: &str) -> Result<Self> {
+        match name {
+            "damped" => Ok(HessianUpdate::Damped),
+            "augmented" => Ok(HessianUpdate::Augmented),
+            _ => Err(Error::InvalidInput(format!(
+                "hessian_update must be \"damped\" or \"augmented\", got {name:?}"
+            ))),
+        }
+    }
+}
 
 /// Settings of [`NativeSqp`]. Every field is used; invalid values are rejected.
 #[derive(Clone, Debug, PartialEq)]
@@ -103,6 +144,9 @@ pub struct SqpOptions {
     /// their second-order change along the step, and try that step before
     /// backtracking (against the Maratos effect).
     pub second_order_correction: bool,
+    /// What to do when the curvature of a step is too small for a plain
+    /// BFGS update (`sᵀy < 0.2·sᵀBs`).
+    pub hessian_update: HessianUpdate,
     /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
@@ -136,6 +180,7 @@ impl Default for SqpOptions {
             elastic_mode: false,
             elastic_weight: 1e4,
             second_order_correction: false,
+            hessian_update: HessianUpdate::Damped,
             record_qp_limit: 0,
             record_history: false,
             max_restoration_steps: 10,
@@ -519,6 +564,32 @@ fn refresh_qp(
         }
     }
     Ok(())
+}
+
+/// `J(x⁺) − J(x)` in pattern order and the departure from linearity
+/// `d_L = c(x⁺) − c(x) − J(x)s` for [`bfgs::Repair`].
+fn curvature_repair(
+    spec: &ProblemSpec,
+    e: &Evaluation,
+    next: &Evaluation,
+    s: &[f64],
+) -> Result<(Vec<f64>, Vec<f64>)> {
+    let change = next
+        .jacobian_values
+        .iter()
+        .zip(&e.jacobian_values)
+        .map(|(&a, &b)| finite(a - b, "Jacobian change"))
+        .collect::<Result<Vec<f64>>>()?;
+    let mut departure = vec![0.0; spec.m()];
+    spec.jacobian()
+        .multiply(&e.jacobian_values, s, &mut departure);
+    for (d, (&after, &before)) in departure
+        .iter_mut()
+        .zip(next.constraints.iter().zip(&e.constraints))
+    {
+        *d = finite(after - before - *d, "departure from linearity")?;
+    }
+    Ok((change, departure))
 }
 
 /// `∇f − Jᵀλ − z`.
@@ -929,6 +1000,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 max_penalty: 0.0,
                 qp_iterations,
                 second_order_correction: false,
+                curvature: None,
             };
             // The residuals must clear their tolerances by their own rounding
             // level, or the claim rests on rounding noise.
@@ -1324,9 +1396,6 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 0
             };
             record.step_length = Some(alpha);
-            if settings.record_history {
-                r.report.history.push(record);
-            }
 
             // 4. Accept the step and update B.
             let s: Vec<f64> = next.iter().zip(x).map(|(&a, &b)| a - b).collect();
@@ -1334,8 +1403,27 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             let new_l = lagrangian_gradient(spec, &next_evaluation, &solution.multipliers)?;
             let y: Vec<f64> = new_l.iter().zip(old_l).map(|(&a, b)| a - b).collect();
             let t = Instant::now();
-            let updated = bfgs_work.update(&mut b, &s, &y);
+            let (change, departure) = match settings.hessian_update {
+                HessianUpdate::Damped => (Vec::new(), Vec::new()),
+                HessianUpdate::Augmented => curvature_repair(spec, e, &next_evaluation, &s)?,
+            };
+            let repair =
+                (settings.hessian_update == HessianUpdate::Augmented).then(|| bfgs::Repair {
+                    pattern: spec.jacobian(),
+                    change: &change,
+                    departure: &departure,
+                });
+            let updated = bfgs_work.update(&mut b, &s, &y, repair.as_ref());
             r.report.bfgs_seconds += t.elapsed().as_secs_f64();
+            match updated {
+                Some(CurvatureUpdate::Damped) => r.report.bfgs_damped_updates += 1,
+                Some(CurvatureUpdate::Modified) => r.report.bfgs_modified_updates += 1,
+                _ => {}
+            }
+            record.curvature = Some(updated.unwrap_or(CurvatureUpdate::Reset));
+            if settings.record_history {
+                r.report.history.push(record);
+            }
             r.candidate = Some(next);
             if let Some(old) = r.evaluation.replace(next_evaluation) {
                 calls.recycle(old);
@@ -1343,7 +1431,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             r.iterations += 1;
             r.report.step_norm = Some(norm_inf(&s));
             store_residuals(spec, &mut r, solution.multipliers)?;
-            if !updated {
+            if updated.is_none() {
                 if r.report.hessian_resets >= u64::from(settings.max_hessian_resets) {
                     status = Some(Status::NumericalFailure);
                     r.message =
@@ -1430,7 +1518,10 @@ mod tests {
         };
         let mut b = DMatrix::identity(n, n);
         let mut work = bfgs::Curvature::new(n, 3);
-        assert!(work.update(&mut b, &[1.; 7], &[2., 3., 4., 1., 2., 3., 4.]));
+        assert!(
+            work.update(&mut b, &[1.; 7], &[2., 3., 4., 1., 2., 3., 4.], None)
+                .is_some()
+        );
         assert!(b.clone().cholesky().is_some());
         let q = qp_model_with_blocks(&spec, &[0.; 7], &e, &b, 3).unwrap();
         q.validate().unwrap();
