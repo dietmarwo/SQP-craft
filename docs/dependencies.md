@@ -15,3 +15,16 @@ and licenses of all crates are fetched by Cargo during a source build; they are
 not vendored. No wheels or native libraries are published (`publish = false`);
 anyone distributing a built wheel must include the notices of the statically
 linked crates.
+
+## Benchmark harness
+
+The harness in `bench/` uses tools that are neither vendored nor needed by the
+solver:
+- **S2MPJ** (Gratton & Toint, BSD-3-Clause): the CUTEst problems in Python.
+  `python -m bench.s2mpj fetch` clones it at a pinned commit into a cache
+  outside the repository.
+- **SciPy** (BSD-3-Clause): SLSQP, a comparator, and S2MPJ's sparse matrices.
+- **Uno** (`unopy`, MIT): an optional comparator, installed from PyPI.
+
+The committed results in `docs/benchmarks/` contain only the harness's own
+records: problem names, sizes, statuses and residuals.
