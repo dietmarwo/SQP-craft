@@ -105,6 +105,32 @@ jobs:
           python scripts/compare_variants.py --qp-solver clarabel --variants default,al,scale-jacobian \
             --families stress,maratos >> "$GITHUB_STEP_SUMMARY"
 
+  benchmark:
+    name: CUTEst benchmark harness (20 Hock-Schittkowski problems)
+    runs-on: ubuntu-latest
+    env:
+      MATURIN_PEP517_ARGS: --locked
+      SQP_CRAFT_BENCH_CACHE: ${{ github.workspace }}/../bench-cache
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install ".[bench,test]"
+      # Uno is an optional comparator; the run skips it when it is missing.
+      - run: python -m pip install unopy || echo "unopy unavailable"
+      - run: python -m bench.s2mpj fetch
+      - run: python -m pytest -q tests/test_bench.py
+      - name: Twenty HS problems (fails on a sqp-craft false claim)
+        run: |
+          python -m bench.run docs/benchmarks/selection.json hs.jsonl --jobs 2 \
+            --solvers clarabel,active-set,active-set+al,slsqp,uno-filtersqp \
+            --problems HS6,HS7,HS10,HS14,HS21,HS26,HS27,HS35,HS39,HS40,HS43,HS44,HS46,HS71,HS76,HS77,HS78,HS79,HS100,HS113
+          python -m bench.report docs/benchmarks/selection.json hs.jsonl hs.md
+          cat hs.md >> "$GITHUB_STEP_SUMMARY"
+
   dummy-only:
     name: Python build without the native solver
     runs-on: ubuntu-latest
