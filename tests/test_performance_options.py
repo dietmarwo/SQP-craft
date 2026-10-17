@@ -69,5 +69,6 @@ def test_updates_that_round_indefinite_reset_the_hessian(extra):
     r = solve(spec, model, start, method="sqp",
               method_options=SqpOptions(max_iterations=300, qp_reuse_workspace=True))
     assert r.status == "converged", r.message
-    assert r.report.hessian_resets >= 1
+    assert r.report.qp_not_positive_definite >= 1
+    assert r.report.hessian_resets >= r.report.qp_not_positive_definite
     assert_kkt(spec, r)

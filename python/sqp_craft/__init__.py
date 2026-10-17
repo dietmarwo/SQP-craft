@@ -228,6 +228,7 @@ class RunReport:
     undefined_trials: int
     hessian_resets: int
     block_hessian_fallbacks: int
+    qp_not_positive_definite: int
     fixed_step_corrections: int
     bound_step_corrections: int
     step_norm: Optional[float]

@@ -741,6 +741,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     break;
                 }
                 Ok(QpOutcome::NotPositiveDefinite) => {
+                    r.report.qp_not_positive_definite += 1;
                     // Damping keeps B positive definite in exact arithmetic,
                     // but rounding in the explicit update can leave it
                     // indefinite. The backend's exact check is the only

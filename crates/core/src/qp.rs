@@ -376,6 +376,11 @@ pub trait QpBackend {
 
     /// Solves `model`. [`Error`] is reserved for invalid input and backend
     /// failures; see [`QpOutcome`] for regular outcomes.
+    ///
+    /// A backend that needs a positive-definite Hessian must check every model
+    /// exactly and report a failure as [`QpOutcome::NotPositiveDefinite`],
+    /// not as an error. The SQP driver does not factorize its BFGS matrix: it
+    /// relies on this outcome to reset the matrix, as after a failed update.
     fn solve(
         &mut self,
         model: &QpModel,

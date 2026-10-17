@@ -9,7 +9,7 @@ The delivery built and passed its 91 Rust tests, doctest and 97 Python tests. Th
 
 **One regression: an indefinite B aborted the solve above 16 variables.** Iteration 3 replaced the fresh Cholesky check of each BFGS update with a rank-updated factor. That factor tracks a nearby matrix, not the rounded B that the QP receives. When cancellation in the explicit rank-two terms left B indefinite, the factor still looked valid, the QP adapter rejected B with `Unsupported`, and the whole solve failed. On `main` the same B was caught at the update and reset. The delivery saw this at n = 2 (seed 4, case 86) and kept fresh checks for n ≤ 16 only. Padded with 20 decoupled variables, the same problem fails on the delivered release in three different weightings and converges on `main` (`crates/sqp/tests/hessian_gate.rs`, `tests/test_performance_options.py`).
 
-**Fix, and one positive-definiteness check per iteration instead of two.** The adapter already ran an exact check on every B it received. It now returns `QpOutcome::NotPositiveDefinite` instead of an error and keeps its cached workspace and conversion data. The driver then resets B and re-solves, as after a failed update. Full-mode BFGS therefore no longer factorizes at all: the factor, the rank updates, the 32-update refresh and the n ≤ 16 rule are removed. Explicit blocks keep their exact per-block check, so a failed block still switches to full BFGS at the update.
+**Fix, and one positive-definiteness check per iteration instead of two.** The adapter already ran an exact check on every B it received. It now returns `QpOutcome::NotPositiveDefinite` instead of an error and keeps its cached workspace and conversion data. The driver then resets B and re-solves, as after a failed update, and counts the event in `RunReport.qp_not_positive_definite` (also in Python). `QpBackend::solve` documents this as the contract for every backend that needs a positive-definite Hessian, and scripted-backend tests pin the driver's handling: one rejection resets B and re-solves the same QP, and repeated rejections stop with `numerical_failure` once the reset budget is spent. Full-mode BFGS therefore no longer factorizes at all: the factor, the rank updates, the 32-update refresh and the n ≤ 16 rule are removed. Explicit blocks keep their exact per-block check, so a failed block still switches to full BFGS at the update.
 
 **Conversion back to baseline cost.** The adapter's check allocated a fresh 215 KB dense matrix per QP at n = 164, above glibc's mmap threshold, and ran the dominance sums as a separate pass. On dense BFGS matrices those sums never succeed. The check now reuses one buffer, folds the sums into the copy, and stops them at the first row that fails.
 
@@ -33,7 +33,7 @@ The delivered release gives the same results on all of these as well. Fat LTO an
 
 Local validation of the review (Rust 1.97.0, CPython 3.13, maturin 1.15.0):
 
-- `scripts/check.sh` from a clean build passes: fmt, Clippy `-D warnings`, 94 Rust tests + 1 doctest in debug, the examples, and 98 Python tests.
+- `scripts/check.sh` from a clean build passes: fmt, Clippy `-D warnings`, 96 Rust tests + 1 doctest in debug, the examples, and 98 Python tests.
 - `cargo doc` with `-D warnings` and `mypy --strict` both pass.
 - A fresh-venv release wheel passes all 98 tests.
 - The dummy-only wheel passes the 42 contract tests.
@@ -41,6 +41,7 @@ Local validation of the review (Rust 1.97.0, CPython 3.13, maturin 1.15.0):
 The new tests:
 
 - the padded regression in Rust and Python, which fails on the delivered release;
+- the driver's handling of a scripted backend that rejects one QP, or every QP after the first;
 - the adapter's outcome and cache retention on a non-positive-definite Hessian;
 - the check's reused buffer across dimension and pattern changes;
 - the exact per-block check.

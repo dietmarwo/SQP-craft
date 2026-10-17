@@ -155,7 +155,9 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    every `B` it receives exactly (the Clarabel adapter by Cholesky) and returns
    `NotPositiveDefinite`; the driver then resets `B` to `scale·I` and re-solves
    that QP, as after a failed update (non-finite values or non-positive
-   curvature after damping). Both consume the Hessian reset budget.
+   curvature after damping). Both consume the Hessian reset budget;
+   `RunReport.qp_not_positive_definite` counts the rejected QPs. Without
+   budget the solve stops as `numerical_failure`.
 
 If the predicted decrease is not positive, `B` is reset once and the QP
 retried. If it is still not positive but its magnitude is within the QP's own
@@ -309,7 +311,9 @@ diagonally dominant one is accepted by an upward-rounded Gershgorin test, a
 pattern that splits into disconnected components is factorized per component,
 and any other by a dense Cholesky factorization. A failure is returned as
 `QpOutcome::NotPositiveDefinite`, keeping the cached workspace and
-conversion data, so the caller's re-solve reuses them. Each finite side of a row or variable bound becomes one
+conversion data, so the caller's re-solve reuses them. Every backend that
+needs a positive-definite Hessian must do the same (see `QpBackend::solve`):
+the driver does not factorize `B` itself. Each finite side of a row or variable bound becomes one
 nonnegative-cone row (`a·p ≤ u` as `(a, u)`, `a·p ≥ l` as `(−a, −l)`); equal
 bounds become a zero-cone row; free sides produce no row. Clarabel's duals
 `z ≥ 0` satisfy `Hp + g + Aᵀz = 0`, so `λ = z_lower − z_upper`, and `−z` for an

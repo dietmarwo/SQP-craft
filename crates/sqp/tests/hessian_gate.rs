@@ -9,9 +9,10 @@
 //! padded with decoupled variables to n = 22, shows it.
 
 use sqp_craft::kkt::nlp_residuals;
+use sqp_craft::qp::{QpBackend, QpModel, QpOptions, QpOutcome, QpReport, QpWarmStart};
 use sqp_craft::{
-    Bounds, CancellationToken, CsrPattern, NlpProblem, Options, ProblemSpec, Result, SqpSolver,
-    Status,
+    Bounds, CancellationToken, CsrPattern, NlpProblem, Options, ProblemSpec, Result, SolveResult,
+    SqpSolver, Status,
 };
 use sqp_craft_clarabel::ClarabelQp;
 use sqp_craft_solver::{NativeSqp, SqpOptions};
@@ -150,4 +151,155 @@ fn an_update_that_rounds_indefinite_resets_b_instead_of_failing_the_solve() {
     }
     // Five of the six runs reset B at least once after the QP gate fired.
     assert!(resets >= 1, "the gate was not exercised");
+}
+
+/// Delegates to Clarabel but reports `NotPositiveDefinite` for the listed
+/// (zero-based) calls, without touching the inner backend.
+struct ScriptedGate {
+    inner: ClarabelQp,
+    reject: Vec<usize>,
+    calls: usize,
+    hessians: Vec<Vec<f64>>,
+}
+
+impl ScriptedGate {
+    fn rejecting(reject: Vec<usize>) -> Self {
+        Self {
+            inner: ClarabelQp::default(),
+            reject,
+            calls: 0,
+            hessians: vec![],
+        }
+    }
+}
+
+impl QpBackend for ScriptedGate {
+    fn configure(&mut self, options: &QpOptions) -> Result<()> {
+        self.inner.configure(options)
+    }
+    fn report(&self) -> QpReport {
+        self.inner.report()
+    }
+    fn solve(
+        &mut self,
+        model: &QpModel,
+        warm: Option<&QpWarmStart>,
+        cancel: &CancellationToken,
+    ) -> Result<QpOutcome> {
+        let call = self.calls;
+        self.calls += 1;
+        self.hessians.push(model.hessian_lower.values.clone());
+        if self.reject.contains(&call) {
+            return Ok(QpOutcome::NotPositiveDefinite);
+        }
+        self.inner.solve(model, warm, cancel)
+    }
+}
+
+/// Σ (i + 1)(x_i − i/2)² subject to Σ x_i = 2, x ∈ [−2, 2]⁶: convex and
+/// benign, so a plain run sees no rejection; BFGS needs several steps.
+struct Weighted;
+
+impl NlpProblem for Weighted {
+    fn functions(&mut self, x: &[f64], c: &mut [f64]) -> Result<f64> {
+        c[0] = x.iter().sum();
+        Ok(x.iter()
+            .enumerate()
+            .map(|(i, v)| (i + 1) as f64 * (v - i as f64 / 2.0).powi(2))
+            .sum())
+    }
+    fn derivatives(&mut self, x: &[f64], g: &mut [f64], j: &mut [f64]) -> Result<()> {
+        for (i, gi) in g.iter_mut().enumerate() {
+            *gi = 2.0 * (i + 1) as f64 * (x[i] - i as f64 / 2.0);
+        }
+        j.fill(1.0);
+        Ok(())
+    }
+}
+
+fn weighted_spec() -> ProblemSpec {
+    ProblemSpec::new(
+        Bounds::new(vec![-2.0; 6], vec![2.0; 6]),
+        Bounds::fixed(vec![2.0]),
+        CsrPattern::dense(1, 6),
+    )
+    .unwrap()
+}
+
+fn solve_with(gate: ScriptedGate, max_hessian_resets: u32) -> (SolveResult, ScriptedGate) {
+    let spec = weighted_spec();
+    let mut solver = NativeSqp {
+        qp: gate,
+        settings: SqpOptions {
+            max_iterations: 300,
+            max_hessian_resets,
+            ..SqpOptions::default()
+        },
+    };
+    let r = solver
+        .solve(
+            &spec,
+            &mut Weighted,
+            &[0.0; 6],
+            &Options::default(),
+            &CancellationToken::default(),
+            None,
+        )
+        .unwrap();
+    (r, solver.qp)
+}
+
+#[test]
+fn a_rejected_hessian_is_reset_and_the_same_qp_is_solved_again() {
+    let (plain, _) = solve_with(ScriptedGate::rejecting(vec![]), 3);
+    assert_eq!(plain.status, Status::Converged, "{}", plain.message);
+    assert_eq!(
+        (
+            plain.report.qp_not_positive_definite,
+            plain.report.hessian_resets
+        ),
+        (0, 0)
+    );
+    assert!(plain.iterations >= 3, "{} iterations", plain.iterations);
+    assert_eq!(plain.report.qp_solves, plain.iterations + 1);
+    // Reject the third QP: B has had two BFGS updates by then.
+    let (r, gate) = solve_with(ScriptedGate::rejecting(vec![2]), 3);
+    assert_eq!(r.status, Status::Converged, "{}", r.message);
+    assert_eq!(
+        (r.report.qp_not_positive_definite, r.report.hessian_resets),
+        (1, 1)
+    );
+    assert_eq!(r.report.qp_solves, gate.calls as u64);
+    // The re-solve is the same QP with B = scale·I, and the rejected call
+    // is not an iteration: the solve takes one call more than iterations
+    // need (the plain run makes iterations + 1 calls, the last one at the
+    // converged point).
+    let identity: Vec<f64> = (0..6)
+        .flat_map(|i| (0..=i).map(move |j| if i == j { 1.0 } else { 0.0 }))
+        .collect();
+    assert_ne!(gate.hessians[2], identity);
+    assert_eq!(gate.hessians[3], identity);
+    assert_eq!(gate.calls as u64, r.iterations + 2);
+    let k = nlp_residuals(
+        &weighted_spec(),
+        r.candidate.as_ref().unwrap(),
+        r.evaluation.as_ref().unwrap(),
+        r.multipliers.as_ref().unwrap(),
+    )
+    .unwrap();
+    assert!(k.primal <= 1e-7 && k.stationarity <= 1e-6, "{k:?}");
+    let f = r.evaluation.as_ref().unwrap().objective;
+    assert!((f - plain.evaluation.as_ref().unwrap().objective).abs() < 1e-9);
+}
+
+#[test]
+fn repeated_rejections_stop_when_the_reset_budget_is_spent() {
+    // Every QP after the first is rejected; two resets are allowed.
+    let (r, gate) = solve_with(ScriptedGate::rejecting((1..100).collect()), 2);
+    assert_eq!(r.status, Status::NumericalFailure, "{}", r.message);
+    assert!(r.message.contains("not positive definite"), "{}", r.message);
+    assert_eq!(r.report.hessian_resets, 2);
+    assert_eq!(r.report.qp_not_positive_definite, 3);
+    assert_eq!(gate.calls, 4);
+    assert_eq!(r.iterations, 1);
 }
