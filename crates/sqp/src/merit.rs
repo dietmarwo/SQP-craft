@@ -113,14 +113,20 @@ impl AugmentedLagrangian {
             q[i] = -r * rate;
             base = finite(base - pi_step[i] * r - self.pi[i] * rate, "merit slope")?;
         }
-        // (LSPρ): minimize ½‖ρ‖² subject to φ′(0) = −½pᵀBp, ρ ≥ 0. With
-        // ξ = base + ½pᵀBp the solution is ρ* = ξ q⁺/‖q⁺‖² (0 if ξ ≤ 0).
+        // (LSPρ) asks for the minimum-norm ρ ≥ 0 with φ′(0) = −½pᵀBp. The
+        // penalty term ½ρ(1 − α)²r² falls by only ½ρr² over the unit step,
+        // half of what its slope promises, so here the slope must also cover
+        // that remainder: φ′(0) + ½Σρᵢqᵢ = −½pᵀBp, that is Σρᵢqᵢ = 2ξ with
+        // ξ = base + ½pᵀBp, and ρ* = 2ξ q⁺/‖q⁺‖² (0 if ξ ≤ 0). With the
+        // paper's ρ*, the unit step failed near solutions whenever the lagging
+        // multiplier estimate made `base` positive (100 of 1,500 stress
+        // problems with Clarabel, 19% more callbacks with the active-set QP).
         let xi = base + 0.5 * pbp;
         let norm2: f64 = q.iter().map(|&v| v.max(0.0).powi(2)).sum();
         let mut rho = vec![0.0; m];
         for i in 0..m {
             let star = if xi > 0.0 && norm2 > 0.0 {
-                xi * q[i].max(0.0) / norm2
+                2.0 * xi * q[i].max(0.0) / norm2
             } else {
                 0.0
             };
@@ -262,15 +268,24 @@ mod tests {
     #[test]
     fn the_penalty_is_the_minimum_norm_solution_and_its_decrease_is_damped() {
         // One violated equality c = 3 > 1 with π = π̄ = 0 and gᵀp = 1, a step
-        // that satisfies the linearization: r = 2, r′ = −2, q = 4, and
-        // φ′(0) = 1 − 4ρ ≤ −½pᵀBp = −0.5 needs ρ* = 1.5/4.
+        // that satisfies the linearization: r = 2, r′ = −2, q = 4. The unit
+        // step changes the merit by 1 − ½·4ρ, which must be at most
+        // −½pᵀBp = −0.5: ρ* = 2·1.5/4, and then φ′(0) = 1 − 4ρ* = −2.
         let bounds = Bounds::new(vec![1.0], vec![1.0]);
         let al = AugmentedLagrangian::new(1);
         let search = al
             .search(&bounds, 0.0, &[3.0], &[1.0], 1.0, 1.0, &[0.0], &[])
             .unwrap();
-        assert!((search.rho[0] - 0.375).abs() < 1e-15);
-        assert!((search.predicted - 0.5).abs() < 1e-15);
+        assert!((search.rho[0] - 0.75).abs() < 1e-15);
+        assert!((search.predicted - 2.0).abs() < 1e-15);
+        // With f linear along p (f = gᵀp = 1 at the unit step, where r = 0)
+        // the merit falls by exactly ½pᵀBp over the unit step.
+        let unit = search.value_at(&al.pi, 1.0, 1.0, &[1.0]).unwrap();
+        assert!(
+            (search.value - unit - 0.5).abs() < 1e-15,
+            "{} {unit}",
+            search.value
+        );
         // A large old penalty is kept below 4(ρ* + Δρ), and moved to the
         // geometric mean of ρ and ρ* + Δρ above it.
         let mut al = AugmentedLagrangian::new(1);
@@ -283,7 +298,7 @@ mod tests {
         let search = al
             .search(&bounds, 0.0, &[3.0], &[1.0], 1.0, 1.0, &[0.0], &[])
             .unwrap();
-        assert!((search.rho[0] - (100.0_f64 * 1.375).sqrt()).abs() < 1e-12);
+        assert!((search.rho[0] - (100.0_f64 * 1.75).sqrt()).abs() < 1e-12);
         // Δρ doubles when ‖ρ‖ turns from increasing to decreasing.
         let mut al = AugmentedLagrangian::new(1);
         let up = Search {
