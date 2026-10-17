@@ -48,12 +48,14 @@ infeasibility certificate.
 
 Clarabel was also run on the new complementarity family
 (`examples/stress_mpcc.py`). Its QPs there are degenerate: it converges in
-531 of 600 problems, against 600 for the active-set backend. It also makes
+531 of 600 problems, against 600 for the active-set backend. It also made
 **one false convergence claim** (seed 1, case 80). The QP multipliers reach
 about 5·10⁹, so the stationarity residual is at its own rounding level:
 9.5·10⁻⁷ in Rust and 1.2·10⁻⁶ in the NumPy evaluator, against the
-tolerance 10⁻⁶. This is independent of elastic mode and is recorded in
-[gaps.md](gaps.md).
+tolerance 10⁻⁶. That is independent of elastic mode. The convergence test
+now requires residuals to clear their rounding level (see
+[gaps.md](gaps.md) and the API's convergence test), and the case converges
+properly: 532 of 600.
 
 ## Method
 

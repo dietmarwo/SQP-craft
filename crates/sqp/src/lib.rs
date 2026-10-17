@@ -533,6 +533,55 @@ fn lagrangian_gradient(spec: &ProblemSpec, e: &Evaluation, m: &Multipliers) -> R
 /// Any multiplier vector gives an upper bound on the best first-order residual
 /// at the point, so this is meaningful even when `m` comes from the QP solved
 /// at the previous iterate.
+/// Rounding levels of the stationarity and complementarity residuals at `x`
+/// with multipliers `m`: what floating-point evaluation of
+/// `∇f − Jᵀλ − z` and of `|μ|·distance` can contribute on its own. Entry `j`
+/// of the stationarity sums `k_j + 2` terms (`k_j` rows use variable `j`),
+/// so its error is at most about `(k_j + 2) ε (|∇f_j| + Σ_i |J_ij λ_i| + |z_j|)`;
+/// a distance `v − b` is exact to `ε (|v| + |b|)`.
+///
+/// A residual within its tolerance only by less than this level is not
+/// evidence of a first-order point: with multipliers of 5·10⁹ (an
+/// interior-point QP on a degenerate problem) the stationarity residual is
+/// pure rounding at 10⁻⁶.
+fn rounding_levels(spec: &ProblemSpec, x: &[f64], e: &Evaluation, m: &Multipliers) -> (f64, f64) {
+    let n = spec.n();
+    let mut size: Vec<f64> = (0..n)
+        .map(|j| e.gradient[j].abs() + m.variables[j].abs())
+        .collect();
+    let mut terms = vec![2.0_f64; n];
+    let jacobian = spec.jacobian();
+    for (i, &lambda) in m.constraints.iter().enumerate() {
+        for a in jacobian.indptr[i]..jacobian.indptr[i + 1] {
+            let j = jacobian.indices[a];
+            size[j] += (e.jacobian_values[a] * lambda).abs();
+            terms[j] += 1.0;
+        }
+    }
+    let stationarity = size
+        .iter()
+        .zip(&terms)
+        .fold(0.0_f64, |a, (s, t)| a.max(t * f64::EPSILON * s));
+    let mut complementarity = 0.0_f64;
+    for (values, bounds, mu) in [
+        (&e.constraints[..], spec.constraints(), &m.constraints[..]),
+        (x, spec.variables(), &m.variables[..]),
+    ] {
+        for (i, (&v, &mu)) in values.iter().zip(mu).enumerate() {
+            let bound = if mu > 0.0 {
+                bounds.lower[i]
+            } else {
+                bounds.upper[i]
+            };
+            if mu != 0.0 && bound.is_finite() {
+                complementarity =
+                    complementarity.max(mu.abs() * f64::EPSILON * (v.abs() + bound.abs()));
+            }
+        }
+    }
+    (stationarity, complementarity)
+}
+
 fn store_residuals(spec: &ProblemSpec, r: &mut SolveResult, m: Multipliers) -> Result<()> {
     let (Some(x), Some(e)) = (r.candidate.as_ref(), r.evaluation.as_ref()) else {
         return Ok(());
@@ -874,9 +923,17 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 max_penalty: 0.0,
                 qp_iterations,
             };
+            // The residuals must clear their tolerances by their own rounding
+            // level, or the claim rests on rounding noise.
+            let (stationarity_level, complementarity_level) = rounding_levels(
+                spec,
+                r.candidate.as_ref().expect("evaluated"),
+                e,
+                r.multipliers.as_ref().expect("stored"),
+            );
             if e.primal_violation <= options.feasibility_tolerance
-                && stationarity <= settings.stationarity_tolerance
-                && complementarity <= settings.complementarity_tolerance
+                && stationarity + stationarity_level <= settings.stationarity_tolerance
+                && complementarity + complementarity_level <= settings.complementarity_tolerance
                 && r.dual_sign.expect("stored") <= settings.dual_sign_tolerance
             {
                 if settings.record_history {
@@ -1181,6 +1238,42 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rounding_levels_scale_with_the_terms_of_each_residual() {
+        // One row with J = (1e-12, 2) and λ = −4e9. Variable 0's stationarity
+        // sums |1| + |1e-12 · 4e9| + |0.5|, variable 1's |−3| + |2 · 4e9|.
+        let spec = ProblemSpec::new(
+            Bounds::new(vec![0.0, 0.0], vec![10.0, 10.0]),
+            Bounds::new(vec![f64::NEG_INFINITY], vec![0.0]),
+            CsrPattern::dense(1, 2),
+        )
+        .unwrap();
+        let e = Evaluation {
+            objective: 0.0,
+            constraints: vec![2e-12],
+            gradient: vec![1.0, -3.0],
+            jacobian_values: vec![1e-12, 2.0],
+            primal_violation: 2e-12,
+            feasible_candidate: true,
+        };
+        let m = Multipliers {
+            constraints: vec![-4e9],
+            variables: vec![0.5, 0.0],
+        };
+        let (stationarity, complementarity) = rounding_levels(&spec, &[2.0, 1e-12], &e, &m);
+        // Three terms for each variable: one row, ∇f and z.
+        let expected = 3.0 * f64::EPSILON * (3.0 + 8e9);
+        assert!(
+            (stationarity / expected - 1.0).abs() < 1e-12,
+            "{stationarity}"
+        );
+        assert!(stationarity > 5e-6);
+        // |λ|·ε·(|c| + |u|) for the row, 0.5·ε·(2 + 0) for x0 at its lower bound.
+        let row = 4e9 * f64::EPSILON * 2e-12;
+        let variable = 0.5 * f64::EPSILON * 2.0;
+        assert_eq!(complementarity, row.max(variable));
+    }
 
     #[test]
     fn explicit_curvature_blocks_preserve_spd_and_sparse_pattern() {

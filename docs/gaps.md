@@ -86,15 +86,18 @@ A first addition beyond SLSQP's families: 600 random problems with
 complementarity constraints (`examples/stress_mpcc.py`), where the
 Mangasarian–Fromovitz condition fails at every feasible point.
 - The active-set backend solves all 600, with or without elastic mode.
-- Clarabel solves 531. It ends 62 with `qp_failure`, 5 with
-  `numerical_failure` and 1 with `line_search_failure`.
-- Clarabel also makes one false convergence claim (seed 1, case 80): its QP
-  multipliers reach 5·10⁹, so the stationarity residual is at its own
-  rounding level (9.5·10⁻⁷ in Rust, 1.2·10⁻⁶ in the independent NumPy
-  evaluator, against a tolerance of 10⁻⁶).
-
-The convergence test should not accept a residual below its own rounding
-level. That is a separate fix.
+- Clarabel solves 532. It ends 62 with `qp_failure`, 5 with
+  `numerical_failure` and 1 with `line_search_failure`: its interior-point
+  QPs are degenerate here.
+- Clarabel made one false convergence claim (seed 1, case 80) before the
+  convergence test required the stationarity and complementarity residuals
+  to clear their tolerances by their own rounding level. Its QP multipliers
+  reach 5·10⁹, so the stationarity residual was rounding noise: 9.5·10⁻⁷ in
+  Rust and 1.2·10⁻⁶ in the independent NumPy evaluator, against a tolerance
+  of 10⁻⁶. With the guard the solve continues to a point the evaluator
+  accepts.
+- The 9,000 stress runs of both backends are bit-identical with and without
+  the guard.
 
 ## What to keep
 

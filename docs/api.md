@@ -142,8 +142,16 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    step-length cap `(u − x)/p` cut the whole step to almost zero.
 2. **Convergence test** at `x_k` with the QP's fresh multipliers: `converged`
    only if primal violation, stationarity, complementarity and dual-sign
-   residuals are all within their tolerances. A small step, a small objective
-   change or QP success alone never ends the solve.
+   residuals are all within their tolerances. The stationarity and
+   complementarity residuals must clear their tolerances by their own
+   rounding level, about `(k_j + 2) ε (|∇f_j| + Σ_i |J_ij λ_i| + |z_j|)` for
+   entry `j` of `∇f − Jᵀλ − z` (`k_j` rows use variable `j`) and
+   `|μ| ε (|v| + |b|)` for a product `|μ|·|v − b|`. Otherwise huge
+   multipliers make the residual rounding noise: an interior-point QP on a
+   complementarity problem produced multipliers of 5·10⁹ and a stationarity
+   residual of 9.5·10⁻⁷ that an independent NumPy evaluation put at
+   1.2·10⁻⁶. A small step, a small objective change or QP success alone never
+   ends the solve.
 3. **Merit line search.** Per-row penalty weights follow Powell's rule
    `μ_i ← max(t_i, ½(μ_i + t_i))` with `t_i = 1.1·|λ_i|` (`μ_i = t_i` at the
    first QP), so a large early multiplier does not keep the penalty large for
