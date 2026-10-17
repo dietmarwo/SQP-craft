@@ -156,6 +156,12 @@ class SqpOptions:
     minimum-norm penalties). The latter is differentiable and is not combined
     with ``second_order_correction``; elastic steps that leave rows violated use
     the l1 merit."""
+    scaling: Literal["none", "linear", "jacobian"] = "none"
+    """Scaling of the QP subproblems and the BFGS matrix by powers of two:
+    ``"linear"`` from the rows declared linear (SNOPT's Scale option 1; the
+    identity without such rows), ``"jacobian"`` from every row's Jacobian at the
+    first point on the linear rows (Scale option 2). The merit, the line search
+    and the convergence test stay in original units."""
     violation_limit: Optional[float] = None
     """SNOPT's ``τ_V ≥ 1``: reject a trial point that violates some row by more
     than ``τ_V · max(1, its violation at the start)`` before evaluating its
@@ -276,6 +282,8 @@ class RunReport:
     elastic_weight: Optional[float]
     elastic_weight_increases: int
     linear_projection: bool
+    variable_scales: list[float]
+    row_scales: list[float]
     violation_limit_rejections: int
     second_order_corrections: int
     second_order_steps: int

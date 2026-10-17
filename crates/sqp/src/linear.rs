@@ -50,11 +50,13 @@ pub(super) fn rows(spec: &ProblemSpec, e: &Evaluation) -> Result<(CsrMatrix, Bou
 }
 
 /// SNOPT's proximal-point problem (PP2) at `x`: the smallest step
-/// `min ½‖p‖²` onto the rows declared linear within the variable bounds.
-fn proximal(spec: &ProblemSpec, x: &[f64], e: &Evaluation) -> Result<QpModel> {
+/// `min ½‖p̃‖²` (in scaled variables) onto the rows declared linear within
+/// the variable bounds.
+fn proximal(spec: &ProblemSpec, x: &[f64], e: &Evaluation, scales: &Scales) -> Result<QpModel> {
     let n = spec.n();
     let (matrix, rows) = rows(spec, e)?;
-    Ok(QpModel {
+    let ones = vec![1.0; rows.len()];
+    let mut q = QpModel {
         hessian_lower: CsrMatrix {
             pattern: CsrPattern {
                 rows: n,
@@ -68,12 +70,17 @@ fn proximal(spec: &ProblemSpec, x: &[f64], e: &Evaluation) -> Result<QpModel> {
         variables: shifted(spec.variables(), x)?,
         matrix,
         rows,
-    })
+    };
+    if !scales.is_identity() {
+        scales.scale_qp(&mut q, &ones);
+    }
+    Ok(q)
 }
 
 /// Moves the start point onto the rows declared linear. `None` means the
 /// candidate was replaced by the projected, fully evaluated point; `Some` is
 /// a terminal status.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn project<B: QpBackend>(
     backend: &mut B,
     spec: &ProblemSpec,
@@ -82,6 +89,7 @@ pub(super) fn project<B: QpBackend>(
     result: &mut SolveResult,
     options: &Options,
     acceptance: f64,
+    scales: &Scales,
 ) -> Result<Option<Status>> {
     let settings = calls.settings;
     let x = result.candidate.clone().expect("complete point");
@@ -89,6 +97,7 @@ pub(super) fn project<B: QpBackend>(
         spec,
         &x,
         result.evaluation.as_ref().expect("complete point"),
+        scales,
     )?;
     backend.configure(&QpOptions {
         reuse_workspace: false,
@@ -135,12 +144,15 @@ pub(super) fn project<B: QpBackend>(
         &q.variables,
         spec.variables(),
         options.feasibility_tolerance,
+        &scales.variables,
         &mut result.report,
     );
     if !q.accepts(&solution, acceptance)?.accepted {
         result.message = "the proximal-point QP failed independent acceptance".into();
         return Ok(Some(Status::QpFailure));
     }
+    let ones = vec![1.0; q.m()];
+    scales.unscale_solution(&mut solution, &ones);
     let start = trial_point(spec.variables(), &x, &solution.step, 1.0);
     spec.check_point(&start, "projected start point")?;
     if let Some(s) = calls.before_call() {

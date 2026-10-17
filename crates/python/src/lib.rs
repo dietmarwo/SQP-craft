@@ -495,6 +495,11 @@ fn solve_native<'py>(
                                     sqp_craft_solver::Merit::parse(&name).map_err(to_py_err)?;
                             }
                             "violation_limit" => settings.violation_limit = value.extract()?,
+                            "scaling" => {
+                                let name: String = value.extract()?;
+                                settings.scaling =
+                                    sqp_craft_solver::Scaling::parse(&name).map_err(to_py_err)?;
+                            }
                             "hessian_update" => {
                                 let name: String = value.extract()?;
                                 settings.hessian_update =
@@ -583,6 +588,8 @@ fn solve_native<'py>(
         r.report.elastic_weight_increases,
     )?;
     report.set_item("linear_projection", r.report.linear_projection)?;
+    report.set_item("variable_scales", &r.report.variable_scales)?;
+    report.set_item("row_scales", &r.report.row_scales)?;
     report.set_item(
         "violation_limit_rejections",
         r.report.violation_limit_rejections,

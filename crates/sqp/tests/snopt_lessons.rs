@@ -8,7 +8,7 @@ use sqp_craft::{
 };
 use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
-use sqp_craft_solver::{HessianUpdate, Merit, NativeSqp, SqpOptions};
+use sqp_craft_solver::{HessianUpdate, Merit, NativeSqp, Scaling, SqpOptions};
 
 /// Nocedal & Wright, Example 15.4: min 2(x₁² + x₂² − 1) − x₁ subject to
 /// x₁² + x₂² = 1, solved by x = (1, 0). The Lagrangian Hessian at the
@@ -537,4 +537,139 @@ fn a_row_wrongly_declared_linear_is_an_error() {
         matches!(&error, sqp_craft::Error::InvalidInput(m) if m.contains("row 1 is declared linear")),
         "{error}"
     );
+}
+
+/// The Maratos example in bad units, x = (10³u, 10⁻³v) and the row times
+/// 100: the start (1.5·cos 2, 1.5·sin 2) on a circle of radius 1.5.
+struct BadUnits;
+
+impl NlpProblem for BadUnits {
+    fn functions(&mut self, x: &[f64], c: &mut [f64]) -> Result<f64> {
+        let (a, b) = (1e3 * x[0], 1e-3 * x[1]);
+        let q = a * a + b * b;
+        c[0] = 1e2 * q;
+        Ok(2.0 * (q - 1.0) - a)
+    }
+    fn derivatives(&mut self, x: &[f64], g: &mut [f64], j: &mut [f64]) -> Result<()> {
+        let (a, b) = (1e3 * x[0], 1e-3 * x[1]);
+        g.copy_from_slice(&[1e3 * (4.0 * a - 1.0), 1e-3 * 4.0 * b]);
+        j.copy_from_slice(&[1e2 * 2.0 * a * 1e3, 1e2 * 2.0 * b * 1e-3]);
+        Ok(())
+    }
+}
+
+fn bad_units() -> (ProblemSpec, [f64; 2]) {
+    let spec = ProblemSpec::new(
+        Bounds::free(2),
+        Bounds::fixed(vec![1e2]),
+        CsrPattern::dense(1, 2),
+    )
+    .unwrap();
+    (spec, [2.0_f64.cos() * 1.5e-3, 2.0_f64.sin() * 1.5e3])
+}
+
+fn scaled(scaling: Scaling) -> SqpOptions {
+    SqpOptions {
+        scaling,
+        record_history: true,
+        max_iterations: 300,
+        ..SqpOptions::default()
+    }
+}
+
+#[test]
+fn jacobian_scaling_undoes_bad_units_and_keeps_original_unit_residuals() {
+    let (spec, start) = bad_units();
+    for backend in ["active-set", "clarabel"] {
+        let run = |settings| match backend {
+            "active-set" => solve::<ActiveSetQp>(&spec, &mut BadUnits, &start, settings),
+            _ => solve::<ClarabelQp>(&spec, &mut BadUnits, &start, settings),
+        };
+        let plain = run(scaled(Scaling::None));
+        let r = run(scaled(Scaling::Jacobian));
+        converged(&plain);
+        converged(&r);
+        assert!(
+            r.iterations * 2 < plain.iterations,
+            "{backend}: {} vs {}",
+            r.iterations,
+            plain.iterations
+        );
+        // Powers of two near the units: 2⁻⁹ ≈ 10⁻³ and 2⁹ ≈ 10³.
+        assert_eq!(
+            r.report.variable_scales,
+            vec![2.0_f64.powi(-9), 2.0_f64.powi(9)]
+        );
+        assert_eq!(r.report.row_scales.len(), 1);
+        assert!(plain.report.variable_scales.is_empty());
+        // The convergence claim is in original units.
+        let k = sqp_craft::kkt::nlp_residuals(
+            &spec,
+            r.candidate.as_ref().unwrap(),
+            r.evaluation.as_ref().unwrap(),
+            r.multipliers.as_ref().unwrap(),
+        )
+        .unwrap();
+        assert!(
+            k.primal <= 1e-7 && k.stationarity <= 1e-6 && k.complementarity <= 1e-6,
+            "{k:?}"
+        );
+        let x = r.candidate.as_ref().unwrap();
+        assert!((x[0] - 1e-3).abs() < 1e-12 && x[1].abs() < 1e-6, "{x:?}");
+    }
+}
+
+#[test]
+fn linear_scaling_without_linear_rows_is_the_identity() {
+    let (spec, start) = bad_units();
+    let plain = solve::<ActiveSetQp>(&spec, &mut BadUnits, &start, scaled(Scaling::None));
+    let r = solve::<ActiveSetQp>(&spec, &mut BadUnits, &start, scaled(Scaling::Linear));
+    assert_eq!(r.report.variable_scales, vec![1.0, 1.0]);
+    assert_eq!(r.report.row_scales, vec![1.0]);
+    assert_eq!(r.candidate, plain.candidate);
+    assert_eq!(r.multipliers, plain.multipliers);
+    assert_eq!(r.report.history, plain.report.history);
+}
+
+#[test]
+fn scaling_works_with_elastic_mode_and_declared_linear_rows() {
+    // The elastic weight applies per scaled row.
+    let spec = ProblemSpec::new(
+        Bounds::free(1),
+        Bounds::fixed(vec![1.0]),
+        CsrPattern::dense(1, 1),
+    )
+    .unwrap();
+    let r = solve::<ActiveSetQp>(
+        &spec,
+        &mut Square,
+        &[0.0],
+        SqpOptions {
+            elastic_mode: true,
+            ..scaled(Scaling::Jacobian)
+        },
+    );
+    converged(&r);
+    assert!((r.candidate.as_ref().unwrap()[0] - 1.0).abs() < 1e-9);
+    // Linear scaling of a declared row, with the projection in scaled
+    // variables: (3, −1) moves onto x₀ + x₁ = 1 and converges as before.
+    let plain = solve::<ActiveSetQp>(
+        &line_spec(&[0]),
+        &mut Flat,
+        &[3.0, -1.0],
+        scaled(Scaling::None),
+    );
+    let r = solve::<ActiveSetQp>(
+        &line_spec(&[0]),
+        &mut Flat,
+        &[3.0, -1.0],
+        scaled(Scaling::Linear),
+    );
+    converged(&r);
+    assert!(r.report.linear_projection);
+    let (a, b) = (
+        r.candidate.as_ref().unwrap(),
+        plain.candidate.as_ref().unwrap(),
+    );
+    assert!((a[0] - b[0]).abs() < 1e-6 && (a[1] - b[1]).abs() < 1e-6);
 }

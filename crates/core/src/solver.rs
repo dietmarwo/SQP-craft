@@ -315,6 +315,12 @@ pub struct RunReport {
     /// Trial points rejected by the violation limit before their derivatives
     /// were evaluated.
     pub violation_limit_rejections: u64,
+    /// Variable scale factors `D` (`x = D x̃`), powers of two; empty when
+    /// scaling is off.
+    pub variable_scales: Vec<f64>,
+    /// Row scale factors `R` (`c̃ = R c`), powers of two; empty when scaling
+    /// is off.
+    pub row_scales: Vec<f64>,
     /// The start point violated a row declared linear and was moved onto
     /// those rows by the proximal-point QP before the first iteration.
     pub linear_projection: bool,

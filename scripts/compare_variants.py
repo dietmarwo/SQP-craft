@@ -24,7 +24,11 @@ Families:
 - maratos: 200 starts of Nocedal & Wright's Example 15.4;
 - baseline: the 13 cases of examples/compare_baseline.py;
 - linear: examples/stress_linear.py, seeds 1–2, 600 problems whose model is
-  undefined outside linear rows.
+  undefined outside linear rows;
+- stress-scaled, linear-scaled: the stress and linear problems of seeds 1–2
+  in badly scaled units, x = S x′ and c′ = T c with S and T random powers of
+  ten in [10⁻², 10²];
+- orbit-scaled: 20 such copies of each orbit transfer (N = 20 and 40).
 
 The variant "linear" declares the rows each family knows to be linear:
 - the sum row of the mpcc family;
@@ -62,6 +66,8 @@ VARIANTS: dict[str, dict] = {
     "elastic": dict(elastic_mode=True),
     # Declare the family's linear rows (no solver option).
     "linear": dict(_linear=True),
+    "scale-linear": dict(scaling="linear"),
+    "scale-jacobian": dict(scaling="jacobian"),
 }
 
 COUNTERS = ["bfgs_damped_updates", "bfgs_modified_updates",
@@ -100,6 +106,57 @@ def baseline():
         yield f"{case.name}/{k}", case, rows
 
 
+def rescaled(case: cb.Case, rng, spread: float) -> cb.Case:
+    """`case` in badly scaled units: x = S x', c' = T c with S and T random
+    powers of ten in [10^-spread, 10^spread]."""
+    spec = case.spec
+    _, kwargs = spec.__getnewargs_ex__()
+    np_ = sr.np
+    S = 10.0 ** rng.uniform(-spread, spread, spec.n)
+    T = 10.0 ** rng.uniform(-spread, spread, spec.m)
+    columns = np_.asarray(kwargs["jacobian_indices"], dtype=int)
+    rows = np_.repeat(np_.arange(spec.m), np_.diff(kwargs["jacobian_indptr"]))
+    factor = T[rows] * S[columns]
+
+    def scale(bounds, by):
+        return [b * f if math.isfinite(b) else b for b, f in zip(bounds, by)]
+
+    new = ProblemSpec(**{**kwargs,
+                         "lower": scale(kwargs["lower"], 1 / S), "upper": scale(kwargs["upper"], 1 / S),
+                         "constraint_lower": scale(kwargs["constraint_lower"], T),
+                         "constraint_upper": scale(kwargs["constraint_upper"], T)})
+
+    class Model:
+        def __init__(self):
+            self.inner = case.make_model()
+
+        def functions(self, x):
+            f, c = self.inner.functions(list(S * np_.asarray(x)))
+            return f, list(T * np_.asarray(c, dtype=float))
+
+        def derivatives(self, x):
+            g, j = self.inner.derivatives(list(S * np_.asarray(x)))
+            return list(S * np_.asarray(g, dtype=float)), list(factor * np_.asarray(j, dtype=float))
+
+    start = [min(max(v / s, lo), up) for v, s, lo, up in
+             zip(case.start, S, new.lower, new.upper)]
+    return cb.Case(case.name + "-scaled", new, Model, start, case.reference, case.reference_tolerance,
+                   case.max_iterations)
+
+
+def scaled_family(cases, seed: int, spread: float, copies: int = 1):
+    rng = sr.np.random.default_rng(seed)
+    for key, case, rows in cases:
+        for copy in range(copies):
+            yield f"{key}/{copy}", rescaled(case, rng, spread), rows
+
+
+def orbit_cases():
+    for k, case in enumerate(cb.cases()):
+        if case.name.startswith("orbit"):
+            yield f"{case.name}/{k}", case, [case.spec.m - 2]
+
+
 FAMILIES = {
     "stress": lambda: generated(sr.problem, range(1, 6)),
     "mpcc": lambda: generated(sm.problem, range(1, 3), linear=lambda spec: [spec.m - 1]),
@@ -107,6 +164,11 @@ FAMILIES = {
     "baseline": baseline,
     "linear": lambda: generated(sl.problem, range(1, 3),
                                 linear=lambda spec: list(range(spec.m - 2))),
+    # Badly scaled copies: random powers of ten in [10^-2, 10^2].
+    "stress-scaled": lambda: scaled_family(generated(sr.problem, range(1, 3)), 11, 2.0),
+    "linear-scaled": lambda: scaled_family(
+        generated(sl.problem, range(1, 3), linear=lambda spec: list(range(spec.m - 2))), 12, 2.0),
+    "orbit-scaled": lambda: scaled_family(orbit_cases(), 13, 2.0, copies=20),
 }
 
 
@@ -140,6 +202,8 @@ def run_family(name: str, variants: list[str], qp_solver: str, false_claims: lis
                 key=key, status=r.status, accepted=ok, iterations=r.iterations,
                 callbacks=r.counts.functions + r.counts.derivatives,
                 reference=bool(check and check["accepted"]),
+                scales=(min(r.report.variable_scales, default=1.0),
+                        max(r.report.variable_scales, default=1.0)),
                 counters={c: getattr(r.report, c, 0) for c in COUNTERS},
                 last=steps[-3:] if r.status == "converged" else []))
         results[variant] = records

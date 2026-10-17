@@ -27,6 +27,10 @@ mod bfgs;
 mod linear;
 mod merit;
 mod restoration;
+mod scaling;
+
+use scaling::Scales;
+pub use scaling::Scaling;
 
 use std::time::Instant;
 
@@ -188,6 +192,9 @@ pub struct SqpOptions {
     pub hessian_update: HessianUpdate,
     /// Merit function of the line search.
     pub merit: Merit,
+    /// Scaling of the QP subproblems and the BFGS matrix. The merit, the line
+    /// search and the convergence test stay in original units.
+    pub scaling: Scaling,
     /// SNOPT's violation limit `τ_V ≥ 1`: a trial point whose violation of
     /// some row exceeds `τ_V · max(1, violation of that row at the start)`
     /// is rejected before its derivatives are evaluated. `None` (default)
@@ -228,6 +235,7 @@ impl Default for SqpOptions {
             second_order_correction: false,
             hessian_update: HessianUpdate::Damped,
             merit: Merit::L1,
+            scaling: Scaling::None,
             violation_limit: None,
             record_qp_limit: 0,
             record_history: false,
@@ -501,7 +509,8 @@ fn shifted(bounds: &Bounds, values: &[f64]) -> Result<Bounds> {
 }
 
 /// Moves step components that exceed their QP step bounds by at most
-/// `tolerance` onto the bound, counting each move.
+/// `tolerance` (in original units: `tolerance / scale_j` for a step in
+/// coordinates scaled by `scale`) onto the bound, counting each move.
 ///
 /// Interior-point solutions satisfy bounds only to their tolerance. Near an
 /// active variable bound the remaining room `u − x` can be far smaller than
@@ -513,10 +522,12 @@ fn snap_step(
     step_bounds: &Bounds,
     variables: &Bounds,
     tolerance: f64,
+    scale: &[f64],
     report: &mut sqp_craft::RunReport,
 ) {
     for (j, p) in step.iter_mut().enumerate() {
         let (lo, up) = (step_bounds.lower[j], step_bounds.upper[j]);
+        let tolerance = tolerance / scale[j];
         let target = if *p < lo && lo - *p <= tolerance {
             lo
         } else if *p > up && *p - up <= tolerance {
@@ -856,6 +867,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             .as_ref()
             .filter(|_| spec.has_linear_rows())
             .map(|e| e.jacobian_values.clone());
+        // Scales of the rows declared linear (constant), used from the
+        // projection on; in Jacobian mode recomputed below from every row.
+        let mut scales = match (&r.evaluation, settings.scaling) {
+            (Some(e), Scaling::Linear | Scaling::Jacobian) => {
+                Scales::of(Scaling::Linear, spec, &e.jacobian_values)
+            }
+            _ => Scales::identity(spec.n(), spec.m()),
+        };
         if status.is_none()
             && linear_reference.is_some()
             && linear::violated(
@@ -872,10 +891,20 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 &mut r,
                 options,
                 qp_acceptance,
+                &scales,
             )?;
             if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
                 linear::check_constant(spec, reference, e)?;
             }
+        }
+        // SNOPT's Scale option 2 uses the first point on the linear rows.
+        if let (Scaling::Jacobian, Some(e)) = (settings.scaling, &r.evaluation) {
+            scales = Scales::of(Scaling::Jacobian, spec, &e.jacobian_values);
+        }
+        let scaled_identity = scales.is_identity();
+        if settings.scaling != Scaling::None {
+            r.report.variable_scales.clone_from(&scales.variables);
+            r.report.row_scales.clone_from(&scales.rows);
         }
         // In elastic mode the rows declared linear stay hard.
         let hard_rows = if settings.elastic_mode && spec.has_linear_rows() {
@@ -960,6 +989,10 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             } else {
                 qp_work = Some(qp_model_with_blocks(spec, x, e, &b, effective_block)?);
             }
+            if !scaled_identity {
+                // B is kept in scaled coordinates; scale the rest.
+                scales.scale_qp(qp_work.as_mut().expect("QP initialized"), &scales.rows);
+            }
             let qp = qp_work.as_ref().expect("QP initialized");
             if r.report.qp_trace.len() < settings.record_qp_limit {
                 r.report.qp_trace.push((*qp).clone());
@@ -1002,8 +1035,15 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         break;
                     }
                     let began = Instant::now();
-                    let restored =
-                        restoration::step(&mut self.qp, spec, model, &mut calls, &mut r, options);
+                    let restored = restoration::step(
+                        &mut self.qp,
+                        spec,
+                        model,
+                        &mut calls,
+                        &mut r,
+                        options,
+                        &scales,
+                    );
                     r.report.restoration_seconds += began.elapsed().as_secs_f64();
                     status = restored?;
                     if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
@@ -1098,6 +1138,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 &qp.variables,
                 spec.variables(),
                 options.feasibility_tolerance,
+                &scales.variables,
                 &mut r.report,
             );
             let check = match elastic_weight {
@@ -1117,6 +1158,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     check.scale, check.residuals
                 );
                 break;
+            }
+            if !scaled_identity {
+                scales.unscale_solution(&mut solution, &scales.rows);
             }
 
             // 2. Convergence test at x_k with the fresh multipliers.
@@ -1184,7 +1228,8 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 // At a stationary point of f + γ·violation with violated rows
                 // a larger weight may still reach feasibility; past the last
                 // increase the point is reported as locally infeasible.
-                let k = sqp_craft::kkt::elastic_residuals_with_hard_rows(
+                let weights: Vec<f64> = scales.rows.iter().map(|&r| weight * r).collect();
+                let k = sqp_craft::kkt::elastic_residuals_with_row_weights(
                     &sqp_craft::kkt::KktPoint {
                         x,
                         variable_bounds: spec.variables(),
@@ -1195,7 +1240,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         jacobian_values: &e.jacobian_values,
                     },
                     &solution.multipliers,
-                    weight,
+                    &weights,
                     &hard_rows,
                     options.feasibility_tolerance,
                     &mut relaxed,
@@ -1203,7 +1248,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 )?;
                 // A negligible step says the same as small residuals: the QP
                 // finds x stationary for the penalty.
-                let scale = 1.0 + weight;
+                let scale = 1.0 + weight * scales.largest_row();
                 let tiny = norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x));
                 if tiny
                     || k.stationarity <= settings.stationarity_tolerance
@@ -1243,7 +1288,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     &e.constraints,
                     &linear,
                     dot(&e.gradient, p)?,
-                    curvature_along(&b, p)?,
+                    curvature_along(&b, &scales.to_scaled(p))?,
                     &solution.multipliers.constraints,
                     &skip_rows,
                 )?)
@@ -1275,7 +1320,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     // its step is a descent direction for that merit: rows it
                     // leaves violated (|λ_i| = γ) are weighted by exactly γ.
                     for &i in &elastic_rows {
-                        penalties[i] = weight;
+                        penalties[i] = weight * scales.rows[i];
                     }
                 }
                 record.max_penalty = norm_inf(&penalties);
@@ -1323,9 +1368,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 // so take it if the merit does not rise by more than that
                 // accuracy, a bounded number of times in a row.
                 let qp = check.residuals;
+                // The QP residuals are in scaled units.
                 let noise = (spec.m() + n) as f64 * qp.complementarity
-                    + qp.stationarity * p.iter().map(|v| v.abs()).sum::<f64>()
-                    + sensitivity * spec.m() as f64 * qp.primal;
+                    + qp.stationarity
+                        * p.iter()
+                            .zip(&scales.variables)
+                            .map(|(v, d)| (v / d).abs())
+                            .sum::<f64>()
+                    + sensitivity / scales.smallest_row() * spec.m() as f64 * qp.primal;
                 if -predicted <= noise && noise_steps < MAX_NOISE_STEPS {
                     noise_step = Some(noise);
                 } else {
@@ -1430,7 +1480,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         // Replace c(x) + Jp by c(x + p): the step must also
                         // absorb the curvature of the constraints along p.
                         for (i, &shift) in shift.iter().enumerate() {
-                            let shift = finite(shift, "second-order shift")?;
+                            let shift = finite(shift * scales.rows[i], "second-order shift")?;
                             q.rows.lower[i] -= shift;
                             q.rows.upper[i] -= shift;
                         }
@@ -1460,6 +1510,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                                     &q.variables,
                                     spec.variables(),
                                     options.feasibility_tolerance,
+                                    &scales.variables,
                                     &mut r.report,
                                 );
                                 let check = match elastic_weight {
@@ -1474,6 +1525,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                                         q.accepts_with_workspace(&s, qp_acceptance, &mut qp_checks)?
                                     }
                                 };
+                                if !scaled_identity {
+                                    scales.unscale_solution(&mut s, &scales.rows);
+                                }
                                 check.accepted.then_some(s.step)
                             }
                             // No correction; a stop is noticed before the
@@ -1611,9 +1665,31 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             let new_l = lagrangian_gradient(spec, &next_evaluation, &solution.multipliers)?;
             let y: Vec<f64> = new_l.iter().zip(old_l).map(|(&a, b)| a - b).collect();
             let t = Instant::now();
-            let (change, departure) = match settings.hessian_update {
+            let (mut change, mut departure) = match settings.hessian_update {
                 HessianUpdate::Damped => (Vec::new(), Vec::new()),
                 HessianUpdate::Augmented => curvature_repair(spec, e, &next_evaluation, &s)?,
+            };
+            // B lives in scaled coordinates: s̃ = s/D, ỹ = D y, J̃ = R J D.
+            let (s_scaled, y) = if scaled_identity {
+                (s.clone(), y)
+            } else {
+                let jacobian = spec.jacobian();
+                for i in 0..spec.m() {
+                    for a in jacobian.indptr[i]..jacobian.indptr[i + 1] {
+                        if let Some(c) = change.get_mut(a) {
+                            *c *= scales.rows[i] * scales.variables[jacobian.indices[a]];
+                        }
+                    }
+                    if let Some(d) = departure.get_mut(i) {
+                        *d *= scales.rows[i];
+                    }
+                }
+                let y = y
+                    .iter()
+                    .zip(&scales.variables)
+                    .map(|(v, d)| v * d)
+                    .collect();
+                (scales.to_scaled(&s), y)
             };
             let repair =
                 (settings.hessian_update == HessianUpdate::Augmented).then(|| bfgs::Repair {
@@ -1621,7 +1697,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     change: &change,
                     departure: &departure,
                 });
-            let updated = bfgs_work.update(&mut b, &s, &y, repair.as_ref());
+            let updated = bfgs_work.update(&mut b, &s_scaled, &y, repair.as_ref());
             r.report.bfgs_seconds += t.elapsed().as_secs_f64();
             match updated {
                 Some(CurvatureUpdate::Damped) => r.report.bfgs_damped_updates += 1,
@@ -1869,7 +1945,14 @@ mod tests {
         let mut report = sqp_craft::RunReport::default();
         let mut step = vec![room + 1e-11, -2e-12, 1.5];
         assert!(box_step_limit(&variables, &x, &step) < 0.01);
-        snap_step(&mut step, &step_bounds, &variables, 1e-7, &mut report);
+        snap_step(
+            &mut step,
+            &step_bounds,
+            &variables,
+            1e-7,
+            &[1.0; 3],
+            &mut report,
+        );
         assert_eq!(
             step,
             vec![room, 0.0, 1.5],
