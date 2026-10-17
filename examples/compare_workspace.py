@@ -11,6 +11,7 @@ import platform
 from statistics import median
 
 import compare_baseline as cb
+import scipy
 from sqp_craft import __version__
 
 
@@ -47,7 +48,7 @@ def run(repeats=3):
                             phase_medians={str(reuse): {k: median(r["phases"][k] for r in rows)
                                            for k in rows[0]["phases"]} for reuse, rows in groups.items()}))
     return dict(version=__version__, platform=platform.platform(), python=platform.python_version(),
-                numpy=cb.np.__version__, scipy=cb.scipy.__version__,
+                numpy=cb.np.__version__, scipy=scipy.__version__,
                 thresholds=dict(primal=cb.PRIMAL, stationarity=cb.STATIONARITY,
                                 complementarity=cb.COMPLEMENTARITY, dual_sign=cb.SIGN),
                 acceptance=acceptance, summary=summary, timings=timings)
