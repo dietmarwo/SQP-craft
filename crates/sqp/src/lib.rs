@@ -1,11 +1,19 @@
 //! Native SQP driver: dense damped BFGS, convex QP subproblems behind
 //! [`QpBackend`], and an L1 merit line search with per-constraint penalties.
 //!
-//! A bounded research pilot, not a general solver: at most 256 variables,
+//! A bounded research pilot, not a general solver: at most 256 variables and
 //! local Gauss–Newton restoration for inconsistent linearizations (disable it
-//! with `max_restoration_steps = 0`), no second-order correction and no
-//! automatic scaling. Convergence means the first-order KKT residuals at the
-//! returned point are within the declared tolerances; it is not a global or
+//! with `max_restoration_steps = 0`). Opt-in options add elastic step QPs, a
+//! second-order correction, and four mechanisms taken from SNOPT
+//! (docs/snopt-lessons.md):
+//! - SNOPT's BFGS repair ([`HessianUpdate::Augmented`]);
+//! - an augmented-Lagrangian merit ([`Merit::AugmentedLagrangian`]);
+//! - a violation limit;
+//! - linear rows kept feasible ([`ProblemSpec::with_linear_rows`]);
+//! - scaling ([`Scaling`]).
+//!
+//! Convergence means the first-order KKT residuals at the returned point are
+//! within the declared tolerances, in original units; it is not a global or
 //! second-order optimality certificate.
 //!
 //! Each iteration at `x_k`:
@@ -53,6 +61,9 @@ const ARMIJO: f64 = 1e-4;
 /// keeps the predicted merit decrease positive at infeasible iterates although
 /// interior-point QP solutions stop slightly short of active bounds.
 const PENALTY_MARGIN: f64 = 1.1;
+/// The rounding level of a merit value, in units of `ε` times the size of
+/// its terms (see the augmented-Lagrangian noise steps).
+const MERIT_ROUNDING: f64 = 100.0;
 /// Consecutive steps allowed whose predicted merit decrease is non-positive
 /// only within the QP's accuracy (see the line search).
 const MAX_NOISE_STEPS: u32 = 3;
@@ -1389,6 +1400,18 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         status = Some(Status::NoDescent);
                     }
                     break;
+                }
+            }
+            // The augmented Lagrangian changes only to second order in the
+            // violation. Near a solution its predicted decrease can fall below
+            // the rounding of the merit value itself: an interior-point QP
+            // that leaves a violation of 10⁻⁶ predicts 10⁻¹⁴ with f ≈ 20. Such
+            // a step is taken at full length if the merit does not rise by
+            // more than that rounding level, as a noise-level step.
+            if let (Some(search), None) = (&search, noise_step) {
+                let rounding = MERIT_ROUNDING * f64::EPSILON * search.magnitude;
+                if predicted <= rounding && noise_steps < MAX_NOISE_STEPS {
+                    noise_step = Some(rounding);
                 }
             }
             if let Some(search) = &search {

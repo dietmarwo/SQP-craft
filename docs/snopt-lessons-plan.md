@@ -1,6 +1,6 @@
 # Plan: four lessons from SNOPT
 
-Version 0.15.0, 17 October 2026. The four steps follow the comparison with SNOPT in the
+Version 0.14.0, 17 October 2026 (results: [snopt-lessons.md](snopt-lessons.md)). The four steps follow the comparison with SNOPT in the
 literature survey (project document `claude/sqp-literature-survey.md`). The
 reference throughout is P. E. Gill, W. Murray, M. A. Saunders, *SNOPT: An SQP
 algorithm for large-scale constrained optimization*, SIAM Review 47 (2005)
@@ -26,8 +26,9 @@ cited below as GMS with section and equation numbers.
 
   Steps 3 and 4 add families that exercise their mechanism. Defaults change
   only if you decide so.
-- **One PR.** Version 0.15.0, with one document describing all four steps and
-  their results, and updates to `gaps.md`, `api.md` and the README.
+- **One PR.** The version stays 0.14.0, as for the active-set, elastic-mode
+  and second-order-correction PRs. One document describes all four steps and
+  their results, with updates to `gaps.md`, `api.md` and the README.
 
 ## Step 1: Curvature repair instead of Powell damping
 

@@ -40,6 +40,9 @@ pub(crate) struct Search {
     /// `max |πᵢ| + |π̄ᵢ| + ρ̄ᵢ|rᵢ|`: how much `M` changes per unit of row
     /// value, which scales the effect of QP inaccuracy.
     pub sensitivity: f64,
+    /// `|f| + Σ|πᵢrᵢ| + ½Σρ̄ᵢrᵢ²`, the size of the terms summed into `M`,
+    /// which sets the rounding level of `M` itself.
+    pub magnitude: f64,
 }
 
 /// The slack that minimizes `−π(c − s) + ½ρ(c − s)²` over `[lower, upper]`.
@@ -134,8 +137,10 @@ impl AugmentedLagrangian {
         let mut value = f;
         let mut slope = base;
         let mut sensitivity = 0.0_f64;
+        let mut magnitude = f.abs();
         for i in 0..m {
             let r = residual[i];
+            magnitude += (self.pi[i] * r).abs() + 0.5 * rho[i] * r * r;
             value = finite(
                 value - self.pi[i] * r + 0.5 * rho[i] * r * r,
                 "augmented-Lagrangian merit",
@@ -155,6 +160,7 @@ impl AugmentedLagrangian {
             value,
             predicted: -slope,
             sensitivity,
+            magnitude,
         })
     }
 
@@ -308,6 +314,7 @@ mod tests {
             predicted: 0.0,
             max_penalty: 0.0,
             sensitivity: 0.0,
+            magnitude: 0.0,
         }
     }
 

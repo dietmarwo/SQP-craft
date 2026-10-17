@@ -35,6 +35,22 @@ of solves; in Python it is picklable for process-based workers. A `scipy.sparse`
 CSR matrix's `indptr` and `indices` arrays can be passed directly once its
 indices are sorted (`A.sort_indices()`).
 
+**Linear rows.** `ProblemSpec::with_linear_rows(&rows)` in Rust and
+`ProblemSpec(..., linear_rows=[...])` in Python declare rows whose
+Jacobian row is constant, `c_i(x) = a_iᵀx + b_i`. Indices must be distinct
+and below `m`; `spec.linear_rows` returns them. The native SQP then treats
+them as SNOPT treats linear constraints ([snopt-lessons.md](snopt-lessons.md)):
+- it projects a start that violates them onto them, or ends with
+  `linear_infeasible`;
+- it keeps every later iterate on them;
+- it leaves them out of the merit function.
+
+The start point must still be defined for the model, since the coefficients
+come from its first evaluation. A declared row whose Jacobian entries change
+by more than `10⁻⁹(1 + |a|)` ends the solve with `InvalidInput`. A wrong
+declaration can also make `linear_infeasible` wrong, so that status relies on
+the declaration.
+
 ## Model callbacks
 
 | Rust (`NlpProblem`) | Python model method | Computes |
@@ -123,6 +139,10 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `elastic_mode` | `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; needs a backend with elastic support (`qp_solver="active-set"`), otherwise `Unsupported` / `NotImplementedError` before any model call. See [elastic-mode.md](elastic-mode.md) |
 | `second_order_correction` | `false` | After a rejected full step that increased the constraint violation through curved constraints, re-solve the step QP with the rows shifted by their second-order change and try that step once before backtracking. See [second-order-correction.md](second-order-correction.md) |
 | `elastic_weight` | `1e4` | Initial elastic weight relative to `max(1, ‖∇f(x₀)‖∞)`; multiplied by 10, at most six times, at a stationary point of the ℓ1 penalty with violated rows |
+| `hessian_update` | `"damped"` | What to do below the curvature threshold `sᵀy < 0.2·sᵀBs`. `"damped"` uses Powell's damping. `"augmented"` uses SNOPT's repair: it adds `(J(x⁺) − J(x))ᵀ Ω d_L`, built from the departure from linearity `d_L`, with minimum-norm weights, and damps when no repair exists. See [snopt-lessons.md](snopt-lessons.md) |
+| `merit` | `"l1"` | `"l1"` (Powell-weighted violations) or `"augmented-lagrangian"`, SNOPT's merit `f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²`, searched jointly in `x`, `π` and `s`. The augmented-Lagrangian merit cannot be combined with `second_order_correction` |
+| `violation_limit` | `None` | SNOPT's `τ_V ≥ 1`. A trial point that violates some row by more than `τ_V·max(1, violation at the start)` is rejected before its derivatives are evaluated |
+| `scaling` | `"none"` | Power-of-two scaling of the QP and the BFGS matrix. `"linear"` scales from the rows declared linear (the identity without them). `"jacobian"` scales from every row's Jacobian at the first point on the linear rows. Tests stay in original units |
 | `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
@@ -204,8 +224,29 @@ merit, Powell's rule restarts when the linearization becomes consistent, and
 a stationary point of the ℓ1 penalty with violated rows raises γ tenfold, up
 to six times, before the solve ends `locally_infeasible`. The second-order
 correction is off by default, so the Maratos effect can cost backtracking
-steps. There is no automatic scaling and no exact-Hessian option. First-order convergence is not a global or second-order
-optimality certificate.
+steps.
+
+The four options from SNOPT change these steps as follows
+([snopt-lessons.md](snopt-lessons.md)):
+- `merit="augmented-lagrangian"` replaces the ℓ1 merit in step 3, except on
+  elastic steps that leave rows violated. `π` and `ρ` start at 0. After each
+  step `π` moves to `π + α(π̄ − π)`. Restoration resets both. A step whose
+  predicted decrease is below the rounding level of the merit value,
+  `100ε(|f| + Σ|πᵢrᵢ| + ½Σρᵢrᵢ²)`, is a noise-level step, tried once at full
+  length.
+- `violation_limit` adds a test to every trial point.
+- `hessian_update="augmented"` changes step 4 below the threshold.
+- Rows declared linear are hard in every QP. They get no merit weight and no
+  second-order shift.
+- With `scaling`, the QP is solved in the variables `x̃ = x/D` and rows
+  `c̃ = R c`:
+  - `B` lives in those coordinates, so `B = scale·I` there;
+  - BFGS uses `s/D` and `D y`;
+  - restoration and the proximal point work in `x̃`;
+  - an elastic row costs `R_i γ` per original unit.
+
+There is no exact-Hessian option. First-order convergence is not a global or
+second-order optimality certificate.
 
 ### Statuses
 
@@ -218,6 +259,7 @@ optimality certificate.
 | `restoration_failed` | Restoration reached a stationary point of the squared violation, or found no decreasing complete step |
 | `restoration_limit` | Restoration step budget exhausted while it was still making progress |
 | `locally_infeasible` | Elastic mode: a stationary point of `f + γ·violation` with violated rows, at the largest γ; no nonlinear infeasibility claim |
+| `linear_infeasible` | The rows declared linear and the variable bounds have no common point (the proximal-point QP is infeasible). This concerns the problem itself, provided the declaration is right |
 | `line_search_failure` | No acceptable step within `max_backtracks` (including all trials undefined) |
 | `no_descent` | The step is not a merit descent direction, even after a Hessian reset |
 | `stalled` | The step is below the QP's accuracy or cannot change the iterate |
@@ -253,17 +295,22 @@ iterations, rejected and undefined trials, Hessian resets, the elastic-mode
 counters (`elastic_steps`: accepted steps whose QP left rows violated;
 `elastic_weight`: the final γ, `None` without elastic mode;
 `elastic_weight_increases`), the second-order counters
-(`second_order_corrections` evaluated, `second_order_steps` accepted),
-fixed-step and
+(`second_order_corrections` evaluated, `second_order_steps` accepted), the
+BFGS counters (`bfgs_damped_updates`, `bfgs_modified_updates`),
+`violation_limit_rejections`, `linear_projection` (the start was moved onto
+the linear rows), the scale factors (`variable_scales`, `row_scales`, empty
+without scaling; the QP trace is then in scaled coordinates), fixed-step and
 bound-step corrections, the last accepted step norm, inclusive phase times (total,
 callbacks including Python conversion, QP, BFGS; not a pure GIL-wait measure),
 the optional QP trace, and the optional history. Each `IterationRecord`
 describes one iterate where a QP was solved: objective, primal violation,
 stationarity and complementarity (the convergence-test values), `‖p‖∞`, the
 accepted step length (`None` if no step was taken, as at the final iterate of a
-converged run), trials evaluated, the largest penalty weight, QP iterations,
-and whether a second-order correction was tried (taken if the step length
-is then 1).
+converged run), trials evaluated, the largest penalty weight (`ρ` for the
+augmented-Lagrangian merit), QP iterations, whether a second-order correction
+was tried (taken if the step length is then 1), and how `B` was updated
+(`curvature`: `exact`, `damped`, `modified`, `negligible` or `reset`; `None`
+without a step).
 
 ### The dummy method
 
@@ -350,6 +397,15 @@ each violated row's bounds relaxed to its value, plus
 `violation_i·|γ − σ_iλ_i|` in complementarity and `max(|λ_i| − γ, 0)` in
 dual sign. Rows violated by at most the primal tolerance count as satisfied
 and appear in the primal residual.
+
+Two variants support the options from SNOPT:
+- **Hard rows.** `QpOptions.hard_rows` (empty, or one flag per row) keeps the
+  flagged rows hard in an elastic QP. The driver passes the rows declared
+  linear. `QpModel::accepts_elastic_with_hard_rows` and
+  `kkt::elastic_residuals_with_hard_rows` test those rows as ordinary rows.
+- **Per-row weights.** `kkt::elastic_residuals_with_row_weights` takes one
+  weight per row. The driver needs it for an elastic QP solved in scaled
+  rows.
 
 `DummyQp` validates its input and returns `Unsupported`; it never fabricates a
 step.
@@ -481,7 +537,9 @@ crate.
   are boxed (`[0, γ]`, `[−γ, γ]` for equalities); a row whose multiplier
   reaches `±γ` becomes elastic, with its multiplier fixed in the linear term,
   and re-enters from the other side once it is strictly satisfied. Elastic
-  rows are reported `Inactive` in the working set.
+  rows are reported `Inactive` in the working set. Rows flagged in
+  `QpOptions.hard_rows` keep unbounded multipliers and never become
+  elastic; a flag vector of the wrong length is `InvalidInput`.
 
 ## Errors
 

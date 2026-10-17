@@ -1,6 +1,7 @@
 # Gaps compared with mature SQP codes
 
-16 October 2026, version 0.14.0 (the reviewed performance release). The
+16 October 2026, version 0.14.0 (the reviewed performance release),
+updated 17 October 2026 for the [options from SNOPT](snopt-lessons.md). The
 comparison is with SNOPT, filterSQP, NLPQL and SLSQP, and for
 second-derivative use also with the IPOPT, WORHP and KNITRO family. It is
 ranked by expected impact on the target use, trajectory transcriptions.
@@ -37,6 +38,12 @@ Every step QP is solved from scratch by Clarabel's interior-point method.
   use exact sparse Hessians. Collocation problems have very sparse
   Hessians, and with exact second derivatives they typically converge in a
   few dozen iterations, independent of n.
+- **Damping:** Powell's damping fires on 8.5% of the stress-family updates,
+  and on 4.9% of the last three updates of converged runs. SNOPT's
+  augmented-Lagrangian repair (`hessian_update="augmented"`,
+  [snopt-lessons.md](snopt-lessons.md)) replaces most of these updates. It
+  saves 7.4% of the callbacks on the Maratos example and changes nothing
+  measurable elsewhere.
 
 ## 3. Globalization: L1 merit, backtracking, no second-order correction
 
@@ -79,12 +86,33 @@ infeasible stationary points of the constraint violation.
   The remaining failures are near local minimizers of the infeasibility,
   which no local strategy escapes. Restoration stays the default.
 
+Declared linear rows (`ProblemSpec(linear_rows=...)`,
+[snopt-lessons.md](snopt-lessons.md)) stay hard in the elastic QP and in
+restoration, as SNOPT keeps its linear constraints. Neither the elastic step
+nor restoration can then leave them, for example for points where the model
+is undefined.
+
 ## 5. No automatic scaling
 
 Tolerances are absolute and in original units. The orbit fixture is well
 scaled. Real trajectory models, with times, masses and angles in very
 different units, usually are not. SNOPT and IPOPT scale variables and
 constraints by default.
+
+**Status:** scaling is available as an option. `scaling="linear"` and
+`"jacobian"` follow SNOPT's Scale options 1 and 2
+([snopt-lessons.md](snopt-lessons.md)). The QP and the BFGS matrix are scaled
+by powers of two; the tests stay in original units. It was measured on
+synthetic badly scaled copies of the fixtures, with random powers of ten in
+[10⁻², 10²], because the application data is still missing:
+- **Orbit transfer:** all 40 copies converge with Jacobian scaling, against
+  20 without, and the 20 that converge both ways need 75% fewer iterations.
+- **Stress family:** 585 of 600 copies converge instead of 571, with 29%
+  fewer iterations.
+- **Well-scaled fixtures:** it costs 2–24% more iterations, and the orbit
+  transfer reaches another local optimum.
+
+It stays off.
 
 ## 6. Thin external evidence
 
@@ -132,8 +160,10 @@ These properties should survive every change:
    through infeasible phases but does not reduce the local failures.
 3. A second-order correction or watchdog (gap 3). The second-order
    correction is done as an option: [second-order correction](second-order-correction.md).
-4. Automatic scaling, measured on the target application once its data
-   exists (gap 5).
+4. Automatic scaling (gap 5). Done as an option, with SNOPT's conservative
+   scale options, measured on synthetic badly scaled families
+   ([snopt-lessons.md](snopt-lessons.md)); a default needs the target
+   application.
 5. Sparse or limited-memory curvature with a sparse QP when the application
    needs more than a few hundred variables (gap 2).
 6. A CUTEst subset through a Python interface, to measure gaps 3–5 instead

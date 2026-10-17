@@ -39,6 +39,20 @@ backtracking when a curved constraint makes the merit reject the full step
 ([second-order-correction.md](docs/second-order-correction.md)): 21% fewer
 callbacks on the Maratos example, 1% on the stress family.
 
+**Four opt-in mechanisms from SNOPT** ([snopt-lessons.md](docs/snopt-lessons.md)):
+- **Curvature repair:** `hessian_update="augmented"` repairs small BFGS
+  curvature with SNOPT's augmented-Lagrangian term instead of damping it.
+- **Smooth merit:** `merit="augmented-lagrangian"` is SNOPT's merit function,
+  and `violation_limit` adds its limit on trial-point violation.
+- **Linear rows:** `ProblemSpec(..., linear_rows=[...])` keeps declared rows
+  satisfied, as SNOPT does with linear constraints.
+- **Scaling:** `scaling="linear"` or `"jacobian"` scales the QP and the BFGS
+  matrix by powers of two.
+
+Each helps on its own mechanism and costs elsewhere, so all stay off. Jacobian
+scaling, for example, solves all 40 badly scaled orbit transfers instead of 20.
+On well-scaled problems it takes 2–24% more iterations.
+
 See [plans and results](docs/performance/README.md) for all ten checkpoints,
 raw per-iteration measurements, final paired timings, numerical failure fixes
 and independent validation. Numerical tolerances and model callbacks were
