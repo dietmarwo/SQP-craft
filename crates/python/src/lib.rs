@@ -470,6 +470,9 @@ fn solve_native<'py>(
                             "qp_warm_start" => settings.qp_warm_start = value.extract()?,
                             "elastic_mode" => settings.elastic_mode = value.extract()?,
                             "elastic_weight" => settings.elastic_weight = value.extract()?,
+                            "second_order_correction" => {
+                                settings.second_order_correction = value.extract()?
+                            }
                             "qp_solver" => qp_solver = value.extract()?,
                             "record_qp_limit" => settings.record_qp_limit = value.extract()?,
                             "record_history" => settings.record_history = value.extract()?,
@@ -549,6 +552,11 @@ fn solve_native<'py>(
         "elastic_weight_increases",
         r.report.elastic_weight_increases,
     )?;
+    report.set_item(
+        "second_order_corrections",
+        r.report.second_order_corrections,
+    )?;
+    report.set_item("second_order_steps", r.report.second_order_steps)?;
     report.set_item("fixed_step_corrections", r.report.fixed_step_corrections)?;
     report.set_item("bound_step_corrections", r.report.bound_step_corrections)?;
     report.set_item("step_norm", r.report.step_norm)?;
@@ -598,6 +606,7 @@ fn solve_native<'py>(
         d.set_item("trials", h.trials)?;
         d.set_item("max_penalty", h.max_penalty)?;
         d.set_item("qp_iterations", h.qp_iterations)?;
+        d.set_item("second_order_correction", h.second_order_correction)?;
         history.append(d)?;
     }
     report.set_item("history", history)?;

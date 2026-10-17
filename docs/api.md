@@ -121,6 +121,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below. No effect on the active-set backend |
 | `qp_warm_start` | `true` | Pass the last step QP's working set to the next QP; only backends that report one (the active-set backend) receive it |
 | `elastic_mode` | `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; needs a backend with elastic support (`qp_solver="active-set"`), otherwise `Unsupported` / `NotImplementedError` before any model call. See [elastic-mode.md](elastic-mode.md) |
+| `second_order_correction` | `false` | After a rejected full step that increased the constraint violation through curved constraints, re-solve the step QP with the rows shifted by their second-order change and try that step once before backtracking. See [second-order-correction.md](second-order-correction.md) |
 | `elastic_weight` | `1e4` | Initial elastic weight relative to `max(1, ‖∇f(x₀)‖∞)`; multiplied by 10, at most six times, at a stationary point of the ℓ1 penalty with violated rows |
 | `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
@@ -160,7 +161,13 @@ A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
    decrease is `−gᵀp + Σ μ_i (violation_i(c) − violation_i(c + Jp))`, which is
    at least `pᵀBp > 0` for an exact QP solution. Trials `x_k + αp`, `α = 1,
    ½, ¼, …` (capped so the box holds), are accepted when
-   `φ(x_k + αp) <= φ(x_k) − 10⁻⁴·α·predicted`.
+   `φ(x_k + αp) <= φ(x_k) − 10⁻⁴·α·predicted`. With
+   `second_order_correction`, a rejected full step that does not reduce the
+   constraint violation, on rows that are curved along `p`, is first
+   followed by one corrected step `p̃`: the step QP solved again with
+   `c(x_k) + Jp` replaced by `c(x_k + p)` in its row bounds. That step is
+   accepted under the same full-step test; otherwise backtracking continues
+   from `α = ½`.
 4. **Update.** `derivatives` at the accepted point, then damped BFGS (Powell
    1978) with `y = ∇ₓL(x_{k+1}, λ) − ∇ₓL(x_k, λ)`, the new multipliers at both
    ends. Damping keeps `B` positive definite in exact arithmetic; rounding in
@@ -195,10 +202,9 @@ Bounded local feasibility restoration is described below. Elastic mode
 QP is ℓ1-elastic, rows it leaves violated get the penalty weight γ in the
 merit, Powell's rule restarts when the linearization becomes consistent, and
 a stationary point of the ℓ1 penalty with violated rows raises γ tenfold, up
-to six times, before the solve ends `locally_infeasible`. There is no
-second-order correction (so the
-Maratos effect can cost backtracking steps), no automatic scaling, and no
-exact-Hessian option. First-order convergence is not a global or second-order
+to six times, before the solve ends `locally_infeasible`. The second-order
+correction is off by default, so the Maratos effect can cost backtracking
+steps. There is no automatic scaling and no exact-Hessian option. First-order convergence is not a global or second-order
 optimality certificate.
 
 ### Statuses
@@ -246,14 +252,18 @@ candidate does not show that the problem is infeasible.
 iterations, rejected and undefined trials, Hessian resets, the elastic-mode
 counters (`elastic_steps`: accepted steps whose QP left rows violated;
 `elastic_weight`: the final γ, `None` without elastic mode;
-`elastic_weight_increases`), fixed-step and
+`elastic_weight_increases`), the second-order counters
+(`second_order_corrections` evaluated, `second_order_steps` accepted),
+fixed-step and
 bound-step corrections, the last accepted step norm, inclusive phase times (total,
 callbacks including Python conversion, QP, BFGS; not a pure GIL-wait measure),
 the optional QP trace, and the optional history. Each `IterationRecord`
 describes one iterate where a QP was solved: objective, primal violation,
 stationarity and complementarity (the convergence-test values), `‖p‖∞`, the
 accepted step length (`None` if no step was taken, as at the final iterate of a
-converged run), trials evaluated, the largest penalty weight, and QP iterations.
+converged run), trials evaluated, the largest penalty weight, QP iterations,
+and whether a second-order correction was tried (taken if the step length
+is then 1).
 
 ### The dummy method
 

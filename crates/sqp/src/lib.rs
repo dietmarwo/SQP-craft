@@ -98,6 +98,11 @@ pub struct SqpOptions {
     pub elastic_mode: bool,
     /// Initial elastic weight, relative to `max(1, ‖∇f(x₀)‖∞)`.
     pub elastic_weight: f64,
+    /// When the full step fails the merit test and increases the constraint
+    /// violation, solve the step QP once more with the constraints shifted by
+    /// their second-order change along the step, and try that step before
+    /// backtracking (against the Maratos effect).
+    pub second_order_correction: bool,
     /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
@@ -130,6 +135,7 @@ impl Default for SqpOptions {
             qp_warm_start: true,
             elastic_mode: false,
             elastic_weight: 1e4,
+            second_order_correction: false,
             record_qp_limit: 0,
             record_history: false,
             max_restoration_steps: 10,
@@ -922,6 +928,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 trials: 0,
                 max_penalty: 0.0,
                 qp_iterations,
+                second_order_correction: false,
             };
             // The residuals must clear their tolerances by their own rounding
             // level, or the claim rests on rounding noise.
@@ -1135,6 +1142,139 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 };
                 if trial_merit > threshold {
                     r.report.rejected_trials += 1;
+                    // Second-order correction: once, for a rejected full step
+                    // that increased the constraint violation through the
+                    // curvature of the constraints (for linear rows the
+                    // corrected QP would return the same step).
+                    let try_correction = settings.second_order_correction
+                        && alpha == 1.0
+                        && noise_step.is_none()
+                        && !record.second_order_correction;
+                    let shift: Vec<f64> = if try_correction {
+                        values.1.iter().zip(&linear).map(|(c, l)| c - l).collect()
+                    } else {
+                        Vec::new()
+                    };
+                    let corrected = if try_correction
+                        && norm_inf(&shift) > options.feasibility_tolerance
+                        && spec.constraints().checked_violation(&values.1)? >= e.primal_violation
+                    {
+                        record.second_order_correction = true;
+                        let q = qp_work.as_mut().expect("QP initialized");
+                        let saved = q.rows.clone();
+                        // Replace c(x) + Jp by c(x + p): the step must also
+                        // absorb the curvature of the constraints along p.
+                        for (i, &shift) in shift.iter().enumerate() {
+                            let shift = finite(shift, "second-order shift")?;
+                            q.rows.lower[i] -= shift;
+                            q.rows.upper[i] -= shift;
+                        }
+                        let remaining = settings
+                            .time_limit_seconds
+                            .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0));
+                        self.qp.configure(&QpOptions {
+                            reuse_workspace: settings.qp_reuse_workspace,
+                            tolerance: settings.qp_tolerance,
+                            acceptance_tolerance: qp_acceptance,
+                            max_iterations: settings.qp_max_iterations,
+                            time_limit_seconds: remaining,
+                            elastic_weight,
+                        })?;
+                        let t = Instant::now();
+                        r.report.qp_solves += 1;
+                        let outcome = self.qp.solve(q, qp_warm.as_ref(), cancel);
+                        r.report.qp_seconds += t.elapsed().as_secs_f64();
+                        let report = self.qp.report();
+                        record_qp_work(&mut r.report, &report);
+                        r.report.qp_iterations += report.iterations;
+                        let step = match outcome {
+                            Ok(QpOutcome::Optimal(mut s)) => {
+                                snap_step(
+                                    &mut s.step,
+                                    &q.variables,
+                                    spec.variables(),
+                                    options.feasibility_tolerance,
+                                    &mut r.report,
+                                );
+                                let check = match elastic_weight {
+                                    Some(weight) => q.accepts_elastic_with_workspace(
+                                        &s,
+                                        qp_acceptance,
+                                        weight,
+                                        &mut qp_checks,
+                                    )?,
+                                    None => {
+                                        q.accepts_with_workspace(&s, qp_acceptance, &mut qp_checks)?
+                                    }
+                                };
+                                check.accepted.then_some(s.step)
+                            }
+                            // No correction; a stop is noticed before the
+                            // next call.
+                            Ok(_) | Err(Error::Backend(_)) => None,
+                            Err(err) => return Err(err),
+                        };
+                        q.rows = saved;
+                        step
+                    } else {
+                        None
+                    };
+                    if let Some(step) = corrected {
+                        if let Some(s) = calls.before_call() {
+                            status = Some(s);
+                            break;
+                        }
+                        let trial = trial_point(spec.variables(), x, &step, 1.0);
+                        if spec.check_point(&trial, "trial").is_ok() {
+                            record.trials += 1;
+                            r.report.second_order_corrections += 1;
+                            let values = match calls.functions(spec, model, &trial) {
+                                Ok(v) => Some(v),
+                                Err(Error::UndefinedPoint(_)) => {
+                                    r.report.undefined_trials += 1;
+                                    None
+                                }
+                                Err(err) => return Err(err),
+                            };
+                            let mut evaluation = None;
+                            if let Some(values) = values {
+                                let corrected_merit = finite(
+                                    values.0
+                                        + weighted_violation(
+                                            spec.constraints(),
+                                            &values.1,
+                                            &penalties,
+                                        )?,
+                                    "corrected merit",
+                                )?;
+                                if corrected_merit <= threshold {
+                                    if let Some(s) = calls.before_call() {
+                                        status = Some(s);
+                                        break;
+                                    }
+                                    match calls.derivatives(
+                                        spec,
+                                        model,
+                                        &trial,
+                                        values,
+                                        options.feasibility_tolerance,
+                                    ) {
+                                        Ok(e) => evaluation = Some(e),
+                                        Err(Error::UndefinedPoint(_)) => {
+                                            r.report.undefined_trials += 1;
+                                        }
+                                        Err(err) => return Err(err),
+                                    }
+                                }
+                            }
+                            if let Some(evaluation) = evaluation {
+                                r.report.second_order_steps += 1;
+                                accepted = Some((trial, evaluation));
+                                break;
+                            }
+                            r.report.rejected_trials += 1;
+                        }
+                    }
                     alpha *= 0.5;
                     continue;
                 }
