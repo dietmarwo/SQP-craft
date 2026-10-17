@@ -143,3 +143,30 @@ fn dummy_backend_never_fabricates_a_step() {
     let r = DummyQp.solve(&bound_qp(), Some(&bad_warm), &cancel);
     assert!(matches!(r, Err(Error::InvalidInput(_))));
 }
+
+#[test]
+fn reusable_checks_match_allocating_and_revalidate_inputs() {
+    let q = bound_qp();
+    let mut work = sqp_craft::qp::QpResidualWorkspace::default();
+    for p in [-0.5, 0., 0.2] {
+        let s = solution(&[p], &[], &[0.5]);
+        assert_eq!(
+            q.residuals(&s).unwrap(),
+            q.residuals_with_workspace(&s, &mut work).unwrap()
+        );
+        assert_eq!(
+            q.accepts(&s, 1e-7).unwrap(),
+            q.accepts_with_workspace(&s, 1e-7, &mut work).unwrap()
+        );
+    }
+    let mut bad = solution(&[-0.5], &[], &[0.5]);
+    bad.multipliers.variables.clear();
+    assert!(q.accepts_with_workspace(&bad, 1e-7, &mut work).is_err());
+    let mut changed = q.clone();
+    changed.gradient.push(0.);
+    assert!(
+        changed
+            .residuals_with_workspace(&solution(&[-0.5], &[], &[0.5]), &mut work)
+            .is_err()
+    );
+}

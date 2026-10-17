@@ -28,8 +28,15 @@ fn row_residuals(bounds: &Bounds, values: &[f64]) -> Result<Vec<f64>> {
         .collect()
 }
 fn merit(bounds: &Bounds, values: &[f64]) -> Result<f64> {
-    let residuals = row_residuals(bounds, values)?;
-    finite(0.5 * dot(&residuals, &residuals)?, "restoration merit")
+    let mut total = 0.;
+    for (i, &v) in values.iter().enumerate() {
+        let r = finite(
+            v - v.clamp(bounds.lower[i], bounds.upper[i]),
+            "restoration row residual",
+        )?;
+        total = finite(total + finite(r * r, "dot product")?, "dot product")?;
+    }
+    finite(0.5 * total, "restoration merit")
 }
 
 fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -> Result<QpModel> {
@@ -50,7 +57,7 @@ fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -
                 gradient[col] + finite(value * residual, "restoration gradient")?,
                 "restoration gradient",
             )?;
-            for b in range.clone() {
+            for b in j.indptr[i]..=a {
                 let other = j.indices[b];
                 h[(col, other)] = finite(
                     h[(col, other)]
@@ -60,15 +67,37 @@ fn model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, settings: &SqpOptions) -
             }
         }
     }
-    // Reuse the canonical lower-triangle conversion, then remove the original
-    // rows: their inconsistency is exactly why this bounded least-squares QP exists.
-    let mut q = qp_model(spec, x, e, &h)?;
-    q.gradient = gradient;
-    q.matrix = CsrMatrix {
-        pattern: CsrPattern::dense(0, n),
-        values: vec![],
+    let mut indptr = vec![0];
+    let mut indices = Vec::new();
+    let mut values = Vec::new();
+    for i in 0..n {
+        for j in 0..=i {
+            let v = h[(i, j)];
+            if v != 0. {
+                indices.push(j);
+                values.push(v);
+            }
+        }
+        indptr.push(indices.len());
+    }
+    let mut q = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr,
+                indices,
+            },
+            values,
+        },
+        gradient,
+        variables: shifted(spec.variables(), x)?,
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(0, n),
+            values: vec![],
+        },
+        rows: Bounds::free(0),
     };
-    q.rows = Bounds::free(0);
     for k in 0..n {
         q.variables.lower[k] = q.variables.lower[k].max(-settings.restoration_step_limit);
         q.variables.upper[k] = q.variables.upper[k].min(settings.restoration_step_limit);
@@ -232,7 +261,9 @@ pub(super) fn step<B: QpBackend>(
                 .collect::<Vec<_>>(),
         ));
         result.candidate = Some(trial);
-        result.evaluation = Some(evaluation);
+        if let Some(old) = result.evaluation.replace(evaluation) {
+            calls.recycle(old);
+        }
         result.multipliers = None;
         result.stationarity = None;
         result.complementarity = None;
@@ -249,6 +280,40 @@ pub(super) fn step<B: QpBackend>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn diagonal_restoration_has_only_diagonal_curvature() {
+        let n = 8;
+        let spec = ProblemSpec::new(
+            Bounds::new(vec![0.05; n], vec![2.; n]),
+            Bounds::fixed(vec![1.; n]),
+            CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).collect(),
+                indices: (0..n).collect(),
+            },
+        )
+        .unwrap();
+        let e = Evaluation {
+            objective: 0.,
+            constraints: vec![0.01; n],
+            gradient: vec![0.; n],
+            jacobian_values: vec![0.2; n],
+            primal_violation: 0.99,
+            feasible_candidate: false,
+        };
+        let q = model(&spec, &vec![0.1; n], &e, &SqpOptions::default()).unwrap();
+        assert_eq!(q.hessian_lower.values.len(), n);
+        assert_eq!(q.m(), 0);
+        assert!(
+            q.hessian_lower
+                .values
+                .iter()
+                .all(|&v| (v - 0.0401).abs() < 1e-15)
+        );
+        assert!(q.gradient.iter().all(|&v| (v + 0.198).abs() < 1e-15));
+        assert_eq!(q.variables.upper, vec![1.; n]);
+    }
     #[test]
     fn overflowing_gauss_newton_curvature_is_an_error() {
         let spec = ProblemSpec::new(

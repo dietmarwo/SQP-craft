@@ -33,7 +33,7 @@ from ._native import check_derivatives as _check_derivatives
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.4.0"
+__version__ = "0.14.0"
 
 __all__ = [
     "Cancellation",
@@ -123,6 +123,8 @@ class SqpOptions:
     """Variables allowed, 1 to 256."""
     initial_hessian_scale: float = 1.0
     """Initial and reset Hessian approximation ``scale · I``."""
+    hessian_block_size: int = 0
+    """Explicit contiguous BFGS block width; 0 keeps full BFGS. Failed block updates switch to full BFGS within the reset budget."""
     max_hessian_resets: int = 3
     """Total Hessian resets allowed."""
     qp_tolerance: float = 1e-10
@@ -225,6 +227,7 @@ class RunReport:
     rejected_trials: int
     undefined_trials: int
     hessian_resets: int
+    block_hessian_fallbacks: int
     fixed_step_corrections: int
     bound_step_corrections: int
     step_norm: Optional[float]

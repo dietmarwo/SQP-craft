@@ -512,3 +512,44 @@ A restoration record contains `iteration`, `objective_before/after`,
 disabled both history vectors remain empty. A zero-Jacobian infeasible point
 can remain stationary for this local restoration model; random perturbation,
 second-order escape, scaling and global feasibility search are not implemented.
+
+
+## Performance release 0.14.0
+
+`SqpOptions.hessian_block_size` is 0 by default (full BFGS), or a contiguous
+block width in 1..=256. The final block can be shorter. A width at least n is
+identical to full mode. Variables stay in their existing callback order;
+constraints, callbacks and tolerances do not change. Choosing a block width
+approximates curvature and can change the outer trajectory. Choose it from
+model structure and measured original-unit acceptance, not from a promised
+universal speedup.
+
+Each block uses damped BFGS and a fresh Cholesky check. On its first failed
+update, if the existing Hessian-reset budget permits, the driver switches to
+full BFGS, resets the Hessian and invalidates the QP template. The switch
+consumes one normal Hessian reset and increments
+`RunReport.block_hessian_fallbacks`. Limits are not increased. Full mode
+continues for the rest of that solve. The block mode's initial orbit failures
+and the validated hybrid results remain in the performance records.
+
+Large full Hessians maintain a Cholesky representation through rank updates,
+with periodic (32-update) or invalid-factor rebuilds; dimensions <=16 retain
+fresh checks. The adapter independently verifies positive definiteness on
+every model and checks accepted QP solutions in original coordinates.
+Strictly diagonally dominant positive matrices use an upward-rounded
+Gershgorin sufficient test; disconnected stored Hessian components are
+factored separately; other cases keep the dense Cholesky gate.
+
+`QpResidualWorkspace`, `QpModel.residuals_with_workspace`,
+`QpModel.accepts_with_workspace`, and `kkt::residuals_with_workspace` reuse
+owned buffers. They retain the allocating APIs' validation and acceptance
+rules. Backend and driver have separate workspaces and independently repeat
+the checks. Callback output buffers are refilled with NaN before each call,
+including reused buffers; incomplete writes remain errors. Python callback
+input lists retain their original fresh-list contract.
+
+Conic conversion caches require exact CSR pattern and bound-side-class
+compatibility. Every P/A/b value is refreshed, and q is read from the current
+model. Only accepted optima retain conversion data. Clones begin with empty
+caches. This numeric-data allocation cache also works when QP solver workspace
+reuse is disabled; no primal/dual iterate warm start is introduced.

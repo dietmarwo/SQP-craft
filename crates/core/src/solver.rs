@@ -284,6 +284,8 @@ pub struct RunReport {
     pub undefined_trials: u64,
     /// Positive-diagonal Hessian resets.
     pub hessian_resets: u64,
+    /// Switches from requested block curvature to full BFGS after a failed update.
+    pub block_hessian_fallbacks: u64,
     /// Explicit corrections of tiny fixed-variable step components.
     pub fixed_step_corrections: u64,
     /// Step components moved onto a variable bound they exceeded by at most the

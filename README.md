@@ -3,22 +3,28 @@
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
 for smooth constrained problems such as trajectory transcriptions.
 
-**Version 0.4.0: a research pilot.** Dense damped BFGS, an L1 merit line search
-with per-constraint penalties, Clarabel QP subproblems, grouped model callbacks
-and independent KKT checks. Limits: at most 256 variables, one thread per
-solve, bounded Gauss–Newton feasibility restoration, no second-order correction,
-no automatic scaling. Restoration can fail at infeasible stationary points; it
-never certifies nonlinear infeasibility. Set `max_restoration_steps=0` for the
-previous infeasible-linearization stop behavior.
-Convergence means the first-order KKT residuals are within tolerance at the
-returned point, not a global optimum.
+**Version 0.14.0: ten tested performance iterations** based on reviewed
+`main` at `73d8d0c`. This is still a research pilot with at most 256 variables
+and one numerical thread per solve. It uses damped BFGS, Clarabel QPs, an L1
+merit line search, bounded feasibility restoration and independent first-order
+KKT checks. There is no second-order/global optimality certificate or nonlinear
+infeasibility certificate.
 
-Iteration 3 builds on reviewed `main` at `214f93b`. It adds opt-in Clarabel
-workspace reuse, bounded cold fallback and QP phase diagnostics. Both modes
-pass the 13-case comparison and accept 1,186 of 1,200 random stress problems,
-with no false convergence claims. See the [plan](docs/iteration-3-plan.md)
-and [results](docs/iteration-3-results.md) for the measured orbit timings and
-remaining limits.
+The performance work reuses numerical/checking/callback buffers, caches QP and
+conic conversion structure, reduces symmetric update work, maintains large
+BFGS Cholesky factors with safeguarded updates and preserves exact sparsity in
+restoration. Full BFGS remains the default. An explicit
+`SqpOptions(hessian_block_size=...)` requests contiguous curvature blocks;
+failed block updates switch once to full BFGS within the existing reset budget.
+`report.block_hessian_fallbacks` records that switch. Block mode is an
+approximation, and can improve or worsen solve time depending on the model
+and variable order.
+
+See [plans and results](docs/performance/README.md) for all ten checkpoints,
+raw per-iteration measurements, final paired timings, numerical failure fixes
+and independent validation. Numerical tolerances and model callbacks were
+not relaxed or rewritten. The actual user trajectory application is still
+unavailable; the orbit fixture and generated problems are development tests.
 
 ## Use from Python
 
@@ -65,7 +71,8 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | `crates/python`, `python/sqp_craft` | PyO3 extension and typed Python API |
 | [docs/api.md](docs/api.md) | The contract: conventions, algorithm, options, statuses, errors |
 | `examples/restore_hs071.py` | Compare disabled restoration with the recovered HS071 solve |
-| [docs/iteration-3-results.md](docs/iteration-3-results.md) | Current implementation, measured acceptance, performance and limits |
+| [docs/performance/README.md](docs/performance/README.md) | Ten performance plans, implementation checkpoints, raw measurements and release validation |
+| [docs/iteration-3-results.md](docs/iteration-3-results.md) | Reviewed baseline and previous performance profile |
 | `examples/compare_workspace.py` | Repeated cold/reuse comparison with independent acceptance checks |
 | [docs/iteration-2-results.md](docs/iteration-2-results.md) | Feasibility restoration and subsequent review fixes |
 | [docs/iteration-1-results.md](docs/iteration-1-results.md) | What iteration 1 delivers, review findings, SLSQP comparison, limits |
@@ -97,3 +104,18 @@ for the alternating-order timing comparison. These commands require SciPy.
 ## License
 
 MIT, see [LICENSE](LICENSE) and [docs/dependencies.md](docs/dependencies.md).
+
+## Performance experiments
+
+```bash
+cargo build --release -p sqp-craft-solver --example performance --locked
+cargo run --release -p sqp-craft-solver --example performance --locked -- orbit 40 reuse 0
+cargo run --release -p sqp-craft-solver --example performance --locked -- separable 128 reuse 2
+python3 scripts/performance_iteration.py target/release/examples/performance measurements.json
+```
+
+The final comparison includes cold and reused QP workspaces, plus explicit
+block/hybrid runs, with fixed callbacks and the same reference objectives and
+original-unit KKT thresholds. Use `qp_reuse_workspace=True` to reproduce the
+reuse measurements; the default remains `False`. Timings are local fixture
+results and are not guaranteed to improve for every problem or iteration.

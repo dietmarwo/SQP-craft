@@ -7,7 +7,7 @@
 //! backend-specific warm-start state are still to come.
 
 use crate::error::{Error, Result, ensure, first_non_finite};
-use crate::kkt::{KktPoint, KktResiduals, residuals};
+use crate::kkt::{KktPoint, KktResiduals, residuals_with_workspace};
 use crate::solver::{CancellationToken, Multipliers};
 use crate::spec::{Bounds, CsrMatrix};
 
@@ -41,6 +41,15 @@ pub struct QpModel {
     pub matrix: CsrMatrix,
     /// Bounds on `A p`.
     pub rows: Bounds,
+}
+
+/// Owned scratch for independent QP checks. Separate instances can check the
+/// same model; scratch contents never change the validation or acceptance rule.
+#[derive(Clone, Debug, Default)]
+pub struct QpResidualWorkspace {
+    gradient: Vec<f64>,
+    rows: Vec<f64>,
+    transpose: Vec<f64>,
 }
 
 impl QpModel {
@@ -130,6 +139,15 @@ impl QpModel {
     /// Recomputes the KKT residuals of `solution` from the model data alone,
     /// independently of the backend that produced it.
     pub fn residuals(&self, solution: &QpSolution) -> Result<KktResiduals> {
+        self.residuals_with_workspace(solution, &mut QpResidualWorkspace::default())
+    }
+
+    /// [`Self::residuals`] with reusable owned work buffers and identical checks.
+    pub fn residuals_with_workspace(
+        &self,
+        solution: &QpSolution,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<KktResiduals> {
         self.validate()?;
         ensure(solution.step.len() == self.n(), || {
             format!(
@@ -143,29 +161,35 @@ impl QpModel {
                 "QP solution: step entry {i} is {v}"
             )));
         }
-        let mut gradient = vec![0.0; self.n()];
-        self.hessian_product(&solution.step, &mut gradient);
+        let QpResidualWorkspace {
+            gradient,
+            rows,
+            transpose,
+        } = workspace;
+        gradient.resize(self.n(), 0.);
+        self.hessian_product(&solution.step, gradient);
         for (gi, &g) in gradient.iter_mut().zip(&self.gradient) {
             *gi += g;
         }
-        let mut rows = vec![0.0; self.m()];
+        rows.resize(self.m(), 0.);
         self.matrix
             .pattern
-            .multiply(&self.matrix.values, &solution.step, &mut rows);
-        for &v in gradient.iter().chain(&rows) {
+            .multiply(&self.matrix.values, &solution.step, rows);
+        for &v in gradient.iter().chain(rows.iter()) {
             crate::error::finite(v, "QP residual arithmetic")?;
         }
-        residuals(
+        residuals_with_workspace(
             &KktPoint {
                 x: &solution.step,
                 variable_bounds: &self.variables,
-                rows: &rows,
+                rows: rows.as_slice(),
                 row_bounds: &self.rows,
-                gradient: &gradient,
+                gradient: gradient.as_slice(),
                 jacobian: &self.matrix.pattern,
                 jacobian_values: &self.matrix.values,
             },
             &solution.multipliers,
+            transpose,
         )
     }
 
@@ -182,10 +206,20 @@ impl QpModel {
     /// catching mapping errors (wrong sign, transposition, doubling), which
     /// produce residuals of the order of `scale` itself.
     pub fn accepts(&self, solution: &QpSolution, tolerance: f64) -> Result<QpAcceptance> {
+        self.accepts_with_workspace(solution, tolerance, &mut QpResidualWorkspace::default())
+    }
+
+    /// [`Self::accepts`] using reusable independent-check scratch.
+    pub fn accepts_with_workspace(
+        &self,
+        solution: &QpSolution,
+        tolerance: f64,
+        workspace: &mut QpResidualWorkspace,
+    ) -> Result<QpAcceptance> {
         ensure(tolerance.is_finite() && tolerance > 0.0, || {
             format!("QP acceptance tolerance must be positive and finite, got {tolerance}")
         })?;
-        let residuals = self.residuals(solution)?;
+        let residuals = self.residuals_with_workspace(solution, workspace)?;
         let norm = |v: &[f64]| v.iter().fold(0.0_f64, |a, b| a.max(b.abs()));
         let scale = 1.0
             + norm(&self.gradient)
