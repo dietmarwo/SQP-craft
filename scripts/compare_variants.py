@@ -49,12 +49,14 @@ VARIANTS: dict[str, dict] = {
     "default": {},
     "augmented": dict(hessian_update="augmented"),
     "soc": dict(second_order_correction=True),
+    "al": dict(merit="augmented-lagrangian"),
+    "vl": dict(violation_limit=10.0),
     "elastic": dict(elastic_mode=True),
 }
 
 COUNTERS = ["bfgs_damped_updates", "bfgs_modified_updates",
             "hessian_resets", "restoration_steps", "elastic_steps", "second_order_steps",
-            "undefined_trials"]
+            "undefined_trials", "violation_limit_rejections"]
 
 
 def generated(problem, seeds, count=300):

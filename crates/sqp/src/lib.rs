@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 mod bfgs;
+mod merit;
 mod restoration;
 
 use std::time::Instant;
@@ -96,6 +97,43 @@ impl HessianUpdate {
     }
 }
 
+/// Merit function of the line search.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Merit {
+    /// `f + Σ μᵢ·violationᵢ` with Powell's per-row penalties
+    /// `μᵢ ← max(1.1|λᵢ|, ½(μᵢ + 1.1|λᵢ|))` (default).
+    #[default]
+    L1,
+    /// SNOPT's augmented Lagrangian `f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²`,
+    /// searched jointly in the variables, the multiplier estimate `π` and
+    /// the slacks `s`, with minimum-norm penalties `ρ` that may decrease
+    /// (Gill, Murray and Saunders 2005, §2.7). It is differentiable, so it
+    /// needs no second-order correction; the combination is rejected.
+    /// Steps whose elastic QP leaves rows violated use the ℓ1 merit.
+    AugmentedLagrangian,
+}
+
+impl Merit {
+    /// Stable lowercase name, as used by the Python binding.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Merit::L1 => "l1",
+            Merit::AugmentedLagrangian => "augmented-lagrangian",
+        }
+    }
+
+    /// Parses [`Self::as_str`].
+    pub fn parse(name: &str) -> Result<Self> {
+        match name {
+            "l1" => Ok(Merit::L1),
+            "augmented-lagrangian" => Ok(Merit::AugmentedLagrangian),
+            _ => Err(Error::InvalidInput(format!(
+                "merit must be \"l1\" or \"augmented-lagrangian\", got {name:?}"
+            ))),
+        }
+    }
+}
+
 /// Settings of [`NativeSqp`]. Every field is used; invalid values are rejected.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SqpOptions {
@@ -147,6 +185,13 @@ pub struct SqpOptions {
     /// What to do when the curvature of a step is too small for a plain
     /// BFGS update (`sᵀy < 0.2·sᵀBs`).
     pub hessian_update: HessianUpdate,
+    /// Merit function of the line search.
+    pub merit: Merit,
+    /// SNOPT's violation limit `τ_V ≥ 1`: a trial point whose violation of
+    /// some row exceeds `τ_V · max(1, violation of that row at the start)`
+    /// is rejected before its derivatives are evaluated. `None` (default)
+    /// imposes no limit.
+    pub violation_limit: Option<f64>,
     /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
@@ -181,6 +226,8 @@ impl Default for SqpOptions {
             elastic_weight: 1e4,
             second_order_correction: false,
             hessian_update: HessianUpdate::Damped,
+            merit: Merit::L1,
+            violation_limit: None,
             record_qp_limit: 0,
             record_history: false,
             max_restoration_steps: 10,
@@ -229,6 +276,20 @@ impl SqpOptions {
         if self.hessian_block_size > DENSE_SIZE_CAP {
             return Err(Error::InvalidInput(
                 "hessian_block_size must lie in 0..=256".into(),
+            ));
+        }
+        if let Some(limit) = self.violation_limit {
+            if !(limit.is_finite() && limit >= 1.0) {
+                return Err(Error::InvalidInput(format!(
+                    "violation_limit must be finite and at least 1, got {limit}"
+                )));
+            }
+        }
+        if self.second_order_correction && self.merit == Merit::AugmentedLagrangian {
+            return Err(Error::InvalidInput(
+                "second_order_correction applies to the l1 merit; the augmented-Lagrangian \
+                 merit is differentiable and needs no correction"
+                    .into(),
             ));
         }
         if self.record_qp_limit > QP_TRACE_CAP {
@@ -301,6 +362,26 @@ fn weighted_violation(bounds: &Bounds, values: &[f64], weights: &[f64]) -> Resul
         )?;
     }
     Ok(total)
+}
+
+/// Violation of row `i` by `v`, zero inside the bounds.
+fn row_violation(bounds: &Bounds, i: usize, v: f64) -> f64 {
+    (bounds.lower[i] - v).max(v - bounds.upper[i]).max(0.0)
+}
+
+/// Whether some row of `values` violates its bounds by more than its limit.
+fn beyond_limits(bounds: &Bounds, values: &[f64], limits: &[f64]) -> bool {
+    values
+        .iter()
+        .zip(limits)
+        .enumerate()
+        .any(|(i, (&v, &limit))| row_violation(bounds, i, v) > limit)
+}
+
+/// `pᵀBp`.
+fn curvature_along(b: &DMatrix<f64>, p: &[f64]) -> Result<f64> {
+    let pv = nalgebra::DVectorView::from_slice(p, p.len());
+    finite((b * pv).dot(&pv), "step curvature")
 }
 
 /// Model calls with budget, cancellation and timing bookkeeping.
@@ -786,6 +867,18 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         let mut qp_checks = sqp_craft::qp::QpResidualWorkspace::default();
         let mut penalties = vec![0.0; spec.m()];
         let mut have_penalties = false;
+        let mut augmented = merit::AugmentedLagrangian::new(spec.m());
+        // Rows kept out of the merit (linear rows kept feasible).
+        let skip_rows = vec![false; spec.m()];
+        // SNOPT's violation limit, fixed at the start point.
+        let limits: Option<Vec<f64>> = match (settings.violation_limit, r.evaluation.as_ref()) {
+            (Some(tau), Some(e)) => Some(
+                (0..spec.m())
+                    .map(|i| tau * row_violation(spec.constraints(), i, e.constraints[i]).max(1.0))
+                    .collect(),
+            ),
+            _ => None,
+        };
         // The last step QP left rows violated (elastic mode).
         let mut elastic_phase = false;
         let mut retry_descent = false;
@@ -881,6 +974,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
                     penalties.fill(0.0);
                     have_penalties = false;
+                    augmented.reset();
                     retry_descent = false;
                     noise_steps = 0;
                     notify = true;
@@ -1093,31 +1187,58 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 have_penalties = false;
             }
             elastic_phase = !elastic_rows.is_empty();
-            for (mu, &lambda) in penalties.iter_mut().zip(&solution.multipliers.constraints) {
-                let target = PENALTY_MARGIN * lambda.abs();
-                *mu = if have_penalties {
-                    target.max(0.5 * (*mu + target))
-                } else {
-                    target
-                };
-                finite(*mu, "penalty")?;
-            }
-            have_penalties = true;
-            if let Some(weight) = elastic_weight {
-                // The elastic QP minimizes the model of f + γ·violation, so
-                // its step is a descent direction for that merit: rows it
-                // leaves violated (|λ_i| = γ) are weighted by exactly γ.
-                for &i in &elastic_rows {
-                    penalties[i] = weight;
+            // The augmented-Lagrangian merit, unless the elastic QP left rows
+            // violated: its step then minimizes the model of f + γ·violation.
+            let search = if settings.merit == Merit::AugmentedLagrangian && elastic_rows.is_empty()
+            {
+                Some(augmented.search(
+                    spec.constraints(),
+                    e.objective,
+                    &e.constraints,
+                    &linear,
+                    dot(&e.gradient, p)?,
+                    curvature_along(&b, p)?,
+                    &solution.multipliers.constraints,
+                    &skip_rows,
+                )?)
+            } else {
+                None
+            };
+            let (merit, predicted, sensitivity) = if let Some(search) = &search {
+                record.max_penalty = search.max_penalty;
+                (search.value, search.predicted, search.sensitivity)
+            } else {
+                for (mu, &lambda) in penalties.iter_mut().zip(&solution.multipliers.constraints) {
+                    let target = PENALTY_MARGIN * lambda.abs();
+                    *mu = if have_penalties {
+                        target.max(0.5 * (*mu + target))
+                    } else {
+                        target
+                    };
+                    finite(*mu, "penalty")?;
                 }
-            }
-            record.max_penalty = norm_inf(&penalties);
-            let violation = weighted_violation(spec.constraints(), &e.constraints, &penalties)?;
-            let linear_violation = weighted_violation(spec.constraints(), &linear, &penalties)?;
-            let predicted = finite(
-                -dot(&e.gradient, p)? + (violation - linear_violation),
-                "predicted decrease",
-            )?;
+                have_penalties = true;
+                if let Some(weight) = elastic_weight {
+                    // The elastic QP minimizes the model of f + γ·violation, so
+                    // its step is a descent direction for that merit: rows it
+                    // leaves violated (|λ_i| = γ) are weighted by exactly γ.
+                    for &i in &elastic_rows {
+                        penalties[i] = weight;
+                    }
+                }
+                record.max_penalty = norm_inf(&penalties);
+                let violation = weighted_violation(spec.constraints(), &e.constraints, &penalties)?;
+                let linear_violation = weighted_violation(spec.constraints(), &linear, &penalties)?;
+                let predicted = finite(
+                    -dot(&e.gradient, p)? + (violation - linear_violation),
+                    "predicted decrease",
+                )?;
+                (
+                    finite(e.objective + violation, "merit")?,
+                    predicted,
+                    record.max_penalty,
+                )
+            };
             if norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x)) {
                 if settings.record_history {
                     r.report.history.push(record);
@@ -1152,7 +1273,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 let qp = check.residuals;
                 let noise = (spec.m() + n) as f64 * qp.complementarity
                     + qp.stationarity * p.iter().map(|v| v.abs()).sum::<f64>()
-                    + record.max_penalty * spec.m() as f64 * qp.primal;
+                    + sensitivity * spec.m() as f64 * qp.primal;
                 if -predicted <= noise && noise_steps < MAX_NOISE_STEPS {
                     noise_step = Some(noise);
                 } else {
@@ -1168,7 +1289,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     break;
                 }
             }
-            let merit = finite(e.objective + violation, "merit")?;
+            if let Some(search) = &search {
+                augmented.commit(search);
+            }
             let mut alpha = box_step_limit(spec.variables(), x, p);
             if !(alpha.is_finite() && alpha > 0.0) {
                 status = Some(Status::Stalled);
@@ -1204,10 +1327,22 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     }
                     Err(err) => return Err(err),
                 };
-                let trial_merit = finite(
-                    values.0 + weighted_violation(spec.constraints(), &values.1, &penalties)?,
-                    "trial merit",
-                )?;
+                if limits
+                    .as_ref()
+                    .is_some_and(|l| beyond_limits(spec.constraints(), &values.1, l))
+                {
+                    r.report.violation_limit_rejections += 1;
+                    r.report.rejected_trials += 1;
+                    alpha *= 0.5;
+                    continue;
+                }
+                let trial_merit = match &search {
+                    Some(search) => search.value_at(&augmented.pi, alpha, values.0, &values.1)?,
+                    None => finite(
+                        values.0 + weighted_violation(spec.constraints(), &values.1, &penalties)?,
+                        "trial merit",
+                    )?,
+                };
                 let threshold = match noise_step {
                     Some(noise) => merit + noise,
                     None => merit - ARMIJO * alpha * predicted,
@@ -1308,6 +1443,13 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                                 }
                                 Err(err) => return Err(err),
                             };
+                            let values = values.filter(|v| {
+                                let beyond = limits
+                                    .as_ref()
+                                    .is_some_and(|l| beyond_limits(spec.constraints(), &v.1, l));
+                                r.report.violation_limit_rejections += u64::from(beyond);
+                                !beyond
+                            });
                             let mut evaluation = None;
                             if let Some(values) = values {
                                 let corrected_merit = finite(
@@ -1396,6 +1538,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 0
             };
             record.step_length = Some(alpha);
+            if settings.merit == Merit::AugmentedLagrangian {
+                augmented.advance(&solution.multipliers.constraints, alpha);
+            }
 
             // 4. Accept the step and update B.
             let s: Vec<f64> = next.iter().zip(x).map(|(&a, &b)| a - b).collect();

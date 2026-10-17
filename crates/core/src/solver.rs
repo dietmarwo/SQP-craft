@@ -307,6 +307,9 @@ pub struct RunReport {
     /// Times the elastic weight was multiplied by ten at a stationary point of
     /// the ℓ1 penalty with violated constraints.
     pub elastic_weight_increases: u64,
+    /// Trial points rejected by the violation limit before their derivatives
+    /// were evaluated.
+    pub violation_limit_rejections: u64,
     /// Second-order corrections evaluated after a rejected full step.
     pub second_order_corrections: u64,
     /// Second-order corrections accepted as the step.

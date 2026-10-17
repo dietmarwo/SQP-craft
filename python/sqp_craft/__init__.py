@@ -148,6 +148,17 @@ class SqpOptions:
     """When the full step fails the merit test and increases the constraint
     violation, re-solve the step QP with the constraints shifted by their
     second-order change along the step and try that step before backtracking."""
+    merit: Literal["l1", "augmented-lagrangian"] = "l1"
+    """Line-search merit: ``"l1"`` (``f`` plus Powell-weighted violations) or
+    ``"augmented-lagrangian"`` (SNOPT's ``f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²``,
+    searched jointly in ``x``, the multiplier estimate and the slacks, with
+    minimum-norm penalties). The latter is differentiable and is not combined
+    with ``second_order_correction``; elastic steps that leave rows violated use
+    the l1 merit."""
+    violation_limit: Optional[float] = None
+    """SNOPT's ``τ_V ≥ 1``: reject a trial point that violates some row by more
+    than ``τ_V · max(1, its violation at the start)`` before evaluating its
+    derivatives. ``None`` imposes no limit; SNOPT uses 10."""
     hessian_update: Literal["damped", "augmented"] = "damped"
     """What to do when a step has too little curvature for a plain BFGS update
     (``sᵀy < 0.2·sᵀBs``): ``"damped"`` blends ``y`` with ``Bs`` (Powell);
@@ -263,6 +274,7 @@ class RunReport:
     elastic_steps: int
     elastic_weight: Optional[float]
     elastic_weight_increases: int
+    violation_limit_rejections: int
     second_order_corrections: int
     second_order_steps: int
     fixed_step_corrections: int

@@ -473,6 +473,12 @@ fn solve_native<'py>(
                             "second_order_correction" => {
                                 settings.second_order_correction = value.extract()?
                             }
+                            "merit" => {
+                                let name: String = value.extract()?;
+                                settings.merit =
+                                    sqp_craft_solver::Merit::parse(&name).map_err(to_py_err)?;
+                            }
+                            "violation_limit" => settings.violation_limit = value.extract()?,
                             "hessian_update" => {
                                 let name: String = value.extract()?;
                                 settings.hessian_update =
@@ -559,6 +565,10 @@ fn solve_native<'py>(
     report.set_item(
         "elastic_weight_increases",
         r.report.elastic_weight_increases,
+    )?;
+    report.set_item(
+        "violation_limit_rejections",
+        r.report.violation_limit_rejections,
     )?;
     report.set_item(
         "second_order_corrections",
