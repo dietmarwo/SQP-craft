@@ -342,6 +342,18 @@ impl Sources<'_> {
             })
     }
 
+    /// Activity without the magnitude used only by tolerance decisions.
+    fn activity(&self, s: usize, x: &[f64]) -> f64 {
+        if s < self.n() {
+            return x[s];
+        }
+        let (indices, values) = self.row(s - self.n());
+        indices
+            .iter()
+            .zip(values)
+            .fold(0.0, |sum, (&i, &a)| sum + a * x[i])
+    }
+
     /// `out += alpha a_s`.
     fn scatter(&self, s: usize, alpha: f64, out: &mut [f64]) {
         let n = self.n();
@@ -667,7 +679,7 @@ impl Work {
             }
             for (k, member) in self.members.iter().enumerate() {
                 sources.scatter(member.source, -member.sigma * self.u[k], &mut self.rd);
-                let (v, _) = sources.value(member.source, &self.x);
+                let v = sources.activity(member.source, &self.x);
                 self.rp[k] = member.rhs - member.sigma * v;
             }
             kkt_solve(
@@ -787,7 +799,7 @@ impl Work {
             let cap = (p.high - multiplier).max(0.0);
             // Full step: the primal step that satisfies p.
             let full = free.map_or(f64::INFINITY, |free| {
-                let (v, _) = sources.value(p.source, &self.x);
+                let v = sources.activity(p.source, &self.x);
                 ((p.rhs - p.sigma * v) / (free * free)).max(0.0)
             });
             if partial == f64::INFINITY && full == f64::INFINITY && cap == f64::INFINITY {
