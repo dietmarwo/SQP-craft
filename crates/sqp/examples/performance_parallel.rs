@@ -211,7 +211,16 @@ fn main() {
     let mut results = execution.map_with_init(
         jobs,
         |_| WorkerState::default(),
-        |state, i| (i, run_case(&args, state)),
+        |state, i| {
+            if args[1] == "mixed" {
+                let mut task = args.clone();
+                task[1] = "orbit".into();
+                task[2] = if i % 8 == 0 { "40" } else { "20" }.into();
+                (i, run_case(&task, state))
+            } else {
+                (i, run_case(&args, state))
+            }
+        },
     );
     drop(execution);
     let wall = began.elapsed().as_secs_f64();

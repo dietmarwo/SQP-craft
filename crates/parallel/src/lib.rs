@@ -80,21 +80,31 @@ impl Execution {
             return Vec::new();
         }
         let next = AtomicUsize::new(0);
-        let parts = self.map(self.threads().min(count), |worker| {
+        let workers = self.threads().min(count);
+        let claim = (count / (workers * 8)).clamp(1, 4);
+        let parts = self.map(workers, |worker| {
             let mut state = init(worker);
-            let mut local = Vec::new();
+            let mut local = Vec::with_capacity(count / workers);
             loop {
-                let i = next.fetch_add(1, Ordering::Relaxed);
-                if i >= count {
+                let first = next.fetch_add(claim, Ordering::Relaxed);
+                if first >= count {
                     break;
                 }
-                local.push((i, f(&mut state, i)));
+                for i in first..count.min(first + claim) {
+                    local.push((i, f(&mut state, i)));
+                }
             }
             local
         });
-        let mut results: Vec<_> = parts.into_iter().flatten().collect();
-        results.sort_unstable_by_key(|(i, _)| *i);
-        results.into_iter().map(|(_, value)| value).collect()
+        let mut slots: Vec<_> = (0..count).map(|_| None).collect();
+        for (index, value) in parts.into_iter().flatten() {
+            assert!(slots[index].is_none());
+            slots[index] = Some(value);
+        }
+        slots
+            .into_iter()
+            .map(|value| value.expect("one result per task"))
+            .collect()
     }
 
     /// Maps independent tasks, returning results in input-index order.
