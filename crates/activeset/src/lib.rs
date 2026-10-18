@@ -1183,11 +1183,23 @@ fn kkt_solve(
         let v = (bp[k] - dense::dot(&column[..k], &u[..k])) / column[k];
         u[k] = v;
     }
-    x.fill(0.0);
-    for (k, column) in j.chunks_exact(n).enumerate() {
-        let f = if k < q { u[k] } else { -c[k] };
-        if f != 0.0 {
-            dense::axpy(f, column, x);
+    if n >= 256 && execution.threads() > 1 {
+        execution.chunks_mut(x, 32, n * n, |start, part| {
+            part.fill(0.0);
+            for k in 0..n {
+                let f = if k < q { u[k] } else { -c[k] };
+                if f != 0.0 {
+                    dense::axpy(f, &j[k * n + start..k * n + start + part.len()], part);
+                }
+            }
+        });
+    } else {
+        x.fill(0.0);
+        for (k, column) in j.chunks_exact(n).enumerate() {
+            let f = if k < q { u[k] } else { -c[k] };
+            if f != 0.0 {
+                dense::axpy(f, column, x);
+            }
         }
     }
     for k in 0..q {
