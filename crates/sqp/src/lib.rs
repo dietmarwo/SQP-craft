@@ -829,6 +829,8 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         options.validate()?;
         self.settings.validate()?;
         self.qp.set_threads(options.threads)?;
+        let execution =
+            sqp_craft_parallel::Execution::new(options.threads).map_err(Error::Unsupported)?;
         if self.settings.elastic_mode && !self.qp.supports_elastic() {
             return Err(Error::Unsupported(
                 "elastic_mode needs a QP backend with elastic support, such as ActiveSetQp".into(),
@@ -935,6 +937,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             settings.hessian_block_size
         };
         let mut bfgs_work = bfgs::Curvature::new(n, effective_block);
+        bfgs_work.set_execution(&execution);
         let mut qp_work: Option<QpModel> = None;
         // The last step QP's working set, if the backend reports one.
         let mut qp_warm: Option<QpWarmStart> = None;
@@ -1116,6 +1119,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     if effective_block > 0 {
                         effective_block = 0;
                         bfgs_work = bfgs::Curvature::new(n, 0);
+                        bfgs_work.set_execution(&execution);
                         qp_work = None;
                         r.report.block_hessian_fallbacks += 1;
                     }
@@ -1751,6 +1755,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 if effective_block > 0 {
                     effective_block = 0;
                     bfgs_work = bfgs::Curvature::new(n, 0);
+                    bfgs_work.set_execution(&execution);
                     qp_work = None;
                     r.report.block_hessian_fallbacks += 1;
                 }
