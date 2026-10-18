@@ -18,6 +18,7 @@ def main():
     p.add_argument("--repeats", type=int, default=3)
     p.add_argument("--full", action="store_true")
     p.add_argument("--baseline", action="store_true", help="measure only supported 0.15 modes")
+    p.add_argument("--qp-only", action="store_true")
     a = p.parse_args()
     builds = dict(v.split("=", 1) for v in a.builds)
     # inner threads * outer workers never exceeds eight.
@@ -35,6 +36,8 @@ def main():
             for family, size in [("orbit", 20), ("separable", 128)]:
                 for inner, outer in ([(1, 1), (1, 8)] if a.baseline else [(1, 1), (1, 8), (2, 4), (4, 2), (8, 1)]):
                     cases.append((family, size, backend, inner, outer, 32))
+    if a.qp_only:
+        cases = [("qp", n, "active-set", w, 1, 1) for n in [128, 256, 512, 1024] for w in [1, 2, 4, 8]]
     records = []
     env = dict(os.environ, OMP_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1", MKL_NUM_THREADS="1")
     for repeat in range(a.repeats + 1):
@@ -45,6 +48,8 @@ def main():
             for label in order:
                 family, size, backend, inner, outer, jobs = case
                 command = [builds[label], family, str(size), "reuse", "0", backend, str(inner), str(outer), str(jobs)]
+                if a.qp_only:
+                    command = [builds[label], str(size), str(inner)]
                 before = resource.getrusage(resource.RUSAGE_CHILDREN)
                 began = time.perf_counter()
                 child = subprocess.run(command, capture_output=True, text=True, env=env)
