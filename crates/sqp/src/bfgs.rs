@@ -112,14 +112,16 @@ impl Workspace {
         // triangle is computed and mirrored; the result is bit-identical to
         // `0.5·(N + Nᵀ)` of the matrix expression.
         let n = b.nrows();
+        let mut finite = true;
         for j in 0..n {
             for i in j..n {
                 let v = (b[(i, j)] - (self.bs[i] * self.bs[j]) / t) + (self.r[i] * self.r[j]) / sr;
+                finite &= v.is_finite();
                 self.next[(i, j)] = v;
                 self.next[(j, i)] = v;
             }
         }
-        if self.next.iter().any(|v| !v.is_finite()) {
+        if !finite {
             return None;
         }
         if let Some(buffer) = self.check.as_mut() {
