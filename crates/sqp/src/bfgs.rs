@@ -114,15 +114,28 @@ impl Workspace {
         let n = b.nrows();
         let mut finite = true;
         for j in 0..n {
-            for i in j..n {
-                let v = (b[(i, j)] - (self.bs[i] * self.bs[j]) / t) + (self.r[i] * self.r[j]) / sr;
+            let source = &b.as_slice()[j * n..(j + 1) * n];
+            let target = &mut self.next.as_mut_slice()[j * n..(j + 1) * n];
+            let (bsj, rj) = (self.bs[j], self.r[j]);
+            for (((out, &old), &bs), &r) in target[j..]
+                .iter_mut()
+                .zip(&source[j..])
+                .zip(&self.bs.as_slice()[j..])
+                .zip(&self.r.as_slice()[j..])
+            {
+                let v = (old - (bs * bsj) / t) + (r * rj) / sr;
                 finite &= v.is_finite();
-                self.next[(i, j)] = v;
-                self.next[(j, i)] = v;
+                *out = v;
             }
         }
         if !finite {
             return None;
+        }
+        let next = self.next.as_mut_slice();
+        for j in 0..n {
+            for i in j + 1..n {
+                next[i * n + j] = next[j * n + i];
+            }
         }
         if let Some(buffer) = self.check.as_mut() {
             let mut work = std::mem::take(buffer);
