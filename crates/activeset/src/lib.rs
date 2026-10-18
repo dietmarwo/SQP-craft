@@ -83,13 +83,12 @@ pub struct ActiveSetQp {
     work: Work,
     norms: Vec<f64>,
     checks: QpResidualWorkspace,
-    execution: sqp_craft_parallel::Execution,
 }
 
 impl QpBackend for ActiveSetQp {
     fn set_threads(&mut self, threads: usize) -> Result<()> {
-        if self.execution.threads() != threads {
-            self.execution =
+        if self.work.execution.threads() != threads {
+            self.work.execution =
                 sqp_craft_parallel::Execution::new(threads).map_err(Error::Unsupported)?;
         }
         Ok(())
@@ -515,6 +514,7 @@ struct Member {
 /// Factors and iterate of the dual method, reused across calls.
 #[derive(Clone, Debug, Default)]
 struct Work {
+    execution: sqp_craft_parallel::Execution,
     n: usize,
     /// Owned exact input key for a successful factorization.
     hessian_key: Option<sqp_craft::CsrMatrix>,
@@ -696,7 +696,7 @@ impl Work {
             self.j.copy_from_slice(&self.initial_j);
             self.dependence = self.initial_dependence;
         } else {
-            dense::inverse_transpose(&self.l, &mut self.j, self.n);
+            dense::inverse_transpose_parallel(&self.l, &mut self.j, self.n, &self.execution);
             self.dependence =
                 DEPENDENCE * f64::EPSILON * (self.n as f64).sqrt() * dense::norm(&self.j);
             if self.factor_reused

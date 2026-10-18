@@ -62,6 +62,33 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
     }
 }
 
+/// Independent inverse columns with unchanged within-column arithmetic.
+pub(crate) fn inverse_transpose_parallel(
+    l: &[f64],
+    j: &mut [f64],
+    n: usize,
+    execution: &sqp_craft_parallel::Execution,
+) {
+    if n < 128
+        || execution.threads() == 1
+        || l.chunks_exact(n)
+            .enumerate()
+            .all(|(k, col)| col[k + 1..].iter().all(|&v| v == 0.0))
+    {
+        inverse_transpose(l, j, n);
+        return;
+    }
+    j.fill(0.0);
+    execution.chunks_mut(j, n, n * n * n / 3, |start, column| {
+        let k = start / n;
+        column[k] = 1.0 / l[k * n + k];
+        for i in (0..k).rev() {
+            let li = &l[i * n..(i + 1) * n];
+            column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
+        }
+    });
+}
+
 /// `Σ a_i b_i` with four partial sums, so the loop vectorizes.
 pub(crate) fn dot(a: &[f64], b: &[f64]) -> f64 {
     debug_assert_eq!(a.len(), b.len());
@@ -302,5 +329,31 @@ pub(crate) fn solve_factored(l: &[f64], x: &mut [f64], n: usize) {
     for i in (0..n).rev() {
         let col = &l[i * n..(i + 1) * n];
         x[i] = (x[i] - dot(&col[i + 1..], &x[i + 1..])) / col[i];
+    }
+}
+
+#[cfg(test)]
+mod parallel_inverse_tests {
+    use super::*;
+    #[test]
+    fn inverse_columns_are_bit_identical_at_dispatch_boundaries() {
+        let execution = sqp_craft_parallel::Execution::new(8).unwrap();
+        for n in [0, 1, 31, 127, 128, 129, 256] {
+            let mut l = vec![0.0; n * n];
+            for k in 0..n {
+                l[k * n + k] = 1.0 + k as f64 * 0.01;
+                for i in k + 1..n {
+                    l[k * n + i] = ((i + k) % 17) as f64 * 0.001;
+                }
+            }
+            let mut a = vec![f64::NAN; n * n];
+            let mut b = a.clone();
+            inverse_transpose(&l, &mut a, n);
+            inverse_transpose_parallel(&l, &mut b, n, &execution);
+            assert_eq!(
+                a.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                b.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+            );
+        }
     }
 }
