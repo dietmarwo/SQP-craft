@@ -193,22 +193,9 @@ fn main() {
     let jobs: usize = args.get(8).map(|v| v.parse().unwrap()).unwrap_or(1);
     assert!(workers > 0 && workers <= 8 && jobs > 0);
     let began = Instant::now();
-    let mut results = std::thread::scope(|scope| {
-        let mut handles = Vec::new();
-        for worker in 0..workers {
-            let args = &args;
-            handles.push(scope.spawn(move || {
-                (worker..jobs)
-                    .step_by(workers)
-                    .map(|i| (i, run_case(args)))
-                    .collect::<Vec<_>>()
-            }));
-        }
-        handles
-            .into_iter()
-            .flat_map(|h| h.join().unwrap())
-            .collect::<Vec<_>>()
-    });
+    let execution = sqp_craft_parallel::Execution::new(workers).unwrap();
+    let mut results = execution.map(jobs, |i| (i, run_case(&args)));
+    drop(execution);
     let wall = began.elapsed().as_secs_f64();
     results.sort_by_key(|(i, _)| *i);
     assert_eq!(results.len(), jobs);

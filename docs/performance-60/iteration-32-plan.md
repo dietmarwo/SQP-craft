@@ -1,0 +1,3 @@
+# Iteration 32: Bounded persistent execution resources
+
+Implement a separate parallel utility crate backed by pinned Rayon1.12.0. Keep the core contracts dependency-free. Explicit widths1..8, sequential default, safe disjoint output chunks, ordered map and no global-pool mutation. Integrate ordered eight-worker map into the common benchmark, timing cold pool creation fairly. Test maximum active task bound, original result ordering and panic propagation. Compare full release tests and paired 1/8-worker timings; pool creation may cost more than scoped threads for tiny batches, which must remain visible.
