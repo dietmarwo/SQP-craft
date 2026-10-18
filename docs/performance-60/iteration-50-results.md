@@ -2,7 +2,7 @@
 
 Large bounded dense-row norm preparation now distributes independent rows, preserving the original scalar norm reduction. Free rows remain zero and do not count toward dispatch work; sparse/small fixtures keep the original serial iterator. A1024-row dense/free mixture matches scalar output exactly.
 
-Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-50.json`.
+Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-50.json.gz`.
 
 | Case: family / size / backend / inner threads / workers / jobs | Previous ms | Candidate ms | Speedup |
 |---|---:|---:|---:|

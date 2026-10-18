@@ -1,8 +1,8 @@
 # Iteration 47: results
 
-Ordered batch collection is now linear, with exact one-result-per-index checks, per-worker capacity reservation and bounded dynamic claims. Added a frozen mixed-cost orbit workload whose individual solves retain the original callbacks/reference/KKT assertions; fine claims remain for normal32-job batches.
+Ordered batch collection is now linear, with exact one-result-per-index checks, per-worker capacity reservation and bounded dynamic claims. Added a frozen mixed-cost orbit workload whose individual solves retain the original callbacks/reference/KKT assertions; fine claims remain for normal 32-job batches.
 
-Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-47.json`.
+Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-47.json.gz`.
 
 | Case: family / size / backend / inner threads / workers / jobs | Previous ms | Candidate ms | Speedup |
 |---|---:|---:|---:|
@@ -13,4 +13,4 @@ Full release Rust workspace tests passed before serial paired timings. Each time
 
 Small changes may be noise. Retained code reduces identifiable work or supplies a tested parallel capability; no per-checkpoint monotonic wall-time claim. Negative/noisy timings and failures are retained.
 
-Mixed-cost32-solve confirmation: one worker1877.92 ms versus eight418.32 ms (4.489× throughput); all original orbit20/40 assertions passed. Both wall and CPU samples remain in data/iteration-47-mixed.json.
+Mixed-cost 32-solve confirmation: one worker 1877.92 ms versus eight 418.32 ms (4.489× throughput); all original orbit20/40 assertions passed. Both wall and CPU samples remain in data/iteration-47-mixed.json.gz.

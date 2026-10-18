@@ -2,7 +2,7 @@
 
 Compatible execution owners now share a weakly indexed owned pool, avoiding duplicate QP/BFGS pools in the next kernels. Pool creation is serialized briefly; kernel work never holds the registry lock. Different widths and owner teardown are tested. No per-fixture latency gain is attributed to this resource-sharing checkpoint.
 
-Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-35.json`.
+Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-35.json.gz`.
 
 | Case: family / size / backend / inner threads / workers / jobs | Previous ms | Candidate ms | Speedup |
 |---|---:|---:|---:|

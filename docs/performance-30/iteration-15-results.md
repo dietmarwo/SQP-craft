@@ -2,7 +2,7 @@
 
 Retained: a validated fully stored Hessian writes every lower entry exactly once. Incomplete patterns still clear all missing entries. Model/pattern and SPD checks remain mandatory; repeated varying-size and missing-diagonal tests pass.
 
-Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-15.json. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
+Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-15.json.gz. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
 
 | Kind | Fixture | Previous ms | Candidate ms | Previous/candidate |
 |---|---|---:|---:|---:|

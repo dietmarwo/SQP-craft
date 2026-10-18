@@ -4,6 +4,18 @@ import argparse, csv, json, math, statistics
 from pathlib import Path
 
 
+def read_json(path):
+    """`path`, or its gzip-compressed copy `path.gz`: the repository keeps the
+    large raw files compressed, and fresh runs write plain JSON."""
+    path = Path(path)
+    if path.exists():
+        return json.loads(path.read_text())
+    import gzip
+
+    with gzip.open(str(path) + ".gz", "rt", encoding="utf-8") as stream:
+        return json.load(stream)
+
+
 def table(headers, rows):
     return "\n".join(
         [
@@ -21,7 +33,7 @@ def main():
     a = p.parse_args()
     D = a.root / "data"
     sections = []
-    primary = json.loads((D / "final-common.json").read_text())
+    primary = read_json(D / "final-common.json")
     rows = []
     for r in primary["summary"]:
         rows.append(
@@ -40,7 +52,7 @@ def main():
         table(["Kind", "Fixture", "Size", "Baseline ms", "Final ms", "Speedup"], rows),
         "",
     ]
-    hold = json.loads((D / "holdout-native.json").read_text())
+    hold = read_json(D / "holdout-native.json")
     rows = []
     for family, size in hold["cases"]:
         for backend in ["active-set", "clarabel"]:
@@ -75,7 +87,7 @@ def main():
         ),
         "",
     ]
-    both = json.loads((D / "final-both-backends.json").read_text())
+    both = read_json(D / "final-both-backends.json")
     rows = []
     for family, size in [
         ("orbit", 20),
@@ -130,7 +142,7 @@ def main():
         ),
         "",
     ]
-    series = json.loads((D / "series.json").read_text())
+    series = read_json(D / "series.json")
     points = []
     rows = []
     for i in range(31):

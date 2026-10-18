@@ -1,6 +1,6 @@
 # SQP-craft 0.15.0: thirty autonomous performance iterations
 
-Completed **30 planned, implemented and tested iterations** against original main `4d776bbd89f187fe176be805ab91fd64305a8c44` from https://github.com/dietmarwo/SQP-craft. Every iteration has a pre-implementation plan, source checkpoint, release Rust test run and paired measurements. The release adds a final two-entry CSR refinement after the comprehensive kernel audit found a regression. This is a local tested implementation; no upstream push or release publication was performed.
+Completed **30 planned, implemented and tested iterations** against original main `4d776bbd89f187fe176be805ab91fd64305a8c44` from https://github.com/dietmarwo/SQP-craft. Every iteration has a pre-implementation plan, source checkpoint, release Rust test run and paired measurements. The release adds a final two-entry CSR refinement after the comprehensive kernel audit found a regression. It reached `main` together with 0.16; see [REPRODUCE.md](REPRODUCE.md) for where the checkpoint history is.
 
 The active-set path improves on all four primary SQP fixtures and all six declared held-out sizes. The default Clarabel backend has mixed wall-time results. The evidence does **not** support a claim that every individual iteration or every workload is monotonically faster. Defaults, callback formulas, mathematical problems, tolerances and budgets were preserved.
 
@@ -17,7 +17,7 @@ One pinned numerical thread, one warmup plus seven measured fresh-process repeti
 
 The four-fixture geometric speedup is **1.247×** (about 19.8% less elapsed time by that geometric measure). Full-BFGS outer iteration counts remain **104 / 167 / 21 / 4**. The orbit fixtures contain 84/164 variables; they retain the same dynamics, initial point and reference-objective checks. Solver timing excludes native fixture construction and process startup.
 
-All six held-out sizes were frozen before tuning: orbit 30/48, separable 96/192 and restoration 48/96. Every measured run converged and passed the same original-unit KKT assertions. Active-set speedups in the three-repeat campaign are 1.171× / 1.150× / 1.196× / 1.187× / 1.452× / 1.308×. For orbit 48 (196 variables), the median falls from 496.66 to 431.83 ms. Complete per-case samples and hashes are in data/holdout-native.json and TABLES.md.
+All six held-out sizes were frozen before tuning: orbit 30/48, separable 96/192 and restoration 48/96. Every measured run converged and passed the same original-unit KKT assertions. Active-set speedups in the three-repeat campaign are 1.171× / 1.150× / 1.196× / 1.187× / 1.452× / 1.308×. For orbit 48 (196 variables), the median falls from 496.66 to 431.83 ms. Complete per-case samples and hashes are in data/holdout-native.json.gz and TABLES.md.
 
 ## Default backend and remaining regressions
 

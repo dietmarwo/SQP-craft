@@ -6,6 +6,18 @@ import json
 from pathlib import Path
 
 
+def read_json(path):
+    """`path`, or its gzip-compressed copy `path.gz`: the repository keeps the
+    large raw files compressed, and fresh runs write plain JSON."""
+    path = Path(path)
+    if path.exists():
+        return json.loads(path.read_text())
+    import gzip
+
+    with gzip.open(str(path) + ".gz", "rt", encoding="utf-8") as stream:
+        return json.load(stream)
+
+
 def table(headers, rows):
     return "\n".join(
         [
@@ -32,7 +44,7 @@ def main():
         "final-mixed32",
         "baseline-confirmation",
     ]
-    datasets = {name: json.loads((d / (name + ".json")).read_text()) for name in names}
+    datasets = {name: read_json(d / (name + ".json")) for name in names}
     for name, data in datasets.items():
         assert data["status"] == "passed", name
         assert len(data["records"]) == (data["repeats"] + 1) * len(data["cases"]) * len(
@@ -76,7 +88,7 @@ def main():
                     jobs,
                     f"{r['seconds']*1000:.3f}",
                     f"{r['solver_seconds_per_job']*1000:.3f}",
-                    f"{r['cpu_seconds']*1000:.3f}",
+                    "–" if r["cpu_seconds"] is None else f"{r['cpu_seconds']*1000:.3f}",
                     r["samples"],
                 ]
             )
@@ -160,7 +172,7 @@ def main():
                         *r["case"],
                         r["seconds"] * 1000,
                         r["solver_seconds_per_job"] * 1000,
-                        r["cpu_seconds"] * 1000,
+                        None if r["cpu_seconds"] is None else r["cpu_seconds"] * 1000,
                         r["samples"],
                     ]
                 )

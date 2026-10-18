@@ -2,7 +2,7 @@
 
 Added alias-free parallel symmetric commit from the completed lower triangle, with all finite/SPD gates before modifying B. Scalar default mirror/swap remains, and exact serial/eight-thread rank-two update sequences continue to match bit-for-bit. This copies extra lower entries and its dispatch threshold remains subject to final scaling evidence.
 
-Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-38.json`.
+Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-38.json.gz`.
 
 | Case: family / size / backend / inner threads / workers / jobs | Previous ms | Candidate ms | Speedup |
 |---|---:|---:|---:|

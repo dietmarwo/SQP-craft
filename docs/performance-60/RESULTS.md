@@ -16,8 +16,8 @@ Eight CPU-equivalents quota, nine visible CPUs, children pinned to eight allowed
 | Propagation 32, clarabel, setup-inclusive | 46.36 | 19.79 | 2.343× |
 | Standalone QP 512, three fresh-H calls | 46.45 | 29.33 | 1.584× |
 | Standalone QP 1024, three fresh-H calls | 349.11 | 201.00 | 1.737× |
-| Orbit20, active-set,16 independent solves | 486.99 | 108.01 | 4.509× |
-| Orbit20, clarabel,16 independent solves | 3695.51 | 595.00 | 6.211× |
+| Orbit 20, active-set, 16 independent solves | 486.99 | 108.01 | 4.509× |
+| Orbit 20, clarabel, 16 independent solves | 3695.51 | 595.00 | 6.211× |
 
 Propagation figures use seven measured repetitions after one warmup. Workflow includes finer-target model construction, worker setup/teardown and the solve; native solve time excludes model construction and includes its own worker setup. Both modes take 10 SQP iterations and reach the same objective. The three-repeat complete matrix also remains available (active-set native 37.03→10.29 ms versus 37.18→9.12 ms in the seven-repeat confirmation). These are separate campaigns; no slower campaign was discarded.
 
@@ -41,7 +41,7 @@ A targeted seven-repeat campaign checks one throughput gain and two potentially 
 | orbit / 40 / active-set / 1 / 1 / 1 | 255.30 | 261.07 | 0.978× |
 | orbit / 20 / clarabel / 1 / 8 / 16 | 620.39 | 603.58 | 1.028× |
 
-For the separable batch, aggregate CPU time in that campaign is 278.52→300.77 ms while wall time falls 64.33→55.10 ms: higher throughput does not imply fewer CPU-seconds. The earlier three-repeat same-configuration campaign measured87.04→62.54 ms for that batch; both campaigns are retained. Orbit40 single-solve time remains about 2.3% slower in the seven-repeat comparison. The earlier matrix includes active-set single separable 17.29→18.18 ms and Clarabel eight-worker orbit 644.29→679.13 ms; the latter reverses to 620.39→603.58 ms in confirmation. These observations do not isolate code-layout/cache effects from shared-host variability. No uniform existing-fixture latency win is claimed.
+For the separable batch, aggregate CPU time in that campaign is 278.52→300.77 ms while wall time falls 64.33→55.10 ms: higher throughput does not imply fewer CPU-seconds. The earlier three-repeat same-configuration campaign measured 87.04→62.54 ms for that batch; both campaigns are retained. Orbit 40 single-solve time remains about 2.3% slower in the seven-repeat comparison. The earlier matrix includes active-set single separable 17.29→18.18 ms and Clarabel eight-worker orbit 644.29→679.13 ms; the latter reverses to 620.39→603.58 ms in confirmation. These observations do not isolate code-layout/cache effects from shared-host variability. No uniform existing-fixture latency win is claimed.
 
 ## Held-out checks
 
@@ -54,7 +54,7 @@ Old frozen holdouts are orbit30/48, separable96/192 and restoration48/96, with b
 | propagation96, active-set | 131.94 | 44.19 | 2.986× |
 | propagation96, clarabel | 159.50 | 70.62 | 2.258× |
 
-Standalone QP holdouts 384/640/896 also pass their independent KKT and planted primal/dual checks at 1/2/4/8. At640 variables the three-call numeric time is 85.18→55.35 ms; at 896,230.22→138.99 ms. All raw samples, CPU time, setup time and binary hashes are retained. Results apply to these controlled fixtures, not industrial robustness or the actual user trajectory.
+Standalone QP holdouts 384/640/896 also pass their independent KKT and planted primal/dual checks at 1/2/4/8. At 640 variables the three-call numeric time is 85.18→55.35 ms; at 896, 230.22→138.99 ms. All raw samples, CPU time, setup time and binary hashes are retained. Results apply to these controlled fixtures, not industrial robustness or the actual user trajectory.
 
 ## Retained implementation
 
@@ -73,12 +73,12 @@ Exact bit-key factors/inverses, original-model validation and independent accept
 | Regular Rust workspace | 196 tests pass in debug/release, plus explicit propagation example tests; iterations 32–60 ran full release workspace tests before timing; exact checkpoint 31 passed all 173 tests at final packaging because its initial log is incomplete. |
 | Forced all-target/all-feature Rust | 211 tests pass, including kernel/propagation examples; relocated libpython is handled by a private linker path. |
 | Compiled Python | 156 tests pass, including 1/2/4/8 widths, caller-thread ownership, exception identity, cancellation, independent callers and deliberate false-performance fault injection. |
-| Clippy / rustfmt / rustdoc |All-target/all-feature warnings-denied Clippy, formatting and warnings-denied documentation pass. |
-| Full three-way numerical audit |52,116 actual calls:17,372 each for immutable0.15 baseline1,0.16 scalar1 and 0.16 budget 8;34,744 paired comparisons. No lost convergence/acceptance/reference, no false convergence claims, no changed outer iteration counts; maximum audited accepted objective and point differences both 0.0. |
-| Convergence counts |16,638 converged per mode;734 existing nonconverged outcomes per mode remain visible. Call totals include repeated configurations, not unique mathematical problems. |
-| Additional development audit |2,760 calls, with 895 of 920 converged per mode, identical outcomes/accepted points/objectives; raw quick audit retained separately. |
-| Harder QP census |1000 cases, seed 2026, baseline/scalar/eight-thread budget outcome tallies match, including four active-set independent-check rejections and one limit. These are not successful solves. Dimensions≤100 use small-kernel fallbacks; separate 512+ exact/stress/reference tests exercise actual parallel kernels. |
-| Integrity / isolation |Eight frozen callback/generator/evaluator files match 0.15. Audit checks exact case/mode completeness, observed call counts, versions, consistent native extension hashes and actual solver-owned multiplier certificates. Concurrent callers change H/rows/bounds/gradients, inject invalid input/cancellation and recover on later solves. |
+| Clippy / rustfmt / rustdoc | All-target/all-feature warnings-denied Clippy, formatting and warnings-denied documentation pass. |
+| Full three-way numerical audit | 52,116 actual calls: 17,372 each for immutable 0.15 baseline 1, 0.16 scalar 1 and 0.16 budget 8; 34,744 paired comparisons. No lost convergence/acceptance/reference, no false convergence claims, no changed outer iteration counts; maximum audited accepted objective and point differences both 0.0. |
+| Convergence counts | 16,638 converged per mode; 734 existing nonconverged outcomes per mode remain visible. Call totals include repeated configurations, not unique mathematical problems. |
+| Additional development audit | 2,760 calls, with 895 of 920 converged per mode, identical outcomes/accepted points/objectives; raw quick audit retained separately. |
+| Harder QP census | 1000 cases, seed 2026, baseline/scalar/eight-thread budget outcome tallies match, including four active-set independent-check rejections and one limit. These are not successful solves. Dimensions≤100 use small-kernel fallbacks; separate 512+ exact/stress/reference tests exercise actual parallel kernels. |
+| Integrity / isolation | Eight frozen callback/generator/evaluator files match 0.15. Audit checks exact case/mode completeness, observed call counts, versions, consistent native extension hashes and actual solver-owned multiplier certificates. Concurrent callers change H/rows/bounds/gradients, inject invalid input/cancellation and recover on later solves. |
 
 The full corpus covers six 300-model seeds under three settings with both backends, an elastic seed, default/SOC/augmented/Jacobian-scaling variants over baseline/Maratos/linear/MPCC families, and independent NumPy checks of development/heldout fixtures. Every observed solve is journaled; variant objectives/points are now audited as well. Convergence is numerical first-order acceptance, not global optimality or a second-order certificate.
 
@@ -89,12 +89,12 @@ The full corpus covers six 300-model seeds under three settings with both backen
 3. A cyclic inverse-column schedule gave no reliable retained gain. Two seven-repeat 1024 comparisons showed roughly 5–10% losses; a hybrid revision remained noisy. Iteration 58 removes the extra lane allocation and keeps the simpler generic schedule. `sqp-parallel-52-cyclic-experiment` and all initial/recheck/retained measurements are included.
 4. Harness/test integration failures were corrected and fully rerun: an unnecessary unwrap of a scalar objective, a nonexistent CSR helper in a new test, a Clippy temporary-vector warning, and an incomplete first removal of the BFGS driver calls. First-failure logs are retained; none is counted as a passing checkpoint.
 5. The 0.15→0.16 comparisons include flat/slower cases and confirmations; no selectively replaced campaign or multiplied adjacent speedups is used. The one-measured-repeat iteration 56 matrix is exploratory; final matrix/holdout/common comparisons use three repetitions, selected confirmations/QPs seven.
-6. The initial checkpoint 31 Rust log ends during compilation, so it cannot certify that run. Its mathematical implementation is unchanged0.15 and all initial benchmark assertions passed; the final package audit reran the exact saved checkpoint 31 full release suite (173 passed) and retains both logs. Original logs for 35/49/57 contain all regular test results but end during zero-test rustdoc phases; final-release rustdoc and complete final suites pass separately. The ledger marks this retrospective verification explicitly.
+6. The initial checkpoint 31 Rust log ends during compilation, so it cannot certify that run. Its mathematical implementation is unchanged 0.15 and all initial benchmark assertions passed; the final package audit reran the exact saved checkpoint 31 full release suite (173 passed) and retains both logs. Original logs for 35/49/57 contain all regular test results but end during zero-test rustdoc phases; final-release rustdoc and complete final suites pass separately. The ledger marks this retrospective verification explicitly.
 
 ## Delivery and practical next use
 
 Use eight outer workers with inner 1 for the existing small NLPs. Use the native model budget hook when expensive independent propagation dominates. Explicit threads 8 is a maximum; cheap existing Python callbacks do not become parallel automatically. Clarabel's engine and full BFGS remain serial. The 256-variable NLP cap, dense Hessian and Linux-only executed validation remain material limits. Rust 1.85 minimum and other platforms were not separately run; executed toolchain is Rust 1.99.1/CPython 3.12.14.
 
-The archive includes complete source/tests, both the incremental0.15→0.16 and cumulative original-upstream→0.16 patches, source-history bundle, all 30 plans/results, raw measurements, full/quick numerical journals, successful/failed validation logs, figure/CSV and byte checksums. Source-only delivery avoids machine-specific executables; REPRODUCE.md documents rebuilding. The previous0.15 artifacts remain intact, and no upstream push/release publication was performed.
+The archive includes complete source/tests, both the incremental 0.15→0.16 and cumulative original-upstream→0.16 patches, source-history bundle, all 30 plans/results, raw measurements, full/quick numerical journals, successful/failed validation logs, figure/CSV and byte checksums. Source-only delivery avoids machine-specific executables; REPRODUCE.md documents rebuilding. The previous 0.15 artifacts remain intact. On GitHub, 0.15 and 0.16 reached `main` as one squashed commit; the checkpoint history is in the archive's bundle (see REPRODUCE.md).
 
 Primary implementation references: [Rayon 1.12 local ThreadPoolBuilder](https://docs.rs/rayon/1.12.0/rayon/struct.ThreadPoolBuilder.html), [ThreadPool execution](https://docs.rs/rayon/1.12.0/rayon/struct.ThreadPool.html), and the [original SQP-craft repository](https://github.com/dietmarwo/SQP-craft). Numerical safety arguments and actual claims above are grounded in the delivered code, independent checks and raw measurements.

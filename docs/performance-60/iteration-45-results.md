@@ -2,7 +2,7 @@
 
 Added public Rust batch::solve_many with explicit eight-CPU total budget, worker-local factory construction and deterministic indexed results, including independent errors. Non-Send model instances remain supported because construction and use occur on the same worker. Tests cover order, invalid starts and budget rejection.
 
-Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-45.json`.
+Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-45.json.gz`.
 
 | Case: family / size / backend / inner threads / workers / jobs | Previous ms | Candidate ms | Speedup |
 |---|---:|---:|---:|

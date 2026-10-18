@@ -2,7 +2,7 @@
 
 Added independent planted coupled-QP scaling coverage at 128/256/512/1024 variables, fresh Hessians on every call, retained resources, and explicit resource setup/CPU-time records. Every result must pass the original KKT rule and known primal/dual solution. The existing NLP cap and all original callbacks remain unchanged.
 
-Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-36.json`.
+Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-36.json.gz`.
 
 | Case: family / size / backend / inner threads / workers / jobs | Previous ms | Candidate ms | Speedup |
 |---|---:|---:|---:|
@@ -22,4 +22,4 @@ Three solves per sample, separate resource-setup measurement; all original-model
 - n=512: 1t 55.34ms (1.00x), 2t 37.54ms (1.47x), 4t 38.01ms (1.46x), 8t 29.65ms (1.87x)
 - n=1024: 1t 398.90ms (1.00x), 2t 330.17ms (1.21x), 4t 263.59ms (1.51x), 8t 228.55ms (1.75x)
 
-Raw: data/iteration-36-qp-scaling.json. Larger QPs demonstrate useful inverse parallelism while the small-size losses remain visible.
+Raw: data/iteration-36-qp-scaling.json.gz. Larger QPs demonstrate useful inverse parallelism while the small-size losses remain visible.

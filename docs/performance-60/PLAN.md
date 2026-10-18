@@ -47,4 +47,4 @@ All 30 iterations are implemented and tested; retained/rejected experiments are 
 | 59 | [Fallible factories and fail-closed harness regressions](iteration-59-plan.md) | [Result](iteration-59-results.md) |
 | 60 | [Freeze 0.16 and run complete release gates](iteration-60-plan.md) | [Result](iteration-60-results.md) |
 
-Final validation: 196 regular Rust tests,211 forced all-target tests,156 Python tests and 52,116 independently journaled solver calls, with unchanged audited statuses/outer iterations/accepted objectives/points. See [RESULTS.md](RESULTS.md), [TABLES.md](TABLES.md), [VALIDITY.md](VALIDITY.md) and [REPRODUCE.md](REPRODUCE.md).
+Final validation: 196 regular Rust tests, 211 forced all-target tests, 156 Python tests and 52,116 independently journaled solver calls, with unchanged audited statuses/outer iterations/accepted objectives/points. See [RESULTS.md](RESULTS.md), [TABLES.md](TABLES.md), [VALIDITY.md](VALIDITY.md) and [REPRODUCE.md](REPRODUCE.md).

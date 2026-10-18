@@ -2,7 +2,7 @@
 
 Retained: exactly diagonal Cholesky factors bypass cubic zero-work inverse solves; any nonzero coupling retains the full algorithm. Added analytic diagonal, empty and tiny-coupling checks. No numerical nonzero is dropped.
 
-Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-20.json. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
+Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-20.json.gz. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
 
 | Kind | Fixture | Previous ms | Candidate ms | Previous/candidate |
 |---|---|---:|---:|---:|

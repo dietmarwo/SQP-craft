@@ -2,7 +2,7 @@
 
 Retained: each model load builds ordered bounded/equality lists in one pass. Initial and retry basis construction reuse the fresh equality list, and the mutation regression now checks both lists. Equality ordering and hard/soft-row semantics are unchanged.
 
-Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-26.json. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
+Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-26.json.gz. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
 
 | Kind | Fixture | Previous ms | Candidate ms | Previous/candidate |
 |---|---|---:|---:|---:|

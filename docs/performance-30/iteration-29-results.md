@@ -2,7 +2,7 @@
 
 Retained: a complete owned bitwise Hessian key permits factor reuse only after a successful SPD check. Value, signed-zero, pattern, dimension, invalid-input, failed-factor and cloned-backend cases are tested. Compatible reuse is reported as an update; setup+update accounting replaces the former one-factorization-per-QP assertion. The common harness now also covers coupled free QPs.
 
-Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-29.json. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
+Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-29.json.gz. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
 
 | Kind | Fixture | Previous ms | Candidate ms | Previous/candidate |
 |---|---|---:|---:|---:|

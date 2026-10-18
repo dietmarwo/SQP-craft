@@ -2,7 +2,7 @@
 
 Retained: ordinary QP acceptance validates mutable structure once, checks all derived arithmetic and multiplier inputs, and recomputes the same independent KKT residuals. Added malformed/nonfinite multiplier regressions. The public and elastic entry points retain full validation.
 
-Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-04.json. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
+Full release Rust workspace tests passed before timing. Same benchmark sources, inputs, fixed work and numerical tolerances; all NLP benchmark convergence/objective/KKT assertions passed. Every sample and binary hash is in data/iteration-04.json.gz. Timings below are medians of three samples after one warmup, with serial rotated/reversed processes pinned to one allowed CPU. Small changes may be timing noise; work reductions and final paired comparisons govern claims.
 
 | Kind | Fixture | Previous ms | Candidate ms | Previous/candidate |
 |---|---|---:|---:|---:|

@@ -1,6 +1,8 @@
 # Reproduce SQP-craft 0.16 and the eight-worker series
 
-Base is tested local 0.15 commit `7ae0520a9da86fd0b49b9e7e486180ead82a88d8`; original upstream is `4d776bbd89f187fe176be805ab91fd64305a8c44`. The archive contains both incremental and cumulative patches, complete source, raw evidence and a source-history bundle. No remote publication was performed.
+Base is tested local 0.15 commit `7ae0520a9da86fd0b49b9e7e486180ead82a88d8`; original upstream is `4d776bbd89f187fe176be805ab91fd64305a8c44`. The delivery archive contains both incremental and cumulative patches, complete source, raw evidence and a source-history bundle.
+
+On GitHub, the 0.15 and 0.16 work reached `main` as one squashed commit. The 63 checkpoint commits and their tags (`sqp-perf30-00` to `sqp-perf30-30`, `sqp-parallel-31` to `sqp-parallel-60`, `sqp-parallel-52-cyclic-experiment`) are in the source-history bundle of the delivery archive (`history/sqp-parallel.bundle`), together with the large raw stress dumps and logs; they are not in this repository. Raw files of more than 50 kB are stored gzip-compressed here (`data/*.json.gz`). Fresh runs write plain JSON, and the report scripts read either form.
 
 ## Build and tests
 
@@ -44,9 +46,9 @@ CARGO_TARGET_DIR=/tmp/sqp-baseline-target cargo build --release --locked \
   --manifest-path /tmp/sqp-baseline-harness/Cargo.toml -p sqp-craft-solver --examples
 ```
 
-Checkpoint31 has a retrospective exact-source full-suite recheck because its initial log is incomplete: all 173 tests pass; both logs ship. Iterations 32–60 record all regular release-test results before timing. The original 35/49/57 logs end during zero-test rustdoc phases; final-release rustdoc passes separately.
+Checkpoint 31 has a retrospective exact-source full-suite recheck because its initial log is incomplete: all 173 tests pass; both logs ship. Iterations 32–60 record all regular release-test results before timing. The original 35/49/57 logs end during zero-test rustdoc phases; final-release rustdoc passes separately.
 
-Tags `sqp-parallel-31` through `sqp-parallel-60` preserve every new iteration; `sqp-parallel-52-cyclic-experiment` preserves the rejected scheduler. The previous30-iteration history is also included. Binaries are rebuilt, not distributed. Recorded hashes identify the measured executables; rebuild hashes may differ with compiler/build paths. Large raw stress dumps/logs ship in the ZIP but are deliberately not committed.
+Tags `sqp-parallel-31` through `sqp-parallel-60` preserve every new iteration; `sqp-parallel-52-cyclic-experiment` preserves the rejected scheduler. The previous 30-iteration history is also included. Binaries are rebuilt, not distributed. Recorded hashes identify the measured executables; rebuild hashes may differ with compiler/build paths. Large raw stress dumps/logs ship in the ZIP but are deliberately not committed.
 
 Build/install 0.15 in an isolated environment and preserve its `sqp_craft` directory including the compiled `_native` extension. Pass that directory's **parent** to independent validation. Workers are fresh processes; never replace an extension in a running interpreter.
 
@@ -99,8 +101,8 @@ SEED=2026 COUNT=1000 THREADS=8 cargo test --release --locked \
   -p sqp-craft-activeset --test against_clarabel census -- --ignored --nocapture
 ```
 
-Full audit: 17,372 calls per mode (0.15 baseline 1, current 1, current 8),52,116 calls total and 34,744 pair comparisons. It uses the same six 300-model seeds, three workspace/restoration settings, both backends, an elastic seed, four option variants over baseline/Maratos/linear/MPCC families and independent NumPy checks of development/heldout sizes. Calls include repeated configurations, not 52,116 unique problems. The wrapper changes only the thread budget and journals every actual solve and independently evaluated solver-owned certificate/objective/point. Frozen source hashes, expected case keys/counts, versions and consistent extension hashes are required. Known nonconvergence is preserved.
+Full audit: 17,372 calls per mode (0.15 baseline 1, current 1, current 8), 52,116 calls total and 34,744 pair comparisons. It uses the same six 300-model seeds, three workspace/restoration settings, both backends, an elastic seed, four option variants over baseline/Maratos/linear/MPCC families and independent NumPy checks of development/heldout sizes. Calls include repeated configurations, not 52,116 unique problems. The wrapper changes only the thread budget and journals every actual solve and independently evaluated solver-owned certificate/objective/point. Frozen source hashes, expected case keys/counts, versions and consistent extension hashes are required. Known nonconvergence is preserved.
 
-`--quick --current-version VERSION --output PATH` runs the smaller 2760-call development audit. The harder census is a separate 1000-case outcome tally at dimensions≤100; larger parallel kernels have separate512+ identity/stress/reference-QP tests. Known check rejections, errors and limits remain visible.
+`--quick --current-version VERSION --output PATH` runs the smaller 2760-call development audit. The harder census is a separate 1000-case outcome tally at dimensions≤100; larger parallel kernels have separate 512+ identity/stress/reference-QP tests. Known check rejections, errors and limits remain visible.
 
 After all raw files exist, `python scripts/performance60_report.py` regenerates exact tables, and optional `--plot` uses matplotlib to export the scaling figure. RESULTS.md describes actual retained/rejected experiments, measured results and scope. The archive manifest verifies all delivered bytes, including both patches and the source-history bundle.
