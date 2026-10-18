@@ -756,3 +756,11 @@ compatibility. Every P/A/b value is refreshed, and q is read from the current
 model. Only accepted optima retain conversion data. Clones begin with empty
 caches. This numeric-data allocation cache also works when QP solver workspace
 reuse is disabled; no primal/dual iterate warm start is introduced.
+
+## Shared agent job API
+
+For durable native jobs with an explicit CPU budget, use the
+[shared protocol and runner](job-api.md) and the
+[solver-specific tutorial](../tutorials/job-api/README.md).
+The job profile is a deliberately smaller, versioned surface than the full
+in-process solver API. Unknown profile options are rejected.
