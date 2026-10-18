@@ -94,7 +94,8 @@ impl QpModel {
             )
         })?;
         for i in 0..n {
-            if let Some(&j) = h.row(i).iter().find(|&&j| j > i) {
+            if h.row(i).last().is_some_and(|&j| j > i) {
+                let j = *h.row(i).iter().find(|&&j| j > i).expect("above diagonal");
                 return Err(Error::InvalidInput(format!(
                     "QP Hessian: entry ({i}, {j}) is above the diagonal; store the lower triangle only"
                 )));
