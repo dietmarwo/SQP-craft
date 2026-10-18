@@ -1,0 +1,3 @@
+# Iteration 31: results
+
+Implemented the common native benchmark and paired timing driver. Full 0.15 release Rust tests and all examples compiled. All benchmark solves passed unchanged objective and original-unit KKT checks. Three measured samples after warmup: orbit40 latency 271.37 ms; 16 orbit20 solves take 471.61 ms serially versus 95.17 ms across eight workers (4.956× throughput). Eight-worker aggregate CPU time is 654.99 ms versus 470.71 ms serially, so CPU efficiency differs from throughput. No native within-solve parallelism is claimed at this checkpoint. Raw samples and host quota are in data/iteration-31.json.
