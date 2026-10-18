@@ -2,7 +2,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 use rayon::prelude::*;
-use std::sync::Arc;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex, OnceLock, Weak};
+static POOLS: OnceLock<Mutex<BTreeMap<usize, Weak<rayon::ThreadPool>>>> = OnceLock::new();
 
 /// Reusable owned execution resources; one means no worker pool.
 #[derive(Clone, Debug, Default)]
@@ -19,14 +21,22 @@ impl Execution {
         if threads == 1 {
             return Ok(Self::default());
         }
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(threads)
-            .thread_name(|i| format!("sqp-worker-{i}"))
-            .build()
-            .map_err(|e| format!("native worker creation: {e}"))?;
-        Ok(Self {
-            pool: Some(Arc::new(pool)),
-        })
+        let mut pools = POOLS
+            .get_or_init(Default::default)
+            .lock()
+            .map_err(|_| "worker registry lock poisoned".to_string())?;
+        if let Some(pool) = pools.get(&threads).and_then(Weak::upgrade) {
+            return Ok(Self { pool: Some(pool) });
+        }
+        let pool = Arc::new(
+            rayon::ThreadPoolBuilder::new()
+                .num_threads(threads)
+                .thread_name(|i| format!("sqp-worker-{i}"))
+                .build()
+                .map_err(|e| format!("native worker creation: {e}"))?,
+        );
+        pools.insert(threads, Arc::downgrade(&pool));
+        Ok(Self { pool: Some(pool) })
     }
 
     /// Configured maximum numerical workers.
@@ -124,5 +134,30 @@ mod configuration_tests {
         for width in 1..=8 {
             assert_eq!(super::Execution::new(width).unwrap().threads(), width);
         }
+    }
+}
+
+#[cfg(test)]
+mod sharing_tests {
+    use super::*;
+    #[test]
+    fn compatible_owners_share_without_permanent_retention() {
+        let a = Execution::new(8).unwrap();
+        let b = Execution::new(8).unwrap();
+        assert!(Arc::ptr_eq(
+            a.pool.as_ref().unwrap(),
+            b.pool.as_ref().unwrap()
+        ));
+        let weak = Arc::downgrade(a.pool.as_ref().unwrap());
+        drop(a);
+        assert!(weak.upgrade().is_some());
+        drop(b);
+        let c = Execution::new(4).unwrap();
+        assert_eq!(c.threads(), 4);
+        let d = Execution::new(8).unwrap();
+        assert!(!Arc::ptr_eq(
+            c.pool.as_ref().unwrap(),
+            d.pool.as_ref().unwrap()
+        ));
     }
 }
