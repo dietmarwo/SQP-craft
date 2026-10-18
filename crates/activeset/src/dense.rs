@@ -382,7 +382,7 @@ mod parallel_inverse_tests {
     #[test]
     fn inverse_columns_are_bit_identical_at_dispatch_boundaries() {
         let execution = sqp_craft_parallel::Execution::new(8).unwrap();
-        for n in [0, 1, 31, 127, 128, 129, 256, 511, 512] {
+        for n in [0, 1, 31, 127, 128, 129, 256, 511, 512, 768] {
             let mut l = vec![0.0; n * n];
             for k in 0..n {
                 l[k * n + k] = 1.0 + k as f64 * 0.01;

@@ -1,0 +1,13 @@
+{
+  "base": "7ae0520a9da86fd0b49b9e7e486180ead82a88d8",
+  "sha256": {
+    "crates/sqp/examples/performance.rs": "27aab1cd278a40eaa28b7810b87fbc8770c92c944ad73c710f1bc6480192ccfe",
+    "crates/sqp/examples/support/orbit.rs": "19e88fb4a6e83e0afb01487fc33d40f14a061347c24273d93b0a68194f398816",
+    "examples/compare_baseline.py": "51517667eea31bafb5834e40701b5d784063fa3ace0ab78cf322a22eec85d576",
+    "examples/stress_random.py": "7a680a33d55005725f9b18626c1ddf3cb7bbe7cff277a7789c1f8af645e2fee2",
+    "examples/orbit_transfer.py": "3d4431e41e8e283d7ec909983c8bc0a61f0cfd61866554e16cb6b0b761e6eff5",
+    "scripts/compare_variants.py": "b33409fe1286a571ced893b67b64bc649c7a4cc34a7fd5aa6d1f84d3d3631a04",
+    "scripts/validate_performance_stress.py": "bc83e79bca2d534b898bc77e61e20a9b495ea582adc500c3fc9da1f4309e59bb",
+    "scripts/performance30_independent.py": "7e5d5be3bb1a6c6d0d83fb7f86385daac1b8344bcd4fc1f17c2822aecf75bafa"
+  }
+}

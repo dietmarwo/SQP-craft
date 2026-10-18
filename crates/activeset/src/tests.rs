@@ -985,3 +985,44 @@ fn small_eight_budget_qps_do_not_start_unused_workers() {
     assert!(b.set_threads(0).is_err());
     assert!(b.set_threads(9).is_err());
 }
+
+#[test]
+fn parallel_large_factor_failure_invalidates_the_promoted_inverse() {
+    let n = 512;
+    let mut model = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).map(|i| i * (i + 1) / 2).collect(),
+                indices: (0..n).flat_map(|i| 0..=i).collect(),
+            },
+            values: (0..n)
+                .flat_map(|i| (0..=i).map(move |j| if i == j { 2.0 } else { 0.001 }))
+                .collect(),
+        },
+        gradient: vec![0.; n],
+        variables: Bounds::free(n),
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(1, n),
+            values: vec![1.; n],
+        },
+        rows: Bounds::fixed(vec![0.]),
+    };
+    let mut b = backend();
+    b.set_threads(8).unwrap();
+    optimal(&mut b, &model, None);
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+    model.hessian_lower.values[0] = -1.;
+    assert!(matches!(
+        b.solve(&model, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::NotPositiveDefinite
+    ));
+    assert!(!b.work.factor_valid && !b.work.initial_valid);
+    model.hessian_lower.values[0] = 2.;
+    optimal(&mut b, &model, None);
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+}
