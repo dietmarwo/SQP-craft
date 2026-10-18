@@ -175,15 +175,7 @@ impl ActiveSetQp {
             self.settings.elastic_weight,
             &self.settings.hard_rows,
         );
-        self.norms.clear();
-        self.norms.extend((0..model.m()).map(|i| {
-            if model.rows.lower[i] == f64::NEG_INFINITY && model.rows.upper[i] == f64::INFINITY {
-                0.0
-            } else {
-                let range = model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1];
-                dense::norm(&model.matrix.values[range])
-            }
-        }));
+        row_norms(model, &mut self.norms, &self.work.execution);
         self.last.conversion_seconds = t.elapsed().as_secs_f64();
         let t = Instant::now();
         let definite = self.work.factor();
@@ -345,6 +337,36 @@ impl ActiveSetQp {
                 QpOutcome::LimitReached(None)
             }
         }
+    }
+}
+
+fn row_norms(model: &QpModel, norms: &mut Vec<f64>, execution: &sqp_craft_parallel::Execution) {
+    let row_norm = |i: usize| {
+        if model.rows.lower[i] == f64::NEG_INFINITY && model.rows.upper[i] == f64::INFINITY {
+            0.0
+        } else {
+            dense::norm(
+                &model.matrix.values
+                    [model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1]],
+            )
+        }
+    };
+    let work = if execution.threads() > 1 && model.matrix.values.len() >= 32768 && model.m() >= 8 {
+        (0..model.m())
+            .filter(|&i| {
+                model.rows.lower[i] != f64::NEG_INFINITY || model.rows.upper[i] != f64::INFINITY
+            })
+            .map(|i| model.matrix.pattern.indptr[i + 1] - model.matrix.pattern.indptr[i])
+            .sum()
+    } else {
+        0
+    };
+    if work >= 32768 {
+        norms.resize(model.m(), 0.0);
+        execution.chunks_mut(norms, 1, work, |i, out| out[0] = row_norm(i));
+    } else {
+        norms.clear();
+        norms.extend((0..model.m()).map(row_norm));
     }
 }
 

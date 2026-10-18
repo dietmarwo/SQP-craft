@@ -887,3 +887,41 @@ fn parallel_kkt_outputs_retain_scalar_accumulation_order() {
         }
     }
 }
+
+#[test]
+fn parallel_bounded_row_norms_match_scalar_and_skip_free_rows() {
+    let (n, m) = (128, 1024);
+    let model = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).collect(),
+                indices: (0..n).collect(),
+            },
+            values: vec![2.; n],
+        },
+        gradient: vec![0.; n],
+        variables: Bounds::free(n),
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(m, n),
+            values: (0..n * m).map(|i| (i % 23) as f64 * 0.01).collect(),
+        },
+        rows: Bounds::new(
+            (0..m)
+                .map(|i| if i % 2 == 0 { 0.0 } else { f64::NEG_INFINITY })
+                .collect(),
+            vec![f64::INFINITY; m],
+        ),
+    };
+    let mut a = Vec::new();
+    let mut b = Vec::new();
+    row_norms(&model, &mut a, &Default::default());
+    row_norms(
+        &model,
+        &mut b,
+        &sqp_craft_parallel::Execution::new(8).unwrap(),
+    );
+    assert_eq!(a, b);
+    assert!(b.iter().enumerate().all(|(i, &v)| i % 2 == 0 || v == 0.0));
+}
