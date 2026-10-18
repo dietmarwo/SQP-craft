@@ -293,6 +293,7 @@ fn census() {
     };
     let mut rng = Rng(read("SEED", 1));
     let (mut active, mut clarabel) = (ActiveSetQp::default(), ClarabelQp::default());
+    active.set_threads(read("THREADS", 1) as usize).unwrap();
     let mut tally = std::collections::BTreeMap::<String, usize>::new();
     let label = |o: &sqp_craft::Result<QpOutcome>| match o {
         Ok(QpOutcome::Optimal(_)) => "optimal".to_string(),

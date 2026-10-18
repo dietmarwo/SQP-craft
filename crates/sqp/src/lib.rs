@@ -31,6 +31,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod batch;
 mod bfgs;
 mod linear;
 mod merit;
@@ -826,8 +827,10 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         cancel: &CancellationToken,
         mut observer: Option<&mut dyn Observer>,
     ) -> Result<SolveResult> {
+        let began = Instant::now();
         options.validate()?;
         self.settings.validate()?;
+        self.qp.set_threads(options.threads)?;
         if self.settings.elastic_mode && !self.qp.supports_elastic() {
             return Err(Error::Unsupported(
                 "elastic_mode needs a QP backend with elastic support, such as ActiveSetQp".into(),
@@ -841,13 +844,21 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 self.settings.dense_size_limit
             )));
         }
+        if !cancel.is_cancelled()
+            && !self
+                .settings
+                .time_limit_seconds
+                .is_some_and(|limit| began.elapsed().as_secs_f64() >= limit)
+        {
+            model.set_threads(options.threads)?;
+        }
         let settings = &self.settings;
         let qp_acceptance = options
             .feasibility_tolerance
             .min(settings.stationarity_tolerance)
             .min(settings.complementarity_tolerance);
         let mut calls = Calls {
-            began: Instant::now(),
+            began,
             settings,
             cancel,
             counts: EvaluationCounts::default(),

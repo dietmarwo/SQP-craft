@@ -1,0 +1,3 @@
+# Iteration 40: Parallel independent Householder column updates
+
+After the original ordered reflector accumulation into w, target J columns are disjoint and each update is independent. Add a parallel variant, preserving the full-tail norm, exact-zero support, within-column axpy and sign correction. Default/scalar dense entry point remains for references. Only matrices n>=256 may dispatch; small current orbit fixtures remain scalar here. Test bitwise serial/eight-thread J, tail and work vectors on varied q/zero support and dispatch boundaries; run full release suites and paired native/batch comparisons. Record larger-QP confirmation at the next matrix checkpoint.

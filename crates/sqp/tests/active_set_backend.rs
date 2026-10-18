@@ -61,8 +61,11 @@ fn the_orbit_transfer_takes_the_same_path_as_with_clarabel() {
     assert!((-objective(&exact) - 1.52206).abs() < 5e-5);
     assert_eq!(exact.iterations, interior.iterations);
     assert!(exact.report.qp_backend.starts_with("goldfarb-idnani"));
-    // One factorization per QP, no engine retries.
-    assert_eq!(exact.report.qp_setups, exact.report.qp_solves);
+    // Each QP either factorizes or reuses an exactly matching factor.
+    assert_eq!(
+        exact.report.qp_setups + exact.report.qp_updates,
+        exact.report.qp_solves
+    );
     assert_eq!(exact.report.qp_cold_retries, 0);
 }
 
@@ -105,9 +108,13 @@ fn the_previous_working_set_warm_starts_the_next_qp() {
     let cold = run::<ActiveSetQp>(&spec, &mut Pull, &[0.0; 6], with(false));
     assert_eq!(warm.candidate, cold.candidate);
     assert_eq!(warm.iterations, cold.iterations);
-    // A cold QP enters all six bounds; a warm one starts with them.
-    assert_eq!(cold.report.qp_iterations, n as u64 * cold.report.qp_solves);
-    assert_eq!(warm.report.qp_iterations, n as u64);
+    // The first diagonal QP is closed-form and reports its six active bounds.
+    // Later cold QPs enter them; warm QPs reuse that returned working set.
+    assert_eq!(
+        cold.report.qp_iterations,
+        n as u64 * (cold.report.qp_solves - 1)
+    );
+    assert_eq!(warm.report.qp_iterations, 0);
 }
 
 #[test]

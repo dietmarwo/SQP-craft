@@ -1,0 +1,3 @@
+# Iteration 48: Batch cancellation with input-error precedence
+
+Before creating an expensive per-job model, validate its start and then check the shared cancellation token. A pre-cancelled batch must create no workers/models and return ordered cancelled results for valid starts while retaining errors for invalid starts. During a running batch retain completed results/errors and skip later factories; native calls keep their cooperative checks. No forceful interruption of a running callback/factory is promised. Test pre-cancelled8-worker batches, invalid input precedence, a deterministic one-worker mid-batch cancellation and zero callbacks for skipped jobs. Full release suites plus paired existing timings.

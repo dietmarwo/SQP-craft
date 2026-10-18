@@ -108,15 +108,36 @@ pub fn residuals_with_workspace(
         }
     }
 
+    residuals_validated(point, multipliers, jt_lambda)
+}
+
+/// Internal path after complete shape, bounds, pattern and finite-data validation.
+pub(crate) fn residuals_validated(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
+    let n = point.x.len();
     let primal = point
         .variable_bounds
-        .checked_violation(point.x)?
-        .max(point.row_bounds.checked_violation(point.rows)?);
+        .violation_with_valid_bounds(point.x)?
+        .max(point.row_bounds.violation_with_valid_bounds(point.rows)?);
 
     jt_lambda.resize(n, 0.);
-    point
-        .jacobian
-        .multiply_transpose(point.jacobian_values, &multipliers.constraints, jt_lambda);
+    jt_lambda.fill(0.0);
+    for (i, &lambda) in multipliers.constraints.iter().enumerate() {
+        // This internal path is reached only after finite-data validation.
+        if lambda == 0.0 {
+            continue;
+        }
+        let range = point.jacobian.indptr[i]..point.jacobian.indptr[i + 1];
+        for (&j, &a) in point.jacobian.indices[range.clone()]
+            .iter()
+            .zip(&point.jacobian_values[range])
+        {
+            jt_lambda[j] += a * lambda;
+        }
+    }
     let mut stationarity = 0.0_f64;
     for (j, &jt) in jt_lambda.iter().enumerate() {
         crate::error::finite(jt, "transpose product")?;

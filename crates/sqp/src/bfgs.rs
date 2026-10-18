@@ -66,7 +66,7 @@ impl Workspace {
         y: &[f64],
         repair: Option<(&Repair<'_>, usize)>,
     ) -> Option<CurvatureUpdate> {
-        if s.iter().fold(0.0_f64, |v, s| v.max(s.abs())) < 1e-14 {
+        if s.iter().all(|v| v.abs() < 1e-14) {
             return Some(CurvatureUpdate::Negligible);
         }
         let sv = DVectorView::from_slice(s, s.len());
@@ -99,8 +99,12 @@ impl Workspace {
             } else {
                 0.8 * t / (t - sy)
             };
-            for (i, &yi) in y.iter().enumerate() {
-                self.r[i] = theta * yi + (1. - theta) * self.bs[i];
+            if theta == 1.0 {
+                self.r.as_mut_slice().copy_from_slice(y);
+            } else {
+                for (i, &yi) in y.iter().enumerate() {
+                    self.r[i] = theta * yi + (1. - theta) * self.bs[i];
+                }
             }
         }
         let sr = sv.dot(&self.r);
@@ -112,15 +116,30 @@ impl Workspace {
         // triangle is computed and mirrored; the result is bit-identical to
         // `0.5·(N + Nᵀ)` of the matrix expression.
         let n = b.nrows();
+        let mut finite = true;
         for j in 0..n {
-            for i in j..n {
-                let v = (b[(i, j)] - (self.bs[i] * self.bs[j]) / t) + (self.r[i] * self.r[j]) / sr;
-                self.next[(i, j)] = v;
-                self.next[(j, i)] = v;
+            let source = &b.as_slice()[j * n..(j + 1) * n];
+            let target = &mut self.next.as_mut_slice()[j * n..(j + 1) * n];
+            let (bsj, rj) = (self.bs[j], self.r[j]);
+            for (((out, &old), &bs), &r) in target[j..]
+                .iter_mut()
+                .zip(&source[j..])
+                .zip(&self.bs.as_slice()[j..])
+                .zip(&self.r.as_slice()[j..])
+            {
+                let v = (old - (bs * bsj) / t) + (r * rj) / sr;
+                finite &= v.is_finite();
+                *out = v;
             }
         }
-        if self.next.iter().any(|v| !v.is_finite()) {
+        if !finite {
             return None;
+        }
+        let next = self.next.as_mut_slice();
+        for j in 0..n {
+            for i in j + 1..n {
+                next[i * n + j] = next[j * n + i];
+            }
         }
         if let Some(buffer) = self.check.as_mut() {
             let mut work = std::mem::take(buffer);
@@ -448,4 +467,17 @@ mod tests {
             }
         }
     }
+}
+
+#[cfg(test)]
+#[test]
+fn nonfinite_displacement_is_not_a_negligible_bfgs_step() {
+    let mut b = DMatrix::identity(2, 2);
+    let before = b.clone();
+    assert!(
+        Workspace::new(2, false)
+            .update(&mut b, &[f64::NAN, 0.0], &[1.0, 1.0], None)
+            .is_none()
+    );
+    assert_eq!(b, before);
 }

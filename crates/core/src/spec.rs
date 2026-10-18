@@ -81,6 +81,13 @@ impl Bounds {
     /// Checked bound violation, rejecting malformed inputs and arithmetic overflow.
     pub fn checked_violation(&self, values: &[f64]) -> Result<f64> {
         self.validate(values.len(), "bounds")?;
+        self.violation_with_valid_bounds(values)
+    }
+
+    /// Bounds/lengths must have been validated by the caller. Values and arithmetic remain checked.
+    pub(crate) fn violation_with_valid_bounds(&self, values: &[f64]) -> Result<f64> {
+        debug_assert_eq!(values.len(), self.lower.len());
+        debug_assert_eq!(values.len(), self.upper.len());
         let mut result = 0.0_f64;
         for (i, &v) in values.iter().enumerate() {
             ensure(v.is_finite(), || format!("point entry {i} must be finite"))?;
@@ -179,15 +186,19 @@ impl CsrPattern {
                 format!("{what}: indptr decreases at row {r} ({start} > {end})")
             })?;
             let row = &self.indices[start..end];
-            if let Some(&j) = row.iter().find(|&&j| j >= self.cols) {
+            ensure(row.windows(2).all(|p| p[0] < p[1]), || {
+                format!("{what}: row {r} column indices must be strictly increasing, got {row:?}")
+            })?;
+            if row.last().is_some_and(|&j| j >= self.cols) {
+                let j = *row
+                    .iter()
+                    .find(|&&j| j >= self.cols)
+                    .expect("last index outside");
                 return Err(crate::Error::InvalidInput(format!(
                     "{what}: row {r} has column index {j}, but there are only {} columns",
                     self.cols
                 )));
             }
-            ensure(row.windows(2).all(|p| p[0] < p[1]), || {
-                format!("{what}: row {r} column indices must be strictly increasing, got {row:?}")
-            })?;
         }
         Ok(())
     }
@@ -202,11 +213,23 @@ impl CsrPattern {
         assert_eq!(y.len(), self.rows, "y length");
         for (r, out) in y.iter_mut().enumerate() {
             let range = self.indptr[r]..self.indptr[r + 1];
-            *out = self.indices[range.clone()]
-                .iter()
-                .zip(&values[range])
-                .map(|(&j, &a)| a * x[j])
-                .sum();
+            // `Iterator::sum` starts from −0.0, so `−0.0 + p = p` keeps the
+            // short rows bit-identical, signed zeros included.
+            *out = if range.len() == 1 {
+                values[range.start] * x[self.indices[range.start]]
+            } else if range.len() == 2 {
+                let k = range.start;
+                values[k] * x[self.indices[k]] + values[k + 1] * x[self.indices[k + 1]]
+            } else if range.len() == self.cols {
+                // A full, valid, strictly sorted row has columns 0..cols.
+                values[range].iter().zip(x).map(|(&a, &v)| a * v).sum()
+            } else {
+                self.indices[range.clone()]
+                    .iter()
+                    .zip(&values[range])
+                    .map(|(&j, &a)| a * x[j])
+                    .sum()
+            };
         }
     }
 
@@ -390,4 +413,24 @@ impl ProblemSpec {
         }
         Ok(())
     }
+}
+
+#[cfg(test)]
+#[test]
+fn short_row_products_keep_the_sign_of_zero() {
+    // The short-row paths must give what the general `sum` gives, bit for bit.
+    let pattern = CsrPattern {
+        rows: 3,
+        cols: 3,
+        indptr: vec![0, 1, 3, 6],
+        indices: vec![0, 0, 2, 0, 1, 2],
+    };
+    pattern.validate("test").unwrap();
+    let values = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
+    let x = [-0.0, 0.5, -0.0];
+    let mut y = [f64::NAN; 3];
+    pattern.multiply(&values, &x, &mut y);
+    assert_eq!(y[0].to_bits(), (-0.0f64).to_bits());
+    assert_eq!(y[1].to_bits(), (-0.0f64).to_bits());
+    assert_eq!(y[2], 0.5);
 }

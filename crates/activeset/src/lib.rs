@@ -32,7 +32,9 @@
 //! that ends infeasible or fails the independent check [`QpModel::accepts`]
 //! is repeated once from a cold start within the same budget.
 //!
-//! Dense storage: three `n × n` matrices, reused across calls.
+//! Dense storage: three working `n × n` matrices, plus an exact Hessian key.
+//! Repeated Hessians may also retain one unrotated inverse matrix. All caches
+//! are backend-local, owned, and invalidated by exact structure/value changes.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
@@ -71,9 +73,12 @@ const REFINEMENT_STEPS: usize = 1;
 
 /// Dense dual active-set QP backend. Configure it through
 /// [`QpBackend::configure`]; [`QpOptions::reuse_workspace`] has no effect,
-/// since buffers are always reused and never change a result.
+/// since buffers and exactly matching factors are always reused. Factors are
+/// reused only under a complete bitwise Hessian key; independent acceptance
+/// checks remain mandatory.
 #[derive(Clone, Debug, Default)]
 pub struct ActiveSetQp {
+    threads: usize,
     settings: QpOptions,
     last: QpReport,
     work: Work,
@@ -82,6 +87,12 @@ pub struct ActiveSetQp {
 }
 
 impl QpBackend for ActiveSetQp {
+    fn set_threads(&mut self, threads: usize) -> Result<()> {
+        sqp_craft_parallel::validate_threads(threads).map_err(Error::Unsupported)?;
+        self.threads = threads;
+        Ok(())
+    }
+
     fn configure(&mut self, options: &QpOptions) -> Result<()> {
         options.validate()?;
         self.settings = options.clone();
@@ -156,6 +167,15 @@ impl ActiveSetQp {
         if let Err(stop) = budget.check() {
             return Ok(self.stopped(stop));
         }
+        let width = if self.threads > 1 && (model.n() >= 512 || row_work(model) >= 32768) {
+            self.threads
+        } else {
+            1
+        };
+        if self.work.execution.threads() != width {
+            self.work.execution =
+                sqp_craft_parallel::Execution::new(width).map_err(Error::Unsupported)?;
+        }
         let t = Instant::now();
         self.work.load(
             model,
@@ -163,22 +183,27 @@ impl ActiveSetQp {
             self.settings.elastic_weight,
             &self.settings.hard_rows,
         );
-        self.norms.clear();
-        self.norms.extend((0..model.m()).map(|i| {
-            let range = model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1];
-            dense::norm(&model.matrix.values[range])
-        }));
+        row_norms(model, &mut self.norms, &self.work.execution);
         self.last.conversion_seconds = t.elapsed().as_secs_f64();
         let t = Instant::now();
         let definite = self.work.factor();
-        self.last.setups = 1;
-        self.last.setup_seconds = t.elapsed().as_secs_f64();
+        if self.work.factor_reused {
+            self.last.updates = 1;
+            self.last.update_seconds = t.elapsed().as_secs_f64();
+        } else {
+            self.last.setups = 1;
+            self.last.setup_seconds = t.elapsed().as_secs_f64();
+        }
         if !definite {
             return Ok(QpOutcome::NotPositiveDefinite);
+        }
+        if let Some(outcome) = self.direct(model, budget)? {
+            return Ok(outcome);
         }
         let sources = Sources {
             model,
             norms: &self.norms,
+            execution: self.work.execution.clone(),
         };
         loop {
             let t = Instant::now();
@@ -225,6 +250,92 @@ impl ActiveSetQp {
         }
     }
 
+    /// A checked unconstrained/diagonal-box proposal; failure preserves the general fallback.
+    fn direct(&mut self, model: &QpModel, budget: &Budget) -> Result<Option<QpOutcome>> {
+        if self.work.weight.is_some() {
+            return Ok(None);
+        }
+        let boxed = !self.work.bounded.is_empty();
+        if boxed {
+            let h = &model.hessian_lower;
+            for i in 0..model.n() {
+                for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                    if h.pattern.indices[k] != i && h.values[k] != 0.0 {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+        if let Err(stop) = budget.check() {
+            return Ok(Some(self.stopped(stop)));
+        }
+        let t = Instant::now();
+        let n = model.n();
+        let mut variables = vec![0.0; n];
+        let mut activity = vec![Activity::Inactive; n];
+        if boxed {
+            let h = &model.hessian_lower;
+            for i in 0..n {
+                // A positive-definite diagonal matrix has a positive stored diagonal.
+                let diagonal = h.values[h.pattern.indptr[i + 1] - 1];
+                let (lo, hi) = (model.variables.lower[i], model.variables.upper[i]);
+                let value = (-model.gradient[i] / diagonal).clamp(lo, hi);
+                self.work.x[i] = value;
+                let side = if value == lo && lo.is_finite() {
+                    Activity::AtLower
+                } else if value == hi && hi.is_finite() {
+                    Activity::AtUpper
+                } else {
+                    Activity::Inactive
+                };
+                if side != Activity::Inactive {
+                    let mu = diagonal * value + model.gradient[i];
+                    variables[i] = mu;
+                    if mu != 0.0 || lo == hi {
+                        activity[i] = side;
+                    }
+                }
+            }
+        } else {
+            for (x, &g) in self.work.x.iter_mut().zip(&model.gradient) {
+                *x = -g;
+            }
+            dense::solve_factored(&self.work.l, &mut self.work.x, n);
+            model.hessian_product(&self.work.x, &mut self.work.rd);
+            for (r, &g) in self.work.rd.iter_mut().zip(&model.gradient) {
+                *r = -(*r + g);
+            }
+            dense::solve_factored(&self.work.l, &mut self.work.rd, n);
+            dense::axpy(1.0, &self.work.rd, &mut self.work.x);
+        }
+        let solution = QpSolution {
+            step: self.work.x.clone(),
+            multipliers: Multipliers {
+                variables,
+                constraints: vec![0.0; model.m()],
+            },
+            active_set: Some(ActiveSet {
+                variables: activity,
+                rows: vec![Activity::Inactive; model.m()],
+            }),
+            iterations: 0,
+        };
+        self.last.solve_seconds += t.elapsed().as_secs_f64();
+        let t = Instant::now();
+        let accepted = model
+            .accepts_with_workspace(
+                &solution,
+                self.settings.acceptance_tolerance,
+                &mut self.checks,
+            )
+            .is_ok_and(|v| v.accepted);
+        self.last.check_seconds += t.elapsed().as_secs_f64();
+        if let Err(stop) = budget.check() {
+            return Ok(Some(self.stopped(stop)));
+        }
+        Ok(accepted.then_some(QpOutcome::Optimal(solution)))
+    }
+
     fn stopped(&mut self, stop: Stop) -> QpOutcome {
         match stop {
             Stop::Infeasible => QpOutcome::Infeasible,
@@ -234,6 +345,43 @@ impl ActiveSetQp {
                 QpOutcome::LimitReached(None)
             }
         }
+    }
+}
+
+fn row_work(model: &QpModel) -> usize {
+    if model.matrix.values.len() < 32768 || model.m() < 8 {
+        return 0;
+    }
+    (0..model.m())
+        .filter(|&i| {
+            model.rows.lower[i] != f64::NEG_INFINITY || model.rows.upper[i] != f64::INFINITY
+        })
+        .map(|i| model.matrix.pattern.indptr[i + 1] - model.matrix.pattern.indptr[i])
+        .sum()
+}
+
+fn row_norms(model: &QpModel, norms: &mut Vec<f64>, execution: &sqp_craft_parallel::Execution) {
+    let row_norm = |i: usize| {
+        if model.rows.lower[i] == f64::NEG_INFINITY && model.rows.upper[i] == f64::INFINITY {
+            0.0
+        } else {
+            dense::norm(
+                &model.matrix.values
+                    [model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1]],
+            )
+        }
+    };
+    let work = if execution.threads() > 1 {
+        row_work(model)
+    } else {
+        0
+    };
+    if work >= 32768 {
+        norms.resize(model.m(), 0.0);
+        execution.chunks_mut(norms, 1, work, |i, out| out[0] = row_norm(i));
+    } else {
+        norms.clear();
+        norms.extend((0..model.m()).map(row_norm));
     }
 }
 
@@ -286,6 +434,7 @@ impl Budget<'_> {
 
 /// The `n + m` bound sources of a model: variables first, then rows.
 struct Sources<'a> {
+    execution: sqp_craft_parallel::Execution,
     model: &'a QpModel,
     norms: &'a [f64],
 }
@@ -293,10 +442,6 @@ struct Sources<'a> {
 impl Sources<'_> {
     fn n(&self) -> usize {
         self.model.n()
-    }
-
-    fn count(&self) -> usize {
-        self.model.n() + self.model.m()
     }
 
     fn bounds(&self, s: usize) -> (f64, f64) {
@@ -338,6 +483,18 @@ impl Sources<'_> {
             })
     }
 
+    /// Activity without the magnitude used only by tolerance decisions.
+    fn activity(&self, s: usize, x: &[f64]) -> f64 {
+        if s < self.n() {
+            return x[s];
+        }
+        let (indices, values) = self.row(s - self.n());
+        indices
+            .iter()
+            .zip(values)
+            .fold(0.0, |sum, (&i, &a)| sum + a * x[i])
+    }
+
     /// `out += alpha a_s`.
     fn scatter(&self, s: usize, alpha: f64, out: &mut [f64]) {
         let n = self.n();
@@ -361,6 +518,27 @@ impl Sources<'_> {
             return;
         }
         let (indices, values) = self.row(s - n);
+        if indices.len() == 1 {
+            let (i, a) = (indices[0], values[0]);
+            for (k, dk) in d.iter_mut().enumerate() {
+                // The general path's sum starts from −0.0: −0.0 + v = v.
+                *dk = sigma * (a * j[k * n + i]);
+            }
+            return;
+        }
+        if n >= 512 && indices.len() >= n / 2 && self.execution.threads() > 1 {
+            self.execution
+                .chunks_mut(d, 1, n * indices.len(), |k, out| {
+                    let column = &j[k * n..(k + 1) * n];
+                    let sum: f64 = indices
+                        .iter()
+                        .zip(values)
+                        .map(|(&i, &a)| a * column[i])
+                        .sum();
+                    out[0] = sigma * sum;
+                });
+            return;
+        }
         for (dk, column) in d.iter_mut().zip(j.chunks_exact(n)) {
             let sum: f64 = indices
                 .iter()
@@ -389,7 +567,16 @@ struct Member {
 /// Factors and iterate of the dual method, reused across calls.
 #[derive(Clone, Debug, Default)]
 struct Work {
+    execution: sqp_craft_parallel::Execution,
     n: usize,
+    /// Owned exact input key for a successful factorization.
+    hessian_key: Option<sqp_craft::CsrMatrix>,
+    factor_valid: bool,
+    factor_reused: bool,
+    /// Unrotated inverse, promoted only after confirmed cross-call H reuse.
+    initial_j: Vec<f64>,
+    initial_dependence: f64,
+    initial_valid: bool,
     /// Cholesky factor `L` in the lower triangle (column-major).
     l: Vec<f64>,
     /// `J = L⁻ᵀ Q`: columns `0..q` span the working set, `q..n` its complement.
@@ -418,6 +605,10 @@ struct Work {
     active: Vec<bool>,
     /// Whether each source has been in the working set during the attempt.
     entered: Vec<bool>,
+    /// Sources with at least one finite bound, rebuilt for each model.
+    bounded: Vec<usize>,
+    /// Equality sources in original order, rebuilt alongside bounded.
+    equalities: Vec<usize>,
     /// Elastic weight `γ` of an elastic QP; rows are then soft.
     weight: Option<f64>,
     /// Rows that stay hard in an elastic QP (empty: none).
@@ -441,8 +632,41 @@ impl Work {
     fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>, hard: &[bool]) {
         let n = model.n();
         self.n = n;
-        self.l.clear();
+        let h = &model.hessian_lower;
+        self.factor_reused = self.factor_valid
+            && self.hessian_key.as_ref().is_some_and(|key| {
+                key.pattern == h.pattern
+                    && key.values.len() == h.values.len()
+                    && key
+                        .values
+                        .iter()
+                        .zip(&h.values)
+                        .all(|(a, b)| a.to_bits() == b.to_bits())
+            });
+        if !self.factor_reused {
+            // Invalidate before loading any changed or unverified Hessian.
+            self.factor_valid = false;
+            self.initial_valid = false;
+            match self.hessian_key.as_mut() {
+                Some(key) => {
+                    key.pattern.rows = h.pattern.rows;
+                    key.pattern.cols = h.pattern.cols;
+                    key.pattern.indptr.clone_from(&h.pattern.indptr);
+                    key.pattern.indices.clone_from(&h.pattern.indices);
+                    key.values.clone_from(&h.values);
+                }
+                None => self.hessian_key = Some(h.clone()),
+            }
+        }
+        self.members.reserve(n.saturating_sub(self.members.len()));
+        self.u.reserve(n.saturating_sub(self.u.len()));
         self.l.resize(n * n, 0.0);
+        let full = n.checked_mul(n + 1).map(|v| v / 2) == Some(model.hessian_lower.values.len());
+        if !self.factor_reused && !full {
+            for (k, column) in self.l.chunks_exact_mut(n).enumerate() {
+                column[k..].fill(0.0);
+            }
+        }
         // `j` and `r` are fully written before they are read.
         self.j.resize(n * n, 0.0);
         self.r.resize(n * n, 0.0);
@@ -460,10 +684,21 @@ impl Work {
         ] {
             v.resize(n, 0.0);
         }
-        let h = &model.hessian_lower;
-        for i in 0..n {
-            for a in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
-                self.l[h.pattern.indices[a] * n + i] = h.values[a];
+        if !self.factor_reused {
+            if full && n >= 512 && self.execution.threads() > 1 {
+                self.execution
+                    .chunks_mut(&mut self.l, n, n * n, |start, column| {
+                        let k = start / n;
+                        for (i, out) in column.iter_mut().enumerate().skip(k) {
+                            *out = h.values[h.pattern.indptr[i] + k];
+                        }
+                    });
+            } else {
+                for i in 0..n {
+                    for a in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                        self.l[h.pattern.indices[a] * n + i] = h.values[a];
+                    }
+                }
             }
         }
         for flags in [&mut self.active, &mut self.entered] {
@@ -475,10 +710,30 @@ impl Work {
         self.weight = weight;
         self.hard.clear();
         self.hard.extend_from_slice(hard);
+        self.bounded.clear();
+        self.equalities.clear();
+        for (i, (&lo, &hi)) in model
+            .variables
+            .lower
+            .iter()
+            .zip(&model.variables.upper)
+            .chain(model.rows.lower.iter().zip(&model.rows.upper))
+            .enumerate()
+        {
+            if lo != f64::NEG_INFINITY || hi != f64::INFINITY {
+                self.bounded.push(i);
+                if lo == hi {
+                    self.equalities.push(i);
+                }
+            }
+        }
         self.tolerance = tolerance;
     }
 
     fn factor(&mut self) -> bool {
+        if self.factor_reused {
+            return true;
+        }
         let n = self.n;
         if !dense::cholesky(&mut self.l, n) {
             return false;
@@ -489,6 +744,7 @@ impl Work {
                 (lo.min(d), hi.max(d))
             });
         self.noise = (NOISE * f64::EPSILON * (n as f64).sqrt() * (high / low)).min(MAX_NOISE);
+        self.factor_valid = true;
         true
     }
 
@@ -499,8 +755,22 @@ impl Work {
         warm: Option<&ActiveSet>,
         budget: &mut Budget,
     ) -> std::result::Result<(), Stop> {
-        dense::inverse_transpose(&self.l, &mut self.j, self.n);
-        self.dependence = DEPENDENCE * f64::EPSILON * (self.n as f64).sqrt() * dense::norm(&self.j);
+        if self.initial_valid {
+            self.j.copy_from_slice(&self.initial_j);
+            self.dependence = self.initial_dependence;
+        } else {
+            dense::inverse_transpose_parallel(&self.l, &mut self.j, self.n, &self.execution);
+            self.dependence =
+                DEPENDENCE * f64::EPSILON * (self.n as f64).sqrt() * dense::norm(&self.j);
+            if self.factor_reused
+                && self.dependence.is_finite()
+                && self.j.iter().all(|v| v.is_finite())
+            {
+                self.initial_j.clone_from(&self.j);
+                self.initial_dependence = self.dependence;
+                self.initial_valid = true;
+            }
+        }
         self.q = 0;
         self.members.clear();
         self.u.clear();
@@ -508,12 +778,11 @@ impl Work {
         self.entered.fill(false);
         self.elastic.fill(0.0);
         self.polished = false;
-        for s in 0..sources.count() {
-            let (lower, upper) = sources.bounds(s);
-            if lower == upper {
-                let member = self.member(sources, s, 1.0, lower, true);
-                self.force(sources, member);
-            }
+        for k in 0..self.equalities.len() {
+            let s = self.equalities[k];
+            let (lower, _) = sources.bounds(s);
+            let member = self.member(sources, s, 1.0, lower, true);
+            self.force(sources, member);
         }
         if let Some(set) = warm {
             for (s, activity) in set.variables.iter().chain(&set.rows).enumerate() {
@@ -574,6 +843,9 @@ impl Work {
 
     /// Adds `member` to the initial working set unless it is dependent.
     fn force(&mut self, sources: &Sources, member: Member) {
+        if self.q == self.n {
+            return;
+        }
         sources.project(member.source, member.sigma, &self.j, &mut self.d);
         if self.free_part(sources.norm(member.source)).is_some() {
             self.push(member, 0.0);
@@ -622,33 +894,39 @@ impl Work {
     fn polish(&mut self, sources: &Sources) {
         let (n, q) = (self.n, self.q);
         let model = sources.model;
-        self.ge.copy_from_slice(&model.gradient);
         if let Some(weight) = self.weight {
+            self.ge.copy_from_slice(&model.gradient);
             for (s, &e) in self.elastic.iter().enumerate().skip(n) {
                 if e != 0.0 {
                     sources.scatter(s, -weight * e, &mut self.ge);
                 }
             }
         }
+        let ge = if self.weight.is_some() {
+            self.ge.as_slice()
+        } else {
+            model.gradient.as_slice()
+        };
         for (b, member) in self.rp.iter_mut().zip(&self.members) {
             *b = member.rhs;
         }
         kkt_solve(
             (&self.j, &self.r, n, q),
-            &self.ge,
+            ge,
             &self.rp[..q],
             &mut self.c,
             &mut self.x,
             &mut self.u,
+            &self.execution,
         );
         for _ in 0..REFINEMENT_STEPS {
             model.hessian_product(&self.x, &mut self.rd);
-            for (r, &g) in self.rd.iter_mut().zip(&self.ge) {
+            for (r, &g) in self.rd.iter_mut().zip(ge) {
                 *r += g;
             }
             for (k, member) in self.members.iter().enumerate() {
                 sources.scatter(member.source, -member.sigma * self.u[k], &mut self.rd);
-                let (v, _) = sources.value(member.source, &self.x);
+                let v = sources.activity(member.source, &self.x);
                 self.rp[k] = member.rhs - member.sigma * v;
             }
             kkt_solve(
@@ -658,6 +936,7 @@ impl Work {
                 &mut self.c,
                 &mut self.dx,
                 &mut self.du[..q],
+                &self.execution,
             );
             dense::axpy(1.0, &self.dx, &mut self.x);
             dense::axpy(1.0, &self.du[..q], &mut self.u);
@@ -668,14 +947,11 @@ impl Work {
     /// divided by the normal's norm, oriented so that it reads `σ aᵀp ≥ rhs`.
     fn most_violated(&self, sources: &Sources) -> Option<Member> {
         let mut best: Option<(f64, Member)> = None;
-        for s in 0..sources.count() {
+        for &s in &self.bounded {
             if self.active[s] {
                 continue;
             }
             let (lower, upper) = sources.bounds(s);
-            if lower == f64::NEG_INFINITY && upper == f64::INFINITY {
-                continue;
-            }
             let (v, magnitude) = sources.value(s, &self.x);
             let tau = |b: f64| self.tolerance * (1.0 + b.abs() + magnitude);
             let member =
@@ -768,7 +1044,7 @@ impl Work {
             let cap = (p.high - multiplier).max(0.0);
             // Full step: the primal step that satisfies p.
             let full = free.map_or(f64::INFINITY, |free| {
-                let (v, _) = sources.value(p.source, &self.x);
+                let v = sources.activity(p.source, &self.x);
                 ((p.rhs - p.sigma * v) / (free * free)).max(0.0)
             });
             if partial == f64::INFINITY && full == f64::INFINITY && cap == f64::INFINITY {
@@ -833,7 +1109,14 @@ impl Work {
     fn push(&mut self, member: Member, multiplier: f64) {
         let (n, q) = (self.n, self.q);
         debug_assert!(q < n);
-        dense::reflect(&mut self.j, n, q, &mut self.d[q..], &mut self.w);
+        dense::reflect_parallel(
+            &mut self.j,
+            n,
+            q,
+            &mut self.d[q..],
+            &mut self.w,
+            &self.execution,
+        );
         self.r[q * n..q * n + q + 1].copy_from_slice(&self.d[..=q]);
         self.members.push(member);
         self.u.push(multiplier);
@@ -932,19 +1215,40 @@ fn kkt_solve(
     c: &mut [f64],
     x: &mut [f64],
     u: &mut [f64],
+    execution: &sqp_craft_parallel::Execution,
 ) {
-    for (ck, column) in c.iter_mut().zip(j.chunks_exact(n)) {
-        *ck = dense::dot(column, gd);
+    if n >= 512 && execution.threads() > 1 {
+        execution.chunks_mut(c, 1, n * n, |k, out| {
+            out[0] = dense::dot(&j[k * n..(k + 1) * n], gd)
+        });
+    } else {
+        for (ck, column) in c.iter_mut().zip(j.chunks_exact(n)) {
+            *ck = dense::dot(column, gd);
+        }
     }
     for k in 0..q {
         let column = &r[k * n..k * n + k + 1];
         let v = (bp[k] - dense::dot(&column[..k], &u[..k])) / column[k];
         u[k] = v;
     }
-    x.fill(0.0);
-    for (k, column) in j.chunks_exact(n).enumerate() {
-        let f = if k < q { u[k] } else { -c[k] };
-        dense::axpy(f, column, x);
+    if n >= 512 && execution.threads() > 1 {
+        execution.chunks_mut(x, 32, n * n, |start, part| {
+            part.fill(0.0);
+            for k in 0..n {
+                let f = if k < q { u[k] } else { -c[k] };
+                if f != 0.0 {
+                    dense::axpy(f, &j[k * n + start..k * n + start + part.len()], part);
+                }
+            }
+        });
+    } else {
+        x.fill(0.0);
+        for (k, column) in j.chunks_exact(n).enumerate() {
+            let f = if k < q { u[k] } else { -c[k] };
+            if f != 0.0 {
+                dense::axpy(f, column, x);
+            }
+        }
     }
     for k in 0..q {
         u[k] += c[k];

@@ -1,0 +1,3 @@
+# Iteration 37: Parallel BFGS triangle with shared resources
+
+Use the same compatible eight-worker pool as the QP backend for independent BFGS output columns. Preserve each rank-two scalar formula, finite rejection and swap-on-success semantics. Serial callbacks, t/sy/sr dot reductions and explicit block checks remain unchanged. Add a setter for per-solve curvature execution resources including fallback recreations. Test bit-identical default/eight-thread updates for damping, exact curvature, negligible and invalid displacements at 127/128/164/256. Run full release checks and paired timings; small-kernel overhead will be addressed with measured thresholds.

@@ -1,0 +1,27 @@
+{
+  "cases": 1000,
+  "seed": 2026,
+  "baseline_counts": [
+    "     4 feasible QP: active-set check, clarabel error",
+    "     1 feasible QP: active-set limit, clarabel optimal",
+    "     5 feasible QP: active-set optimal, clarabel check",
+    "    11 feasible QP: active-set optimal, clarabel error",
+    "   735 feasible QP: active-set optimal, clarabel optimal",
+    "     1 infeasible QP: active-set infeasible, clarabel check",
+    "     2 infeasible QP: active-set infeasible, clarabel error",
+    "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+  ],
+  "final_counts": [
+    "     4 feasible QP: active-set check, clarabel error",
+    "     1 feasible QP: active-set limit, clarabel optimal",
+    "     5 feasible QP: active-set optimal, clarabel check",
+    "    11 feasible QP: active-set optimal, clarabel error",
+    "   735 feasible QP: active-set optimal, clarabel optimal",
+    "     1 infeasible QP: active-set infeasible, clarabel check",
+    "     2 infeasible QP: active-set infeasible, clarabel error",
+    "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+  ],
+  "counts_identical": true,
+  "most_working_set_changes": 294,
+  "note": "Four active-set independent-check rejections and one limit are retained, not counted as solves."
+}

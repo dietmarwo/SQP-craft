@@ -1,0 +1,3 @@
+# Iteration 33: Thread configuration seam
+
+Allow Options.threads in 1..8 and add a QpBackend::set_threads capability method with an explicit unsupported default for multi-thread budgets. NativeSqp forwards the request once before callbacks, while DummySolver explicitly rejects widths above 1. Active-set and Clarabel own isolated execution resources, retained across QPs; this iteration establishes the resource contract and does not yet claim inner-kernel speedup. Keep scalar defaults and no Send/Sync requirement on user callbacks. Restore the previous libc lock version after dependency resolution. Test valid/invalid widths and both backend configurations; full release suite and paired baseline 1/8-worker tests.

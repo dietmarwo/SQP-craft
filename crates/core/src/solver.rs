@@ -85,8 +85,8 @@ pub struct Options {
     /// violation of variables and constraints for
     /// [`Evaluation::feasible_candidate`].
     pub feasibility_tolerance: f64,
-    /// Threads used inside one solve. Only `1` is supported; use independent
-    /// solves (with independent model instances) for parallelism.
+    /// Maximum native workers inside one solve (1 through 8). Callbacks
+    /// remain on the calling thread. Small kernels may run serially.
     pub threads: usize,
 }
 
@@ -113,10 +113,9 @@ impl Options {
             },
         )?;
         ensure(self.threads > 0, || "threads must be at least 1".into())?;
-        if self.threads != 1 {
+        if self.threads > 8 {
             return Err(Error::Unsupported(format!(
-                "threads = {}: only single-threaded solves are implemented; \
-                 run independent solves for parallelism",
+                "parallel threads must lie in 1..=8, got {}; run independent solves for more concurrency",
                 self.threads
             )));
         }

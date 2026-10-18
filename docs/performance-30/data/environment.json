@@ -1,0 +1,26 @@
+{
+  "base": "4d776bbd89f187fe176be805ab91fd64305a8c44",
+  "version": "0.15.0",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "cpu": "AMD EPYC 9V74 80-Core Processor",
+  "available_cpus": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "compiler": "Rust 1.99.1",
+  "baseline_python_extension_sha256": "3eb2dfd933cbd3a8057f3a92705f8ac346239e3a7db8aa84d0cb4a19e6b62734",
+  "callbacks_sha256": {
+    "crates/sqp/examples/performance.rs": "27aab1cd278a40eaa28b7810b87fbc8770c92c944ad73c710f1bc6480192ccfe",
+    "crates/sqp/examples/support/orbit.rs": "19e88fb4a6e83e0afb01487fc33d40f14a061347c24273d93b0a68194f398816",
+    "examples/compare_baseline.py": "51517667eea31bafb5834e40701b5d784063fa3ace0ab78cf322a22eec85d576",
+    "examples/stress_random.py": "7a680a33d55005725f9b18626c1ddf3cb7bbe7cff277a7789c1f8af645e2fee2",
+    "examples/orbit_transfer.py": "3d4431e41e8e283d7ec909983c8bc0a61f0cfd61866554e16cb6b0b761e6eff5"
+  }
+}

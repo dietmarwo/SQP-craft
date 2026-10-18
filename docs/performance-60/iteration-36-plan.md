@@ -1,0 +1,3 @@
+# Iteration 36: Larger coupled QP scaling harness
+
+Before threshold tuning, add a planted strictly-SPD dense coupled QP with an equality and a known primal/dual solution at 128,256,512,1024 variables. The NLP cap remains 256. Every solve must independently pass original-model KKT checks and the planted point; change H each call to prevent factor/inverse cache hits from hiding the kernel. Report numeric time for three fresh-H calls with retained resources, separate resource-setup time and whole-process CPU time. Measure 1/2/4/8 widths, no parallel compilation/stress during timing. The original NLP and eight-worker harness remain unchanged. This adapts the candidate order after small-fixture dispatch losses.

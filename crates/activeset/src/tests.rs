@@ -94,7 +94,10 @@ fn bound_constrained_qp_clips_the_unconstrained_minimizer() {
         set.variables,
         [Activity::AtUpper, Activity::AtLower, Activity::Inactive]
     );
-    assert_eq!(s.iterations, 2);
+    assert_eq!(
+        s.iterations, 0,
+        "closed-form box solve changes no working set"
+    );
 }
 
 #[test]
@@ -326,7 +329,7 @@ fn the_budget_charges_drops_and_reentries_only() {
         s.iterations
     );
     assert_eq!(report.iterations, s.iterations);
-    // A box QP solved by first entries alone needs no budget at all.
+    // A diagonal box QP needs no working-set changes or iteration budget.
     let clip = qp(
         &[&[1., 0.], &[0., 1.]],
         &[-3., 3.],
@@ -342,7 +345,7 @@ fn the_budget_charges_drops_and_reentries_only() {
     .unwrap();
     assert!(matches!(
         b.solve(&clip, None, &token).unwrap(),
-        QpOutcome::Optimal(QpSolution { iterations: 2, .. })
+        QpOutcome::Optimal(QpSolution { iterations: 0, .. })
     ));
 }
 
@@ -630,4 +633,396 @@ fn clarabel_and_the_dummy_reject_an_elastic_configuration() {
         };
         assert!(ActiveSetQp::default().configure(&bad).is_err(), "{weight}");
     }
+}
+
+#[test]
+fn source_lists_follow_mutated_bound_kinds() {
+    let mut model = qp(
+        &[&[1.0, 0.0], &[0.0, 1.0]],
+        &[-1.0, -2.0],
+        (&[-INF; 2], &[INF; 2]),
+        &[&[1.0, 1.0]],
+        (&[-INF], &[INF]),
+    );
+    let mut b = backend();
+    optimal(&mut b, &model, None);
+    assert!(b.work.bounded.is_empty());
+    assert!(b.work.equalities.is_empty());
+    model.rows = Bounds::fixed(vec![3.0]);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.work.bounded, vec![2]);
+    assert_eq!(b.work.equalities, vec![2]);
+    model.variables = Bounds::fixed(vec![0.0; 2]);
+    model.rows = Bounds::free(1);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.work.bounded, vec![0, 1]);
+    assert_eq!(b.work.equalities, vec![0, 1]);
+}
+
+#[test]
+fn unconstrained_coupled_qp_uses_checked_triangular_solutions() {
+    for scale in [1e-6, 1.0, 1e6] {
+        let a = [2.0 * scale, scale];
+        let b = [scale, 3.0 * scale];
+        let model = qp(
+            &[&a, &b],
+            &[-scale, -2.0 * scale],
+            (&[-INF; 2], &[INF; 2]),
+            &[],
+            (&[], &[]),
+        );
+        let s = optimal(&mut backend(), &model, None);
+        close(&s.step, &[0.2, 0.6], 1e-12);
+        assert_eq!(s.iterations, 0);
+    }
+}
+
+#[test]
+fn diagonal_box_proposal_keeps_original_rows_and_falls_back_when_needed() {
+    let model = qp(
+        &[&[1.0, 0.0], &[0.0, 1.0]],
+        &[-3.0, -3.0],
+        (&[0.0; 2], &[1.0; 2]),
+        &[&[1.0, 1.0]],
+        (&[1.0], &[1.0]),
+    );
+    let s = optimal(&mut backend(), &model, None);
+    close(&s.step, &[0.5, 0.5], 1e-12);
+    let mut impossible = model.clone();
+    impossible.rows = Bounds::fixed(vec![3.0]);
+    assert!(matches!(
+        backend()
+            .solve(&impossible, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::Infeasible
+    ));
+}
+
+#[test]
+fn factor_cache_uses_complete_exact_keys_and_never_reuses_failure() {
+    let mut b = backend();
+    let mut model = chain(4);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().updates, 1);
+    assert_eq!(b.report().setups, 0);
+    model.gradient[0] += 0.2;
+    let reused = optimal(&mut b, &model, None);
+    let fresh = optimal(&mut backend(), &model, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert_eq!(b.report().updates, 1);
+    model.hessian_lower.values[0] += 0.5;
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    let mut bad = model.clone();
+    bad.hessian_lower.values[0] = -1.0;
+    assert!(matches!(
+        b.solve(&bad, None, &CancellationToken::default()).unwrap(),
+        QpOutcome::NotPositiveDefinite
+    ));
+    assert!(!b.work.factor_valid);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    let zero = model.hessian_lower.pattern.indptr[1];
+    model.hessian_lower.values[zero] = 0.0;
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    model.hessian_lower.values[zero] = -0.0;
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    let a = qp(
+        &[&[1000.0, 0.0, 0.1], &[0.0, 1.0, 0.0], &[0.1, 0.0, 4.0]],
+        &[-1.0, -2.0, -3.0],
+        (&[-10.0; 3], &[10.0; 3]),
+        &[],
+        (&[], &[]),
+    );
+    let c = qp(
+        &[&[1000.0, 1.0, 0.0], &[1.0, 0.1, 0.0], &[0.0, 0.0, 4.0]],
+        &[-1.0, -2.0, -3.0],
+        (&[-10.0; 3], &[10.0; 3]),
+        &[],
+        (&[], &[]),
+    );
+    assert_eq!(a.hessian_lower.values, c.hessian_lower.values);
+    optimal(&mut b, &a, None);
+    let reused = optimal(&mut b, &c, None);
+    let fresh = optimal(&mut backend(), &c, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert_eq!(b.report().setups, 1);
+    let mut invalid = c.clone();
+    invalid.hessian_lower.values[0] = f64::NAN;
+    assert!(
+        b.solve(&invalid, None, &CancellationToken::default())
+            .is_err()
+    );
+    optimal(&mut b, &c, None);
+    assert_eq!(b.report().updates, 1);
+    let mut cloned = b.clone();
+    optimal(&mut cloned, &c, None);
+    assert_eq!(cloned.report().updates, 1);
+}
+
+#[test]
+fn inverse_cache_promotes_on_reuse_and_tracks_hessian_not_row_data() {
+    let mut b = backend();
+    let mut model = chain(5);
+    optimal(&mut b, &model, None);
+    assert!(!b.work.initial_valid);
+    assert!(b.work.initial_j.is_empty());
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+    let inverse = b.work.initial_j.clone();
+    model.gradient[0] += 0.3;
+    model.matrix.values[0] *= 0.75;
+    model.rows.upper[0] = 0.2;
+    let reused = optimal(&mut b, &model, None);
+    let fresh = optimal(&mut backend(), &model, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert!(b.work.initial_valid);
+    assert_eq!(b.work.initial_j, inverse);
+    model.hessian_lower.values[0] += 1.0;
+    let reused = optimal(&mut b, &model, None);
+    let fresh = optimal(&mut backend(), &model, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert!(!b.work.initial_valid);
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+    let mut invalid = model.clone();
+    invalid.hessian_lower.values[0] = -1.0;
+    assert!(matches!(
+        b.solve(&invalid, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::NotPositiveDefinite
+    ));
+    assert!(!b.work.initial_valid);
+    optimal(&mut b, &model, None);
+    assert!(!b.work.initial_valid);
+}
+
+#[test]
+fn parallel_transformed_normals_match_the_original_dots() {
+    let execution = sqp_craft_parallel::Execution::new(8).unwrap();
+    for n in [128, 256, 512] {
+        let model = QpModel {
+            hessian_lower: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: n,
+                    cols: n,
+                    indptr: (0..=n).collect(),
+                    indices: (0..n).collect(),
+                },
+                values: vec![2.; n],
+            },
+            gradient: vec![0.; n],
+            variables: Bounds::free(n),
+            matrix: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: 2,
+                    cols: n,
+                    indptr: vec![0, n, n + 1],
+                    indices: (0..n).chain([3]).collect(),
+                },
+                values: (0..n).map(|i| (i % 7) as f64 * 0.1).chain([0.3]).collect(),
+            },
+            rows: Bounds::free(2),
+        };
+        let norms = vec![1.; 2];
+        let serial = Sources {
+            model: &model,
+            norms: &norms,
+            execution: Default::default(),
+        };
+        let parallel = Sources {
+            model: &model,
+            norms: &norms,
+            execution: execution.clone(),
+        };
+        let j: Vec<_> = (0..n * n).map(|i| (i % 13) as f64 * 0.001).collect();
+        for source in [0, n, n + 1] {
+            for sigma in [-1., 1.] {
+                let mut a = vec![0.; n];
+                let mut b = a.clone();
+                serial.project(source, sigma, &j, &mut a);
+                parallel.project(source, sigma, &j, &mut b);
+                assert_eq!(a, b);
+            }
+        }
+    }
+}
+
+#[test]
+fn parallel_kkt_outputs_retain_scalar_accumulation_order() {
+    let parallel = sqp_craft_parallel::Execution::new(8).unwrap();
+    let serial = sqp_craft_parallel::Execution::default();
+    for n in [127, 256, 512] {
+        for q in [0, 17, n] {
+            let j: Vec<_> = (0..n * n).map(|i| (i % 23) as f64 * 0.001 - 0.01).collect();
+            let mut r = vec![0.; n * n];
+            for k in 0..n {
+                r[k * n + k] = 1.;
+                for i in 0..k {
+                    r[k * n + i] = 0.001;
+                }
+            }
+            let g: Vec<_> = (0..n)
+                .map(|i| {
+                    if i % 3 == 0 {
+                        0.0
+                    } else {
+                        (i % 13) as f64 * 0.001
+                    }
+                })
+                .collect();
+            let bp = vec![0.01; q];
+            let run = |execution: &sqp_craft_parallel::Execution| {
+                let mut c = vec![0.; n];
+                let mut x = c.clone();
+                let mut u = vec![0.; q];
+                kkt_solve((&j, &r, n, q), &g, &bp, &mut c, &mut x, &mut u, execution);
+                (c, x, u)
+            };
+            assert_eq!(run(&serial), run(&parallel));
+        }
+    }
+}
+
+#[test]
+fn parallel_bounded_row_norms_match_scalar_and_skip_free_rows() {
+    let (n, m) = (128, 1024);
+    let model = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).collect(),
+                indices: (0..n).collect(),
+            },
+            values: vec![2.; n],
+        },
+        gradient: vec![0.; n],
+        variables: Bounds::free(n),
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(m, n),
+            values: (0..n * m).map(|i| (i % 23) as f64 * 0.01).collect(),
+        },
+        rows: Bounds::new(
+            (0..m)
+                .map(|i| if i % 2 == 0 { 0.0 } else { f64::NEG_INFINITY })
+                .collect(),
+            vec![f64::INFINITY; m],
+        ),
+    };
+    let mut a = Vec::new();
+    let mut b = Vec::new();
+    row_norms(&model, &mut a, &Default::default());
+    row_norms(
+        &model,
+        &mut b,
+        &sqp_craft_parallel::Execution::new(8).unwrap(),
+    );
+    assert_eq!(a, b);
+    assert!(b.iter().enumerate().all(|(i, &v)| i % 2 == 0 || v == 0.0));
+}
+
+#[test]
+fn dense_parallel_materialization_and_invalidation_match_scalar() {
+    let n = 512;
+    let mut model = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).map(|i| i * (i + 1) / 2).collect(),
+                indices: (0..n).flat_map(|i| 0..=i).collect(),
+            },
+            values: (0..n)
+                .flat_map(|i| (0..=i).map(move |j| if i == j { 2.0 } else { 0.001 }))
+                .collect(),
+        },
+        gradient: vec![0.; n],
+        variables: Bounds::free(n),
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(0, n),
+            values: vec![],
+        },
+        rows: Bounds::free(0),
+    };
+    let mut a = Work::default();
+    let mut b = Work {
+        execution: sqp_craft_parallel::Execution::new(8).unwrap(),
+        ..Default::default()
+    };
+    for step in 0..3 {
+        if step == 2 {
+            model.hessian_lower.values[0] += 0.001;
+        }
+        a.load(&model, 1e-10, None, &[]);
+        b.load(&model, 1e-10, None, &[]);
+        assert_eq!(a.l, b.l);
+        assert_eq!(a.factor_reused, b.factor_reused);
+        assert!(a.factor());
+        assert!(b.factor());
+        assert_eq!(a.l, b.l);
+    }
+}
+
+#[test]
+fn small_eight_budget_qps_do_not_start_unused_workers() {
+    let model = qp(
+        &[&[2., 0.], &[0., 2.]],
+        &[-1., 1.],
+        (&[-2.; 2], &[2.; 2]),
+        &[],
+        (&[], &[]),
+    );
+    let mut b = backend();
+    b.set_threads(8).unwrap();
+    assert_eq!(b.work.execution.threads(), 1);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.work.execution.threads(), 1);
+    assert!(b.set_threads(0).is_err());
+    assert!(b.set_threads(9).is_err());
+}
+
+#[test]
+fn parallel_large_factor_failure_invalidates_the_promoted_inverse() {
+    let n = 512;
+    let mut model = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).map(|i| i * (i + 1) / 2).collect(),
+                indices: (0..n).flat_map(|i| 0..=i).collect(),
+            },
+            values: (0..n)
+                .flat_map(|i| (0..=i).map(move |j| if i == j { 2.0 } else { 0.001 }))
+                .collect(),
+        },
+        gradient: vec![0.; n],
+        variables: Bounds::free(n),
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(1, n),
+            values: vec![1.; n],
+        },
+        rows: Bounds::fixed(vec![0.]),
+    };
+    let mut b = backend();
+    b.set_threads(8).unwrap();
+    optimal(&mut b, &model, None);
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+    model.hessian_lower.values[0] = -1.;
+    assert!(matches!(
+        b.solve(&model, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::NotPositiveDefinite
+    ));
+    assert!(!b.work.factor_valid && !b.work.initial_valid);
+    model.hessian_lower.values[0] = 2.;
+    optimal(&mut b, &model, None);
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
 }
