@@ -763,3 +763,40 @@ fn factor_cache_uses_complete_exact_keys_and_never_reuses_failure() {
     optimal(&mut cloned, &c, None);
     assert_eq!(cloned.report().updates, 1);
 }
+
+#[test]
+fn inverse_cache_promotes_on_reuse_and_tracks_hessian_not_row_data() {
+    let mut b = backend();
+    let mut model = chain(5);
+    optimal(&mut b, &model, None);
+    assert!(!b.work.initial_valid);
+    assert!(b.work.initial_j.is_empty());
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+    let inverse = b.work.initial_j.clone();
+    model.gradient[0] += 0.3;
+    model.matrix.values[0] *= 0.75;
+    model.rows.upper[0] = 0.2;
+    let reused = optimal(&mut b, &model, None);
+    let fresh = optimal(&mut backend(), &model, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert!(b.work.initial_valid);
+    assert_eq!(b.work.initial_j, inverse);
+    model.hessian_lower.values[0] += 1.0;
+    let reused = optimal(&mut b, &model, None);
+    let fresh = optimal(&mut backend(), &model, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert!(!b.work.initial_valid);
+    optimal(&mut b, &model, None);
+    assert!(b.work.initial_valid);
+    let mut invalid = model.clone();
+    invalid.hessian_lower.values[0] = -1.0;
+    assert!(matches!(
+        b.solve(&invalid, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::NotPositiveDefinite
+    ));
+    assert!(!b.work.initial_valid);
+    optimal(&mut b, &model, None);
+    assert!(!b.work.initial_valid);
+}

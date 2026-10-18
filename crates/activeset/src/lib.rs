@@ -507,6 +507,10 @@ struct Work {
     hessian_key: Option<sqp_craft::CsrMatrix>,
     factor_valid: bool,
     factor_reused: bool,
+    /// Unrotated inverse, promoted only after confirmed cross-call H reuse.
+    initial_j: Vec<f64>,
+    initial_dependence: f64,
+    initial_valid: bool,
     /// Cholesky factor `L` in the lower triangle (column-major).
     l: Vec<f64>,
     /// `J = L⁻ᵀ Q`: columns `0..q` span the working set, `q..n` its complement.
@@ -576,6 +580,7 @@ impl Work {
         if !self.factor_reused {
             // Invalidate before loading any changed or unverified Hessian.
             self.factor_valid = false;
+            self.initial_valid = false;
             match self.hessian_key.as_mut() {
                 Some(key) => {
                     key.pattern.rows = h.pattern.rows;
@@ -674,8 +679,22 @@ impl Work {
         warm: Option<&ActiveSet>,
         budget: &mut Budget,
     ) -> std::result::Result<(), Stop> {
-        dense::inverse_transpose(&self.l, &mut self.j, self.n);
-        self.dependence = DEPENDENCE * f64::EPSILON * (self.n as f64).sqrt() * dense::norm(&self.j);
+        if self.initial_valid {
+            self.j.copy_from_slice(&self.initial_j);
+            self.dependence = self.initial_dependence;
+        } else {
+            dense::inverse_transpose(&self.l, &mut self.j, self.n);
+            self.dependence =
+                DEPENDENCE * f64::EPSILON * (self.n as f64).sqrt() * dense::norm(&self.j);
+            if self.factor_reused
+                && self.dependence.is_finite()
+                && self.j.iter().all(|v| v.is_finite())
+            {
+                self.initial_j.clone_from(&self.j);
+                self.initial_dependence = self.dependence;
+                self.initial_valid = true;
+            }
+        }
         self.q = 0;
         self.members.clear();
         self.u.clear();
