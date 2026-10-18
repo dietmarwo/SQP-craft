@@ -39,6 +39,18 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
     debug_assert_eq!(l.len(), n * n);
     debug_assert_eq!(j.len(), n * n);
     j.fill(0.0);
+    if n == 0 {
+        return;
+    }
+    if l.chunks_exact(n)
+        .enumerate()
+        .all(|(k, col)| col[k + 1..].iter().all(|&v| v == 0.0))
+    {
+        for k in 0..n {
+            j[k * n + k] = 1.0 / l[k * n + k];
+        }
+        return;
+    }
     // Column k solves Lᵀ y = e_k; y vanishes below row k.
     for k in 0..n {
         let column = &mut j[k * n..(k + 1) * n];
@@ -246,4 +258,32 @@ mod tests {
         let a: Vec<f64> = (0..11).map(|i| i as f64).collect();
         assert_eq!(dot(&a, &a), (0..11).map(|i| (i * i) as f64).sum::<f64>());
     }
+}
+
+#[cfg(test)]
+#[test]
+fn diagonal_inverse_is_exact_and_tiny_coupling_keeps_the_general_path() {
+    for n in [0, 1, 7, 32] {
+        let mut l = vec![0.0; n * n];
+        for k in 0..n {
+            l[k * n + k] = 2.0 + k as f64;
+        }
+        let mut j = vec![f64::NAN; n * n];
+        inverse_transpose(&l, &mut j, n);
+        for col in 0..n {
+            for row in 0..n {
+                assert_eq!(
+                    j[col * n + row],
+                    if row == col {
+                        1.0 / (2.0 + col as f64)
+                    } else {
+                        0.0
+                    }
+                );
+            }
+        }
+    }
+    let mut j = vec![0.0; 4];
+    inverse_transpose(&[2.0, 1e-12, f64::NAN, 3.0], &mut j, 2);
+    assert!((j[2] + 1e-12 / 6.0).abs() < 1e-28);
 }
