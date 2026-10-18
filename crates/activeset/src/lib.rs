@@ -653,20 +653,25 @@ impl Work {
     fn polish(&mut self, sources: &Sources) {
         let (n, q) = (self.n, self.q);
         let model = sources.model;
-        self.ge.copy_from_slice(&model.gradient);
         if let Some(weight) = self.weight {
+            self.ge.copy_from_slice(&model.gradient);
             for (s, &e) in self.elastic.iter().enumerate().skip(n) {
                 if e != 0.0 {
                     sources.scatter(s, -weight * e, &mut self.ge);
                 }
             }
         }
+        let ge = if self.weight.is_some() {
+            self.ge.as_slice()
+        } else {
+            model.gradient.as_slice()
+        };
         for (b, member) in self.rp.iter_mut().zip(&self.members) {
             *b = member.rhs;
         }
         kkt_solve(
             (&self.j, &self.r, n, q),
-            &self.ge,
+            ge,
             &self.rp[..q],
             &mut self.c,
             &mut self.x,
@@ -674,7 +679,7 @@ impl Work {
         );
         for _ in 0..REFINEMENT_STEPS {
             model.hessian_product(&self.x, &mut self.rd);
-            for (r, &g) in self.rd.iter_mut().zip(&self.ge) {
+            for (r, &g) in self.rd.iter_mut().zip(ge) {
                 *r += g;
             }
             for (k, member) in self.members.iter().enumerate() {
