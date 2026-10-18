@@ -86,7 +86,10 @@ independent first-order check for every solver:
   with exact Hessians; SLSQP solves 631.
 
 The results recommend the active-set backend with elastic mode as the
-default; the defaults stay unchanged until that is decided.
+default; the defaults stay unchanged until that is decided. They were measured
+with 0.14; the [0.16 review](docs/performance-60/REVIEW.md) reran the harness:
+Clarabel and elastic mode give the same results, and the active-set backend
+solves 801.
 
 See [plans and results](docs/performance/README.md) for all ten checkpoints,
 raw per-iteration measurements, final paired timings, numerical failure fixes

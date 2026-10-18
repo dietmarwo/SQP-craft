@@ -8,6 +8,14 @@ in [benchmark-harness-plan.md](benchmark-harness-plan.md) (gap 6 in
 `benchmarks/results.jsonl.gz`. The recommendations are marked as such; the
 defaults are your decision, and none was changed.
 
+These results were measured with 0.14. The review of 0.16
+([performance-60/REVIEW.md](performance-60/REVIEW.md)) reran Clarabel, the
+active-set backend and elastic mode on the same problems:
+- Clarabel and elastic mode give identical runs, apart from runs near the time
+  limit.
+- The active-set backend changes on unconstrained problems, through the 0.15
+  direct QP path, and solves 801 problems instead of 799.
+
 ## Summary
 
 - **No false claim.** The 11 sqp-craft configurations and the experiment
