@@ -175,8 +175,13 @@ impl ActiveSetQp {
         self.last.conversion_seconds = t.elapsed().as_secs_f64();
         let t = Instant::now();
         let definite = self.work.factor();
-        self.last.setups = 1;
-        self.last.setup_seconds = t.elapsed().as_secs_f64();
+        if self.work.factor_reused {
+            self.last.updates = 1;
+            self.last.update_seconds = t.elapsed().as_secs_f64();
+        } else {
+            self.last.setups = 1;
+            self.last.setup_seconds = t.elapsed().as_secs_f64();
+        }
         if !definite {
             return Ok(QpOutcome::NotPositiveDefinite);
         }
@@ -498,6 +503,10 @@ struct Member {
 #[derive(Clone, Debug, Default)]
 struct Work {
     n: usize,
+    /// Owned exact input key for a successful factorization.
+    hessian_key: Option<sqp_craft::CsrMatrix>,
+    factor_valid: bool,
+    factor_reused: bool,
     /// Cholesky factor `L` in the lower triangle (column-major).
     l: Vec<f64>,
     /// `J = L⁻ᵀ Q`: columns `0..q` span the working set, `q..n` its complement.
@@ -553,11 +562,36 @@ impl Work {
     fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>, hard: &[bool]) {
         let n = model.n();
         self.n = n;
+        let h = &model.hessian_lower;
+        self.factor_reused = self.factor_valid
+            && self.hessian_key.as_ref().is_some_and(|key| {
+                key.pattern == h.pattern
+                    && key.values.len() == h.values.len()
+                    && key
+                        .values
+                        .iter()
+                        .zip(&h.values)
+                        .all(|(a, b)| a.to_bits() == b.to_bits())
+            });
+        if !self.factor_reused {
+            // Invalidate before loading any changed or unverified Hessian.
+            self.factor_valid = false;
+            match self.hessian_key.as_mut() {
+                Some(key) => {
+                    key.pattern.rows = h.pattern.rows;
+                    key.pattern.cols = h.pattern.cols;
+                    key.pattern.indptr.clone_from(&h.pattern.indptr);
+                    key.pattern.indices.clone_from(&h.pattern.indices);
+                    key.values.clone_from(&h.values);
+                }
+                None => self.hessian_key = Some(h.clone()),
+            }
+        }
         self.members.reserve(n.saturating_sub(self.members.len()));
         self.u.reserve(n.saturating_sub(self.u.len()));
         self.l.resize(n * n, 0.0);
         let full = n.checked_mul(n + 1).map(|v| v / 2) == Some(model.hessian_lower.values.len());
-        if !full {
+        if !self.factor_reused && !full {
             for (k, column) in self.l.chunks_exact_mut(n).enumerate() {
                 column[k..].fill(0.0);
             }
@@ -579,10 +613,11 @@ impl Work {
         ] {
             v.resize(n, 0.0);
         }
-        let h = &model.hessian_lower;
-        for i in 0..n {
-            for a in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
-                self.l[h.pattern.indices[a] * n + i] = h.values[a];
+        if !self.factor_reused {
+            for i in 0..n {
+                for a in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                    self.l[h.pattern.indices[a] * n + i] = h.values[a];
+                }
             }
         }
         for flags in [&mut self.active, &mut self.entered] {
@@ -615,6 +650,9 @@ impl Work {
     }
 
     fn factor(&mut self) -> bool {
+        if self.factor_reused {
+            return true;
+        }
         let n = self.n;
         if !dense::cholesky(&mut self.l, n) {
             return false;
@@ -625,6 +663,7 @@ impl Work {
                 (lo.min(d), hi.max(d))
             });
         self.noise = (NOISE * f64::EPSILON * (n as f64).sqrt() * (high / low)).min(MAX_NOISE);
+        self.factor_valid = true;
         true
     }
 

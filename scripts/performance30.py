@@ -13,7 +13,7 @@ KERNELS = [('validate',128,1000),('hessian',128,500),('csr',128,5000),
            ('bfgs',128,200),('cholesky',96,100),('inverse',96,100),
            ('qp-dense',64,30),('qp-pairs',64,30),('qp-free',128,30),
            ('qp-box',128,30),('qp-zero',64,30),('qp-free-rows',128,30),
-           ('qp-fixed',64,30),('qp-dense-normals',64,30)]
+           ('qp-fixed',64,30),('qp-dense-normals',64,30),('qp-free-dense',128,30)]
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('output',type=Path)

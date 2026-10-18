@@ -12,7 +12,7 @@ use sqp_craft_activeset::ActiveSetQp;
 use std::{hint::black_box, time::Instant};
 
 fn qp(n: usize, family: &str) -> QpModel {
-    let diagonal = family != "qp-dense";
+    let diagonal = family != "qp-dense" && family != "qp-free-dense";
     let mut ptr = vec![0];
     let (mut indices, mut values) = (Vec::new(), Vec::new());
     for i in 0..n {
@@ -62,7 +62,7 @@ fn qp(n: usize, family: &str) -> QpModel {
         } else {
             (0..n).map(|i| -0.1 - (i % 5) as f64).collect()
         },
-        variables: if family == "qp-free" {
+        variables: if family == "qp-free" || family == "qp-free-dense" {
             Bounds::free(n)
         } else {
             Bounds::new(vec![0.0; n], vec![2.0; n])

@@ -697,3 +697,69 @@ fn diagonal_box_proposal_keeps_original_rows_and_falls_back_when_needed() {
         QpOutcome::Infeasible
     ));
 }
+
+#[test]
+fn factor_cache_uses_complete_exact_keys_and_never_reuses_failure() {
+    let mut b = backend();
+    let mut model = chain(4);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().updates, 1);
+    assert_eq!(b.report().setups, 0);
+    model.gradient[0] += 0.2;
+    let reused = optimal(&mut b, &model, None);
+    let fresh = optimal(&mut backend(), &model, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert_eq!(b.report().updates, 1);
+    model.hessian_lower.values[0] += 0.5;
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    let mut bad = model.clone();
+    bad.hessian_lower.values[0] = -1.0;
+    assert!(matches!(
+        b.solve(&bad, None, &CancellationToken::default()).unwrap(),
+        QpOutcome::NotPositiveDefinite
+    ));
+    assert!(!b.work.factor_valid);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    let zero = model.hessian_lower.pattern.indptr[1];
+    model.hessian_lower.values[zero] = 0.0;
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    model.hessian_lower.values[zero] = -0.0;
+    optimal(&mut b, &model, None);
+    assert_eq!(b.report().setups, 1);
+    let a = qp(
+        &[&[1000.0, 0.0, 0.1], &[0.0, 1.0, 0.0], &[0.1, 0.0, 4.0]],
+        &[-1.0, -2.0, -3.0],
+        (&[-10.0; 3], &[10.0; 3]),
+        &[],
+        (&[], &[]),
+    );
+    let c = qp(
+        &[&[1000.0, 1.0, 0.0], &[1.0, 0.1, 0.0], &[0.0, 0.0, 4.0]],
+        &[-1.0, -2.0, -3.0],
+        (&[-10.0; 3], &[10.0; 3]),
+        &[],
+        (&[], &[]),
+    );
+    assert_eq!(a.hessian_lower.values, c.hessian_lower.values);
+    optimal(&mut b, &a, None);
+    let reused = optimal(&mut b, &c, None);
+    let fresh = optimal(&mut backend(), &c, None);
+    close(&reused.step, &fresh.step, 1e-12);
+    assert_eq!(b.report().setups, 1);
+    let mut invalid = c.clone();
+    invalid.hessian_lower.values[0] = f64::NAN;
+    assert!(
+        b.solve(&invalid, None, &CancellationToken::default())
+            .is_err()
+    );
+    optimal(&mut b, &c, None);
+    assert_eq!(b.report().updates, 1);
+    let mut cloned = b.clone();
+    optimal(&mut cloned, &c, None);
+    assert_eq!(cloned.report().updates, 1);
+}

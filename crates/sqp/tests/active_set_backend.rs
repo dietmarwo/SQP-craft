@@ -61,8 +61,11 @@ fn the_orbit_transfer_takes_the_same_path_as_with_clarabel() {
     assert!((-objective(&exact) - 1.52206).abs() < 5e-5);
     assert_eq!(exact.iterations, interior.iterations);
     assert!(exact.report.qp_backend.starts_with("goldfarb-idnani"));
-    // One factorization per QP, no engine retries.
-    assert_eq!(exact.report.qp_setups, exact.report.qp_solves);
+    // Each QP either factorizes or reuses an exactly matching factor.
+    assert_eq!(
+        exact.report.qp_setups + exact.report.qp_updates,
+        exact.report.qp_solves
+    );
     assert_eq!(exact.report.qp_cold_retries, 0);
 }
 
