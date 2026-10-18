@@ -165,8 +165,12 @@ impl ActiveSetQp {
         );
         self.norms.clear();
         self.norms.extend((0..model.m()).map(|i| {
-            let range = model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1];
-            dense::norm(&model.matrix.values[range])
+            if model.rows.lower[i] == f64::NEG_INFINITY && model.rows.upper[i] == f64::INFINITY {
+                0.0
+            } else {
+                let range = model.matrix.pattern.indptr[i]..model.matrix.pattern.indptr[i + 1];
+                dense::norm(&model.matrix.values[range])
+            }
         }));
         self.last.conversion_seconds = t.elapsed().as_secs_f64();
         let t = Instant::now();

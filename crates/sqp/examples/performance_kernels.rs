@@ -47,7 +47,7 @@ fn qp(n: usize, family: &str) -> QpModel {
     } else {
         (0..m).collect()
     };
-    QpModel {
+    let mut model = QpModel {
         hessian_lower: CsrMatrix {
             pattern: CsrPattern {
                 rows: n,
@@ -77,7 +77,48 @@ fn qp(n: usize, family: &str) -> QpModel {
             values: vec![1.0; if paired { 2 * m } else { m }],
         },
         rows: Bounds::fixed(vec![if family == "qp-zero" { 0.0 } else { 1.0 }; m]),
+    };
+    if family == "qp-free-rows" || family == "qp-dense-normals" {
+        let m = n / 2;
+        let values: Vec<f64> = (0..m)
+            .flat_map(|i| {
+                (0..n).map(move |j| {
+                    if i == j {
+                        1.0
+                    } else {
+                        0.01 * ((i + j) % 3) as f64
+                    }
+                })
+            })
+            .collect();
+        let rhs: Vec<f64> = values
+            .chunks_exact(n)
+            .map(|r| r.iter().sum::<f64>() * 0.5)
+            .collect();
+        model.matrix = CsrMatrix {
+            pattern: CsrPattern::dense(m, n),
+            values,
+        };
+        model.rows = if family == "qp-free-rows" {
+            Bounds::free(m)
+        } else {
+            Bounds::fixed(rhs)
+        };
     }
+    if family == "qp-fixed" {
+        model.variables = Bounds::fixed(vec![0.0; n]);
+        model.matrix = CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).collect(),
+                indices: (0..n).collect(),
+            },
+            values: vec![1.0; n],
+        };
+        model.rows = Bounds::fixed(vec![0.0; n]);
+    }
+    model
 }
 fn main() {
     let args: Vec<_> = std::env::args().collect();
