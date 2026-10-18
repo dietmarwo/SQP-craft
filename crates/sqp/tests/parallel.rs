@@ -293,3 +293,67 @@ fn fallible_factories_return_ordered_errors_without_poisoning_workers() {
         }
     }
 }
+
+#[test]
+fn native_budget_includes_worker_setup_and_precancel_skips_it() {
+    struct Slow {
+        configured: bool,
+    }
+    impl NlpProblem for Slow {
+        fn set_threads(&mut self, _: usize) -> Result<()> {
+            self.configured = true;
+            std::thread::sleep(std::time::Duration::from_millis(3));
+            Ok(())
+        }
+        fn functions(&mut self, _: &[f64], _: &mut [f64]) -> Result<f64> {
+            panic!("expired/cancelled model must not evaluate")
+        }
+        fn derivatives(&mut self, _: &[f64], _: &mut [f64], _: &mut [f64]) -> Result<()> {
+            panic!("expired/cancelled model must not differentiate")
+        }
+    }
+    let spec = ProblemSpec::new(Bounds::free(1), Bounds::free(0), CsrPattern::dense(0, 1)).unwrap();
+    let mut solver = NativeSqp {
+        qp: ActiveSetQp::default(),
+        settings: SqpOptions {
+            time_limit_seconds: Some(0.001),
+            ..Default::default()
+        },
+    };
+    let mut model = Slow { configured: false };
+    let r = solver
+        .solve(
+            &spec,
+            &mut model,
+            &[0.],
+            &Options {
+                threads: 8,
+                ..Default::default()
+            },
+            &CancellationToken::default(),
+            None,
+        )
+        .unwrap();
+    assert_eq!(r.status, Status::TimeLimit);
+    assert!(model.configured);
+    assert_eq!(r.counts.functions, 0);
+    let token = CancellationToken::default();
+    token.cancel();
+    let mut model = Slow { configured: false };
+    let r = solver
+        .solve(
+            &spec,
+            &mut model,
+            &[0.],
+            &Options {
+                threads: 8,
+                ..Default::default()
+            },
+            &token,
+            None,
+        )
+        .unwrap();
+    assert_eq!(r.status, Status::Cancelled);
+    assert!(!model.configured);
+    assert_eq!(r.counts.functions, 0);
+}

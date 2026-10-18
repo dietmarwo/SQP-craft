@@ -112,7 +112,7 @@ def main():
                 splits = (
                     [(1, 1), (1, 8)]
                     if a.baseline
-                    else [(1, 1), (1, 8), (2, 4), (4, 2), (8, 1)]
+                    else [(1, 1), (1, 2), (1, 4), (1, 8), (2, 4), (4, 2), (8, 1)]
                 )
                 for family, size in [("orbit", 20), ("separable", 128)]:
                     for inner, outer in splits:

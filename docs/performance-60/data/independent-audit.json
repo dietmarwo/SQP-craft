@@ -1,0 +1,21 @@
+{
+  "total_solver_calls": 52116,
+  "paired_comparisons": 34744,
+  "calls_per_variant": 17372,
+  "lost_acceptance_or_convergence": [],
+  "status_or_acceptance_changes": [],
+  "false_convergence_claims": [],
+  "outer_iteration_changes": 0,
+  "max_accepted_objective_difference": 0.0,
+  "max_accepted_point_difference": 0.0,
+  "converged": {
+    "baseline": 16638,
+    "serial": 16638,
+    "parallel": 16638
+  },
+  "extension_sha256": {
+    "baseline": "a07601f3be9b4a6bf8b53734c22e0cdeeee31acd7ccaaeff7820607389c8be22",
+    "serial": "eac8e7c39bd9b79a3854d15d2a939d00264df99d374a4dd5bbd0a28f6df8b20b",
+    "parallel": "eac8e7c39bd9b79a3854d15d2a939d00264df99d374a4dd5bbd0a28f6df8b20b"
+  }
+}
