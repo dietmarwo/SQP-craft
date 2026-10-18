@@ -441,6 +441,8 @@ struct Work {
     active: Vec<bool>,
     /// Whether each source has been in the working set during the attempt.
     entered: Vec<bool>,
+    /// Sources with at least one finite bound, rebuilt for each model.
+    bounded: Vec<usize>,
     /// Elastic weight `γ` of an elastic QP; rows are then soft.
     weight: Option<f64>,
     /// Rows that stay hard in an elastic QP (empty: none).
@@ -505,6 +507,19 @@ impl Work {
         self.weight = weight;
         self.hard.clear();
         self.hard.extend_from_slice(hard);
+        self.bounded.clear();
+        self.bounded.extend(
+            model
+                .variables
+                .lower
+                .iter()
+                .zip(&model.variables.upper)
+                .chain(model.rows.lower.iter().zip(&model.rows.upper))
+                .enumerate()
+                .filter_map(|(i, (&lo, &hi))| {
+                    (lo != f64::NEG_INFINITY || hi != f64::INFINITY).then_some(i)
+                }),
+        );
         self.tolerance = tolerance;
     }
 
@@ -706,14 +721,11 @@ impl Work {
     /// divided by the normal's norm, oriented so that it reads `σ aᵀp ≥ rhs`.
     fn most_violated(&self, sources: &Sources) -> Option<Member> {
         let mut best: Option<(f64, Member)> = None;
-        for s in 0..sources.count() {
+        for &s in &self.bounded {
             if self.active[s] {
                 continue;
             }
             let (lower, upper) = sources.bounds(s);
-            if lower == f64::NEG_INFINITY && upper == f64::INFINITY {
-                continue;
-            }
             let (v, magnitude) = sources.value(s, &self.x);
             let tau = |b: f64| self.tolerance * (1.0 + b.abs() + magnitude);
             let member =

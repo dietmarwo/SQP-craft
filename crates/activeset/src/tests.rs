@@ -631,3 +631,24 @@ fn clarabel_and_the_dummy_reject_an_elastic_configuration() {
         assert!(ActiveSetQp::default().configure(&bad).is_err(), "{weight}");
     }
 }
+
+#[test]
+fn source_lists_follow_mutated_bound_kinds() {
+    let mut model = qp(
+        &[&[1.0, 0.0], &[0.0, 1.0]],
+        &[-1.0, -2.0],
+        (&[-INF; 2], &[INF; 2]),
+        &[&[1.0, 1.0]],
+        (&[-INF], &[INF]),
+    );
+    let mut b = backend();
+    optimal(&mut b, &model, None);
+    assert!(b.work.bounded.is_empty());
+    model.rows = Bounds::fixed(vec![3.0]);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.work.bounded, vec![2]);
+    model.variables = Bounds::fixed(vec![0.0; 2]);
+    model.rows = Bounds::free(1);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.work.bounded, vec![0, 1]);
+}
