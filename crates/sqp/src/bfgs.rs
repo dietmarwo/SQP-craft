@@ -99,8 +99,12 @@ impl Workspace {
             } else {
                 0.8 * t / (t - sy)
             };
-            for (i, &yi) in y.iter().enumerate() {
-                self.r[i] = theta * yi + (1. - theta) * self.bs[i];
+            if theta == 1.0 {
+                self.r.as_mut_slice().copy_from_slice(y);
+            } else {
+                for (i, &yi) in y.iter().enumerate() {
+                    self.r[i] = theta * yi + (1. - theta) * self.bs[i];
+                }
             }
         }
         let sr = sv.dot(&self.r);
