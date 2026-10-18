@@ -590,6 +590,9 @@ impl Work {
 
     /// Adds `member` to the initial working set unless it is dependent.
     fn force(&mut self, sources: &Sources, member: Member) {
+        if self.q == self.n {
+            return;
+        }
         sources.project(member.source, member.sigma, &self.j, &mut self.d);
         if self.free_part(sources.norm(member.source)).is_some() {
             self.push(member, 0.0);
