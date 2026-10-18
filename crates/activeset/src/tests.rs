@@ -800,3 +800,54 @@ fn inverse_cache_promotes_on_reuse_and_tracks_hessian_not_row_data() {
     optimal(&mut b, &model, None);
     assert!(!b.work.initial_valid);
 }
+
+#[test]
+fn parallel_transformed_normals_match_the_original_dots() {
+    let execution = sqp_craft_parallel::Execution::new(8).unwrap();
+    for n in [128, 256] {
+        let model = QpModel {
+            hessian_lower: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: n,
+                    cols: n,
+                    indptr: (0..=n).collect(),
+                    indices: (0..n).collect(),
+                },
+                values: vec![2.; n],
+            },
+            gradient: vec![0.; n],
+            variables: Bounds::free(n),
+            matrix: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: 2,
+                    cols: n,
+                    indptr: vec![0, n, n + 1],
+                    indices: (0..n).chain([3]).collect(),
+                },
+                values: (0..n).map(|i| (i % 7) as f64 * 0.1).chain([0.3]).collect(),
+            },
+            rows: Bounds::free(2),
+        };
+        let norms = vec![1.; 2];
+        let serial = Sources {
+            model: &model,
+            norms: &norms,
+            execution: Default::default(),
+        };
+        let parallel = Sources {
+            model: &model,
+            norms: &norms,
+            execution: execution.clone(),
+        };
+        let j: Vec<_> = (0..n * n).map(|i| (i % 13) as f64 * 0.001).collect();
+        for source in [0, n, n + 1] {
+            for sigma in [-1., 1.] {
+                let mut a = vec![0.; n];
+                let mut b = a.clone();
+                serial.project(source, sigma, &j, &mut a);
+                parallel.project(source, sigma, &j, &mut b);
+                assert_eq!(a, b);
+            }
+        }
+    }
+}

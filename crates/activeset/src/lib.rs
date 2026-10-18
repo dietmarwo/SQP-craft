@@ -203,6 +203,7 @@ impl ActiveSetQp {
         let sources = Sources {
             model,
             norms: &self.norms,
+            execution: self.work.execution.clone(),
         };
         loop {
             let t = Instant::now();
@@ -396,6 +397,7 @@ impl Budget<'_> {
 
 /// The `n + m` bound sources of a model: variables first, then rows.
 struct Sources<'a> {
+    execution: sqp_craft_parallel::Execution,
     model: &'a QpModel,
     norms: &'a [f64],
 }
@@ -484,6 +486,19 @@ impl Sources<'_> {
             for (k, dk) in d.iter_mut().enumerate() {
                 *dk = sigma * (0.0 + a * j[k * n + i]);
             }
+            return;
+        }
+        if n >= 256 && indices.len() >= n / 2 && self.execution.threads() > 1 {
+            self.execution
+                .chunks_mut(d, 1, n * indices.len(), |k, out| {
+                    let column = &j[k * n..(k + 1) * n];
+                    let sum: f64 = indices
+                        .iter()
+                        .zip(values)
+                        .map(|(&i, &a)| a * column[i])
+                        .sum();
+                    out[0] = sigma * sum;
+                });
             return;
         }
         for (dk, column) in d.iter_mut().zip(j.chunks_exact(n)) {

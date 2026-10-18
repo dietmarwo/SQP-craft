@@ -144,6 +144,7 @@ pub(crate) fn rotate(x: &mut [f64], y: &mut [f64], c: f64, s: f64) {
 /// operations, against `6 n·len` for a chain of Givens rotations. The first
 /// column is negated if needed, so the leading entry is nonnegative. `w` is
 /// scratch of length `n`.
+#[cfg(test)]
 pub(crate) fn reflect(j: &mut [f64], n: usize, q: usize, tail: &mut [f64], w: &mut [f64]) {
     reflect_parallel(j, n, q, tail, w, &sqp_craft_parallel::Execution::default());
 }
