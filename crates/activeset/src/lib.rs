@@ -365,6 +365,13 @@ impl Sources<'_> {
             return;
         }
         let (indices, values) = self.row(s - n);
+        if indices.len() == 1 {
+            let (i, a) = (indices[0], values[0]);
+            for (k, dk) in d.iter_mut().enumerate() {
+                *dk = sigma * (0.0 + a * j[k * n + i]);
+            }
+            return;
+        }
         for (dk, column) in d.iter_mut().zip(j.chunks_exact(n)) {
             let sum: f64 = indices
                 .iter()
