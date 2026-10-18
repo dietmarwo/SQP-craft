@@ -145,6 +145,18 @@ pub(crate) fn rotate(x: &mut [f64], y: &mut [f64], c: f64, s: f64) {
 /// column is negated if needed, so the leading entry is nonnegative. `w` is
 /// scratch of length `n`.
 pub(crate) fn reflect(j: &mut [f64], n: usize, q: usize, tail: &mut [f64], w: &mut [f64]) {
+    reflect_parallel(j, n, q, tail, w, &sqp_craft_parallel::Execution::default());
+}
+
+/// Disjoint reflector target columns, with an ordered unchanged accumulator.
+pub(crate) fn reflect_parallel(
+    j: &mut [f64],
+    n: usize,
+    q: usize,
+    tail: &mut [f64],
+    w: &mut [f64],
+    execution: &sqp_craft_parallel::Execution,
+) {
     let columns = &mut j[q * n..];
     debug_assert_eq!(columns.len(), tail.len() * n);
     let used = tail.iter().rposition(|&v| v != 0.0).map_or(1, |i| i + 1);
@@ -163,11 +175,21 @@ pub(crate) fn reflect(j: &mut [f64], n: usize, q: usize, tail: &mut [f64], w: &m
                 axpy(v, column, w);
             }
         }
-        for (&v, column) in tail.iter().zip(columns.chunks_exact_mut(n)) {
-            if v != 0.0 {
-                axpy(-tau * v, w, column);
+        if n >= 256 && execution.threads() > 1 {
+            execution.chunks_mut(columns, n, n * used * 3, |start, column| {
+                let v = tail[start / n];
+                if v != 0.0 {
+                    axpy(-tau * v, w, column);
+                }
+            });
+        } else {
+            for (&v, column) in tail.iter().zip(columns.chunks_exact_mut(n)) {
+                if v != 0.0 {
+                    axpy(-tau * v, w, column);
+                }
             }
         }
+
         tail[0] = beta;
         tail[1..].fill(0.0);
     }
@@ -354,6 +376,41 @@ mod parallel_inverse_tests {
                 a.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
                 b.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod parallel_reflector_tests {
+    use super::*;
+    #[test]
+    fn reflector_target_columns_are_bit_identical() {
+        let execution = sqp_craft_parallel::Execution::new(8).unwrap();
+        for n in [17, 128, 256] {
+            for q in [0, n / 2, n - 1] {
+                let mut a: Vec<_> = (0..n * n).map(|i| (i % 97) as f64 * 0.001 - 0.02).collect();
+                let mut b = a.clone();
+                let mut ta: Vec<_> = (0..n - q)
+                    .map(|i| {
+                        if i % 3 == 0 {
+                            0.0
+                        } else {
+                            (i % 13) as f64 * 0.01 - 0.02
+                        }
+                    })
+                    .collect();
+                if ta.iter().all(|&x| x == 0.0) {
+                    ta[0] = 0.5;
+                }
+                let mut tb = ta.clone();
+                let mut wa = vec![0.0; n];
+                let mut wb = wa.clone();
+                reflect(&mut a, n, q, &mut ta, &mut wa);
+                reflect_parallel(&mut b, n, q, &mut tb, &mut wb, &execution);
+                assert_eq!(a, b);
+                assert_eq!(ta, tb);
+                assert_eq!(wa, wb);
+            }
         }
     }
 }

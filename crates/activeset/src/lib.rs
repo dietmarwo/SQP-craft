@@ -1044,7 +1044,14 @@ impl Work {
     fn push(&mut self, member: Member, multiplier: f64) {
         let (n, q) = (self.n, self.q);
         debug_assert!(q < n);
-        dense::reflect(&mut self.j, n, q, &mut self.d[q..], &mut self.w);
+        dense::reflect_parallel(
+            &mut self.j,
+            n,
+            q,
+            &mut self.d[q..],
+            &mut self.w,
+            &self.execution,
+        );
         self.r[q * n..q * n + q + 1].copy_from_slice(&self.d[..=q]);
         self.members.push(member);
         self.u.push(multiplier);
