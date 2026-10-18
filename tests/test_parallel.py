@@ -1,4 +1,5 @@
 """Explicit native worker budgets through the compiled Python boundary."""
+
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
@@ -32,10 +33,17 @@ def test_native_widths_keep_callback_observer_and_kkt_contract(backend, threads)
         assert threading.get_ident() == model.owner
         events.append(progress)
 
-    r = solve(spec, model, [0., 0.], method="sqp", options=Options(threads=threads),
-              method_options=SqpOptions(qp_solver=backend), observer=observe)
+    r = solve(
+        spec,
+        model,
+        [0.0, 0.0],
+        method="sqp",
+        options=Options(threads=threads),
+        method_options=SqpOptions(qp_solver=backend),
+        observer=observe,
+    )
     assert r.status == "converged", r.message
-    assert r.candidate == pytest.approx([1., 2.], abs=1e-5)
+    assert r.candidate == pytest.approx([1.0, 2.0], abs=1e-5)
     k = kkt_residuals(spec, r.candidate, r.evaluation, r.multipliers)
     assert k.primal <= 1e-7 and k.stationarity <= 1e-6
     assert k.complementarity <= 1e-6 and k.dual_sign <= 1e-8
@@ -54,8 +62,14 @@ def test_eight_thread_exception_identity(backend, callback):
 
     setattr(model, callback, fail)
     with pytest.raises(LookupError) as caught:
-        solve(make_spec(), model, [0., 0.], method="sqp", options=Options(threads=8),
-              method_options=SqpOptions(qp_solver=backend))
+        solve(
+            make_spec(),
+            model,
+            [0.0, 0.0],
+            method="sqp",
+            options=Options(threads=8),
+            method_options=SqpOptions(qp_solver=backend),
+        )
     assert caught.value is error
 
 
@@ -64,15 +78,22 @@ def test_eight_thread_precancelled_model_is_not_evaluated(backend):
     token = Cancellation()
     token.cancel()
     model = OwnedToy()
-    r = solve(make_spec(), model, [0., 0.], method="sqp", options=Options(threads=8),
-              method_options=SqpOptions(qp_solver=backend), cancellation=token)
+    r = solve(
+        make_spec(),
+        model,
+        [0.0, 0.0],
+        method="sqp",
+        options=Options(threads=8),
+        method_options=SqpOptions(qp_solver=backend),
+        cancellation=token,
+    )
     assert r.status == "cancelled" and r.candidate is None
     assert model.calls == []
 
 
 def test_dummy_rejects_native_parallel_request():
     with pytest.raises(NotImplementedError, match="dummy"):
-        solve(make_spec(), OwnedToy(), [0., 0.], options=Options(threads=8))
+        solve(make_spec(), OwnedToy(), [0.0, 0.0], options=Options(threads=8))
 
 
 def test_eight_python_callers_keep_their_own_models():
@@ -81,13 +102,18 @@ def test_eight_python_callers_keep_their_own_models():
     def work(i):
         model = OwnedToy()
         barrier.wait(timeout=30)
-        result = solve(make_spec(), model, [0., 0.], method="sqp",
-                       options=Options(threads=1),
-                       method_options=SqpOptions(qp_solver="active-set"))
+        result = solve(
+            make_spec(),
+            model,
+            [0.0, 0.0],
+            method="sqp",
+            options=Options(threads=1),
+            method_options=SqpOptions(qp_solver="active-set"),
+        )
         return i, result.status, result.candidate
 
     with ThreadPoolExecutor(max_workers=8) as workers:
         results = list(workers.map(work, range(8)))
     for i, (index, status, point) in enumerate(results):
         assert index == i and status == "converged"
-        assert point == pytest.approx([1., 2.], abs=1e-5)
+        assert point == pytest.approx([1.0, 2.0], abs=1e-5)

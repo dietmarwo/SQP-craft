@@ -3,11 +3,8 @@ use crate::{NativeSqp, SqpOptions};
 use sqp_craft::{qp::QpBackend, *};
 use sqp_craft_parallel::Execution;
 
-/// Solves independent starts using models created on their owning worker.
-/// The factory is shared, but the model/backend need neither `Send` nor `Sync`.
-/// Results preserve start order, including individual input/evaluation errors.
-/// `workers * options.threads` must not exceed eight. For small NLPs use
-/// eight outer workers with single-threaded solves. Observers are not shared.
+/// Convenience batch API for an infallible worker-local model factory.
+/// See [`try_solve_many`] for fallible construction and budget/error semantics.
 pub fn solve_many<B, M, F>(
     spec: &ProblemSpec,
     starts: &[Vec<f64>],
@@ -21,6 +18,36 @@ where
     B: QpBackend + Default,
     M: NlpProblem,
     F: Fn(usize) -> M + Send + Sync,
+{
+    try_solve_many::<B, M, _>(
+        spec,
+        starts,
+        settings,
+        options,
+        workers,
+        |i| Ok(factory(i)),
+        cancel,
+    )
+}
+
+/// Solves independent starts using models created on their owning worker.
+/// The factory is shared, but the model/backend need neither `Send` nor `Sync`.
+/// Results preserve start order, including input, factory and evaluation errors.
+/// `workers * options.threads` must not exceed eight. For small NLPs use
+/// eight outer workers with single-threaded solves. Observers are not shared.
+pub fn try_solve_many<B, M, F>(
+    spec: &ProblemSpec,
+    starts: &[Vec<f64>],
+    settings: &SqpOptions,
+    options: &Options,
+    workers: usize,
+    factory: F,
+    cancel: &CancellationToken,
+) -> Result<Vec<Result<SolveResult>>>
+where
+    B: QpBackend + Default,
+    M: NlpProblem,
+    F: Fn(usize) -> Result<M> + Send + Sync,
 {
     options.validate()?;
     settings.validate()?;
@@ -50,7 +77,7 @@ where
             if cancel.is_cancelled() {
                 return Ok(not_started());
             }
-            let mut model = factory(index);
+            let mut model = factory(index)?;
             solver.solve(spec, &mut model, &starts[index], options, cancel, None)
         },
     ))

@@ -256,3 +256,40 @@ fn pilot_boundary_eight_budget_keeps_scalar_curvature_results() {
     assert_eq!(a.counts.functions, b.counts.functions);
     assert_eq!(a.counts.derivatives, b.counts.derivatives);
 }
+
+#[test]
+fn fallible_factories_return_ordered_errors_without_poisoning_workers() {
+    let spec = ProblemSpec::new(
+        Bounds::new(vec![-3.; 2], vec![3.; 2]),
+        Bounds::free(0),
+        CsrPattern::dense(0, 2),
+    )
+    .unwrap();
+    let starts = vec![vec![1., -1.]; 24];
+    let results = sqp_craft_solver::batch::try_solve_many::<ActiveSetQp, LocalModel, _>(
+        &spec,
+        &starts,
+        &SqpOptions::default(),
+        &Options::default(),
+        8,
+        |i| {
+            if i % 5 == 0 {
+                Err(Error::Evaluation(format!("factory {i}")))
+            } else {
+                Ok(LocalModel {
+                    owner: thread::current().id(),
+                    width: Rc::new(Cell::new(0)),
+                })
+            }
+        },
+        &CancellationToken::default(),
+    )
+    .unwrap();
+    for (i, r) in results.into_iter().enumerate() {
+        if i % 5 == 0 {
+            assert!(matches!(r, Err(Error::Evaluation(_))));
+        } else {
+            assert_eq!(r.unwrap().status, Status::Converged);
+        }
+    }
+}
