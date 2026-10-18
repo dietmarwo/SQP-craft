@@ -108,8 +108,11 @@ pub(crate) fn rotate(x: &mut [f64], y: &mut [f64], c: f64, s: f64) {
 pub(crate) fn reflect(j: &mut [f64], n: usize, q: usize, tail: &mut [f64], w: &mut [f64]) {
     let columns = &mut j[q * n..];
     debug_assert_eq!(columns.len(), tail.len() * n);
-    if tail[1..].iter().any(|&v| v != 0.0) {
+    let used = tail.iter().rposition(|&v| v != 0.0).map_or(1, |i| i + 1);
+    let columns = &mut columns[..used * n];
+    if used > 1 {
         let size = norm(tail);
+        let tail = &mut tail[..used];
         let alpha = tail[0];
         let beta = if alpha >= 0.0 { -size } else { size };
         // H = I − τ v vᵀ with v = tail − β e₁ and vᵀv = 2‖tail‖(‖tail‖ + |α|).
