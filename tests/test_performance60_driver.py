@@ -9,6 +9,12 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# The mock benchmark is a POSIX executable script; the driver itself records
+# CPU affinity and cgroup quotas only where the platform provides them.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="the mock benchmark is a POSIX script"
+)
+
 
 def mock(tmp_path, mode):
     exe = tmp_path / "benchmark"

@@ -6,10 +6,36 @@ import json
 import math
 import os
 from pathlib import Path
-import resource
 import statistics
 import subprocess
 import time
+
+try:  # POSIX only; CPU time is recorded where available.
+    import resource
+except ImportError:
+    resource = None
+
+
+def allowed_cpus():
+    """The CPUs this process may run on, or None where the OS does not say."""
+    if hasattr(os, "sched_getaffinity"):
+        return sorted(os.sched_getaffinity(0))
+    return None
+
+
+def cgroup_cpu_max():
+    """The cgroup v2 CPU quota, or None outside a cgroup v2 hierarchy."""
+    try:
+        return Path("/sys/fs/cgroup/cpu.max").read_text().strip()
+    except OSError:
+        return None
+
+
+def children_cpu_seconds():
+    if resource is None:
+        return None
+    usage = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return usage.ru_utime + usage.ru_stime
 
 
 def validate_rows(rows, case):
@@ -141,12 +167,14 @@ def main():
                 "positive sizes/counts and outer workers times inner threads <=8 required"
             )
     records = []
-    affinity = sorted(os.sched_getaffinity(0))[:8]
+    parent_affinity = allowed_cpus()
+    affinity = parent_affinity[:8] if parent_affinity is not None else None
     environment = dict(
-        parent_affinity=sorted(os.sched_getaffinity(0)),
+        parent_affinity=parent_affinity,
         child_affinity=affinity,
-        cpu_max=Path("/sys/fs/cgroup/cpu.max").read_text().strip(),
+        cpu_max=cgroup_cpu_max(),
     )
+    pin = (lambda: os.sched_setaffinity(0, affinity)) if affinity is not None else None
     binaries = {
         k: dict(path=v, sha256=hashlib.sha256(Path(v).read_bytes()).hexdigest())
         for k, v in builds.items()
@@ -178,7 +206,7 @@ def main():
                         str(jobs),
                     ]
                 )
-                before = resource.getrusage(resource.RUSAGE_CHILDREN)
+                before = children_cpu_seconds()
                 began = time.perf_counter()
                 error = None
                 try:
@@ -188,7 +216,7 @@ def main():
                         text=True,
                         env=env,
                         timeout=180,
-                        preexec_fn=lambda: os.sched_setaffinity(0, affinity),
+                        preexec_fn=pin,
                     )
                     returncode, stdout, stderr = (
                         child.returncode,
@@ -198,7 +226,7 @@ def main():
                 except subprocess.TimeoutExpired as exc:
                     returncode, stdout, stderr = -9, "", str(exc)
                 wall = time.perf_counter() - began
-                after = resource.getrusage(resource.RUSAGE_CHILDREN)
+                after = children_cpu_seconds()
                 rows = []
                 try:
                     if returncode:
@@ -218,10 +246,7 @@ def main():
                     command=command,
                     returncode=returncode,
                     process_seconds=wall,
-                    cpu_seconds=after.ru_utime
-                    + after.ru_stime
-                    - before.ru_utime
-                    - before.ru_stime,
+                    cpu_seconds=None if before is None else after - before,
                     results=rows,
                     stderr=stderr,
                     error=error,
@@ -274,7 +299,11 @@ def main():
                     job["seconds"] for r in runs for job in r["results"][:-1]
                 ),
                 process_seconds=statistics.median(r["process_seconds"] for r in runs),
-                cpu_seconds=statistics.median(r["cpu_seconds"] for r in runs),
+                cpu_seconds=(
+                    None
+                    if any(r["cpu_seconds"] is None for r in runs)
+                    else statistics.median(r["cpu_seconds"] for r in runs)
+                ),
                 objective=runs[0]["results"][0]["objective"],
                 iterations=runs[0]["results"][0]["iterations"],
             )
