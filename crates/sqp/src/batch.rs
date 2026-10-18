@@ -33,12 +33,15 @@ where
         return Ok(Vec::new());
     }
     let execution = Execution::new(workers).map_err(Error::Unsupported)?;
-    Ok(execution.map(starts.len(), |index| {
-        let mut model = factory(index);
-        let mut solver = NativeSqp {
+    Ok(execution.map_with_init(
+        starts.len(),
+        |_| NativeSqp {
             qp: B::default(),
             settings: settings.clone(),
-        };
-        solver.solve(spec, &mut model, &starts[index], options, cancel, None)
-    }))
+        },
+        |solver, index| {
+            let mut model = factory(index);
+            solver.solve(spec, &mut model, &starts[index], options, cancel, None)
+        },
+    ))
 }

@@ -3,7 +3,6 @@
 //!     performance_parallel FAMILY SIZE MODE BLOCK BACKEND INNER_THREADS WORKERS JOBS
 #[path = "support/orbit.rs"]
 mod orbit;
-use sqp_craft::qp::QpBackend;
 use sqp_craft::*;
 use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
@@ -64,7 +63,12 @@ impl NlpProblem for Separable {
         Ok(())
     }
 }
-fn run_case(args: &[String]) -> String {
+#[derive(Default)]
+struct WorkerState {
+    active: Option<NativeSqp<ActiveSetQp>>,
+    clarabel: Option<NativeSqp<ClarabelQp>>,
+}
+fn run_case(args: &[String], state: &mut WorkerState) -> String {
     let family = args.get(1).map(String::as_str).unwrap_or("orbit");
     let size = args.get(2).map(|s| s.parse().unwrap()).unwrap_or(20);
     let reuse = args.get(3).is_none_or(|s| s != "cold");
@@ -112,8 +116,22 @@ fn run_case(args: &[String]) -> String {
     };
     let threads: usize = args.get(6).map(|s| s.parse().unwrap()).unwrap_or(1);
     let (r, seconds) = match backend {
-        "clarabel" => run::<ClarabelQp>(settings, &spec, model.as_mut(), &x, threads),
-        "active-set" => run::<ActiveSetQp>(settings, &spec, model.as_mut(), &x, threads),
+        "clarabel" => {
+            let solver = state.clarabel.get_or_insert_with(|| NativeSqp {
+                settings: settings.clone(),
+                qp: ClarabelQp::default(),
+            });
+            solver.settings = settings;
+            run(solver, &spec, model.as_mut(), &x, threads)
+        }
+        "active-set" => {
+            let solver = state.active.get_or_insert_with(|| NativeSqp {
+                settings: settings.clone(),
+                qp: ActiveSetQp::default(),
+            });
+            solver.settings = settings;
+            run(solver, &spec, model.as_mut(), &x, threads)
+        }
         other => panic!("unknown backend {other}"),
     };
     assert_eq!(r.status, Status::Converged, "{family} {size}: {r:?}");
@@ -159,17 +177,13 @@ fn run_case(args: &[String]) -> String {
     )
 }
 
-fn run<B: QpBackend + Default>(
-    settings: SqpOptions,
+fn run(
+    solver: &mut dyn SqpSolver,
     spec: &ProblemSpec,
     model: &mut dyn NlpProblem,
     x: &[f64],
     threads: usize,
 ) -> (SolveResult, f64) {
-    let mut solver = NativeSqp::<B> {
-        settings,
-        qp: B::default(),
-    };
     let t = Instant::now();
     let r = solver
         .solve(
@@ -194,7 +208,11 @@ fn main() {
     assert!(workers > 0 && workers <= 8 && jobs > 0);
     let began = Instant::now();
     let execution = sqp_craft_parallel::Execution::new(workers).unwrap();
-    let mut results = execution.map(jobs, |i| (i, run_case(&args)));
+    let mut results = execution.map_with_init(
+        jobs,
+        |_| WorkerState::default(),
+        |state, i| (i, run_case(&args, state)),
+    );
     drop(execution);
     let wall = began.elapsed().as_secs_f64();
     results.sort_by_key(|(i, _)| *i);

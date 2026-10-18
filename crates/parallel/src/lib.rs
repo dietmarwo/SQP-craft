@@ -67,6 +67,36 @@ impl Execution {
         }
     }
 
+    /// Creates private state on each worker and reuses it for dynamically
+    /// assigned tasks. State itself need not be Send or Sync; only outputs do.
+    pub fn map_with_init<S, T, I, F>(&self, count: usize, init: I, f: F) -> Vec<T>
+    where
+        T: Send,
+        I: Fn(usize) -> S + Send + Sync,
+        F: Fn(&mut S, usize) -> T + Send + Sync,
+    {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        if count == 0 {
+            return Vec::new();
+        }
+        let next = AtomicUsize::new(0);
+        let parts = self.map(self.threads().min(count), |worker| {
+            let mut state = init(worker);
+            let mut local = Vec::new();
+            loop {
+                let i = next.fetch_add(1, Ordering::Relaxed);
+                if i >= count {
+                    break;
+                }
+                local.push((i, f(&mut state, i)));
+            }
+            local
+        });
+        let mut results: Vec<_> = parts.into_iter().flatten().collect();
+        results.sort_unstable_by_key(|(i, _)| *i);
+        results.into_iter().map(|(_, value)| value).collect()
+    }
+
     /// Maps independent tasks, returning results in input-index order.
     pub fn map<T, F>(&self, count: usize, f: F) -> Vec<T>
     where
@@ -159,5 +189,30 @@ mod sharing_tests {
             c.pool.as_ref().unwrap(),
             d.pool.as_ref().unwrap()
         ));
+    }
+}
+
+#[cfg(test)]
+mod state_tests {
+    use super::*;
+    use std::{cell::Cell, rc::Rc, thread};
+    #[test]
+    fn state_is_local_and_results_are_ordered() {
+        let execution = Execution::new(8).unwrap();
+        let results = execution.map_with_init(
+            1000,
+            |_| (thread::current().id(), Rc::new(Cell::new(0))),
+            |state, i| {
+                assert_eq!(state.0, thread::current().id());
+                state.1.set(state.1.get() + 1);
+                i * i
+            },
+        );
+        assert_eq!(results, (0..1000).map(|i| i * i).collect::<Vec<_>>());
+        assert!(
+            execution
+                .map_with_init::<(), usize, _, _>(0, |_| panic!("empty init"), |_, _| 0)
+                .is_empty()
+        );
     }
 }
