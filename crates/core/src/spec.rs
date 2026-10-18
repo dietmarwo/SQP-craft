@@ -179,15 +179,19 @@ impl CsrPattern {
                 format!("{what}: indptr decreases at row {r} ({start} > {end})")
             })?;
             let row = &self.indices[start..end];
-            if let Some(&j) = row.iter().find(|&&j| j >= self.cols) {
+            ensure(row.windows(2).all(|p| p[0] < p[1]), || {
+                format!("{what}: row {r} column indices must be strictly increasing, got {row:?}")
+            })?;
+            if row.last().is_some_and(|&j| j >= self.cols) {
+                let j = *row
+                    .iter()
+                    .find(|&&j| j >= self.cols)
+                    .expect("last index outside");
                 return Err(crate::Error::InvalidInput(format!(
                     "{what}: row {r} has column index {j}, but there are only {} columns",
                     self.cols
                 )));
             }
-            ensure(row.windows(2).all(|p| p[0] < p[1]), || {
-                format!("{what}: row {r} column indices must be strictly increasing, got {row:?}")
-            })?;
         }
         Ok(())
     }
