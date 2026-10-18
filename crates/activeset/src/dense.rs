@@ -287,3 +287,20 @@ fn diagonal_inverse_is_exact_and_tiny_coupling_keeps_the_general_path() {
     inverse_transpose(&[2.0, 1e-12, f64::NAN, 3.0], &mut j, 2);
     assert!((j[2] + 1e-12 / 6.0).abs() < 1e-28);
 }
+
+/// Solves L L^T x = rhs in place, using the checked lower factor.
+pub(crate) fn solve_factored(l: &[f64], x: &mut [f64], n: usize) {
+    debug_assert_eq!(l.len(), n * n);
+    debug_assert_eq!(x.len(), n);
+    for i in 0..n {
+        let mut value = x[i];
+        for k in 0..i {
+            value -= l[k * n + i] * x[k];
+        }
+        x[i] = value / l[i * n + i];
+    }
+    for i in (0..n).rev() {
+        let col = &l[i * n..(i + 1) * n];
+        x[i] = (x[i] - dot(&col[i + 1..], &x[i + 1..])) / col[i];
+    }
+}

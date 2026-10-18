@@ -180,6 +180,9 @@ impl ActiveSetQp {
         if !definite {
             return Ok(QpOutcome::NotPositiveDefinite);
         }
+        if let Some(outcome) = self.direct(model, budget)? {
+            return Ok(outcome);
+        }
         let sources = Sources {
             model,
             norms: &self.norms,
@@ -227,6 +230,54 @@ impl ActiveSetQp {
             self.last.cold_retries += 1;
             warm = None;
         }
+    }
+
+    /// A checked unconstrained proposal; failure preserves the general fallback.
+    fn direct(&mut self, model: &QpModel, budget: &Budget) -> Result<Option<QpOutcome>> {
+        if self.work.weight.is_some() || !self.work.bounded.is_empty() {
+            return Ok(None);
+        }
+        if let Err(stop) = budget.check() {
+            return Ok(Some(self.stopped(stop)));
+        }
+        let t = Instant::now();
+        let n = model.n();
+        for (x, &g) in self.work.x.iter_mut().zip(&model.gradient) {
+            *x = -g;
+        }
+        dense::solve_factored(&self.work.l, &mut self.work.x, n);
+        model.hessian_product(&self.work.x, &mut self.work.rd);
+        for (r, &g) in self.work.rd.iter_mut().zip(&model.gradient) {
+            *r = -(*r + g);
+        }
+        dense::solve_factored(&self.work.l, &mut self.work.rd, n);
+        dense::axpy(1.0, &self.work.rd, &mut self.work.x);
+        let solution = QpSolution {
+            step: self.work.x.clone(),
+            multipliers: Multipliers {
+                variables: vec![0.0; n],
+                constraints: vec![0.0; model.m()],
+            },
+            active_set: Some(ActiveSet {
+                variables: vec![Activity::Inactive; n],
+                rows: vec![Activity::Inactive; model.m()],
+            }),
+            iterations: 0,
+        };
+        self.last.solve_seconds += t.elapsed().as_secs_f64();
+        let t = Instant::now();
+        let accepted = model
+            .accepts_with_workspace(
+                &solution,
+                self.settings.acceptance_tolerance,
+                &mut self.checks,
+            )
+            .is_ok_and(|v| v.accepted);
+        self.last.check_seconds += t.elapsed().as_secs_f64();
+        if let Err(stop) = budget.check() {
+            return Ok(Some(self.stopped(stop)));
+        }
+        Ok(accepted.then_some(QpOutcome::Optimal(solution)))
     }
 
     fn stopped(&mut self, stop: Stop) -> QpOutcome {
@@ -297,10 +348,6 @@ struct Sources<'a> {
 impl Sources<'_> {
     fn n(&self) -> usize {
         self.model.n()
-    }
-
-    fn count(&self) -> usize {
-        self.model.n() + self.model.m()
     }
 
     fn bounds(&self, s: usize) -> (f64, f64) {

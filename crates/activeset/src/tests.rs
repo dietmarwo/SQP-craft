@@ -655,3 +655,21 @@ fn source_lists_follow_mutated_bound_kinds() {
     assert_eq!(b.work.bounded, vec![0, 1]);
     assert_eq!(b.work.equalities, vec![0, 1]);
 }
+
+#[test]
+fn unconstrained_coupled_qp_uses_checked_triangular_solutions() {
+    for scale in [1e-6, 1.0, 1e6] {
+        let a = [2.0 * scale, scale];
+        let b = [scale, 3.0 * scale];
+        let model = qp(
+            &[&a, &b],
+            &[-scale, -2.0 * scale],
+            (&[-INF; 2], &[INF; 2]),
+            &[],
+            (&[], &[]),
+        );
+        let s = optimal(&mut backend(), &model, None);
+        close(&s.step, &[0.2, 0.6], 1e-12);
+        assert_eq!(s.iterations, 0);
+    }
+}
