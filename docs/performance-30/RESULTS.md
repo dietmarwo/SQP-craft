@@ -1,5 +1,7 @@
 # SQP-craft 0.15.0: thirty autonomous performance iterations
 
+> **Review before merging:** on 1,036 CUTEst problems the direct QP path of iterations 27–29 changes the active-set results of unconstrained problems in the last bits, and with them some trajectories; see [../performance-60/REVIEW.md](../performance-60/REVIEW.md).
+
 Completed **30 planned, implemented and tested iterations** against original main `4d776bbd89f187fe176be805ab91fd64305a8c44` from https://github.com/dietmarwo/SQP-craft. Every iteration has a pre-implementation plan, source checkpoint, release Rust test run and paired measurements. The release adds a final two-entry CSR refinement after the comprehensive kernel audit found a regression. It reached `main` together with 0.16; see [REPRODUCE.md](REPRODUCE.md) for where the checkpoint history is.
 
 The active-set path improves on all four primary SQP fixtures and all six declared held-out sizes. The default Clarabel backend has mixed wall-time results. The evidence does **not** support a claim that every individual iteration or every workload is monotonically faster. Defaults, callback formulas, mathematical problems, tolerances and budgets were preserved.

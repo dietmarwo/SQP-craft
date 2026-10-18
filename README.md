@@ -12,8 +12,9 @@ worker-local models/backends, shared cancellation and an eight-CPU total budget.
 Python callbacks/observers remain on their calling thread; the Clarabel engine
 remains serial. Default threads=1 and the 256-variable NLP limit are unchanged.
 See [the parallel plan](docs/performance-60/PLAN.md),
-[results](docs/performance-60/RESULTS.md) and
-[reproduction/API guide](docs/performance-60/REPRODUCE.md).
+[results](docs/performance-60/RESULTS.md),
+[reproduction/API guide](docs/performance-60/REPRODUCE.md) and
+[the review before merging](docs/performance-60/REVIEW.md).
 
 **Previous version 0.15.0: thirty further performance iterations** build on main
 `4d776bb`. They reduce validation and symmetric-product work, streamline BFGS,

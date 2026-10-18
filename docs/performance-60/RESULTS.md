@@ -1,5 +1,7 @@
 # SQP-craft 0.16: thirty eight-thread performance iterations
 
+> **Review before merging:** [REVIEW.md](REVIEW.md) lists the corrections made in review (CI on three platforms, a batch nesting bug, signed zeros, documentation) and an independent check on 1,036 CUTEst problems.
+
 Completed iterations 31–60 on tested local 0.15 (`7ae0520a9da86fd0b49b9e7e486180ead82a88d8`). Every iteration has a pre-implementation plan, implemented experiment/capability and measured comparisons. All regular release-test results are recorded for iterations 32–60. Checkpoint 31 passed an exact-source 173-test rerun at final packaging because its initial log is incomplete, as recorded below. Source tags preserve all 30 checkpoints and the rejected cyclic scheduler. Final 0.16 has explicit 1..8 native budgets, worker-local Rust batch APIs, useful parallel QP outputs, and an opt-in native model path for costly propagation. The default remains one thread.
 
 The useful configuration depends on work size. For the existing small NLPs, eight independent solves provide the strongest throughput gains. The new nonlinear propagation surrogate benefits from parallel work within one solve. Larger standalone QPs benefit from independent-output kernels. Small-pilot BFGS and an unsuccessful inverse schedule were restored to their simpler measured paths. Individual wall-time observations are not monotonically faster.
