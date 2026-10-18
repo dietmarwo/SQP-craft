@@ -464,6 +464,8 @@ impl Work {
     fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>, hard: &[bool]) {
         let n = model.n();
         self.n = n;
+        self.members.reserve(n.saturating_sub(self.members.len()));
+        self.u.reserve(n.saturating_sub(self.u.len()));
         self.l.resize(n * n, 0.0);
         let full = n.checked_mul(n + 1).map(|v| v / 2) == Some(model.hessian_lower.values.len());
         if !full {
