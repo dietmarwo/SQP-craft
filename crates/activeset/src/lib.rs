@@ -441,8 +441,10 @@ impl Work {
     fn load(&mut self, model: &QpModel, tolerance: f64, weight: Option<f64>, hard: &[bool]) {
         let n = model.n();
         self.n = n;
-        self.l.clear();
         self.l.resize(n * n, 0.0);
+        for (k, column) in self.l.chunks_exact_mut(n).enumerate() {
+            column[k..].fill(0.0);
+        }
         // `j` and `r` are fully written before they are read.
         self.j.resize(n * n, 0.0);
         self.r.resize(n * n, 0.0);
