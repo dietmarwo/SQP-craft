@@ -513,6 +513,18 @@ pub enum QpOutcome {
 
 /// A QP subproblem solver.
 pub trait QpBackend {
+    /// Sets a maximum native worker budget. Custom backends default to one
+    /// thread and explicitly reject an unsupported parallel request.
+    fn set_threads(&mut self, threads: usize) -> Result<()> {
+        if threads == 1 {
+            Ok(())
+        } else {
+            Err(Error::Unsupported(format!(
+                "parallel threads = {threads} unsupported by this QP backend"
+            )))
+        }
+    }
+
     /// Configure tolerances and per-call budgets. Unsupported by the dummy.
     fn configure(&mut self, _options: &QpOptions) -> Result<()> {
         Err(Error::Unsupported("QP options are not implemented".into()))

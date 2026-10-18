@@ -83,9 +83,18 @@ pub struct ActiveSetQp {
     work: Work,
     norms: Vec<f64>,
     checks: QpResidualWorkspace,
+    execution: sqp_craft_parallel::Execution,
 }
 
 impl QpBackend for ActiveSetQp {
+    fn set_threads(&mut self, threads: usize) -> Result<()> {
+        if self.execution.threads() != threads {
+            self.execution =
+                sqp_craft_parallel::Execution::new(threads).map_err(Error::Unsupported)?;
+        }
+        Ok(())
+    }
+
     fn configure(&mut self, options: &QpOptions) -> Result<()> {
         options.validate()?;
         self.settings = options.clone();

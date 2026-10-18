@@ -116,3 +116,13 @@ mod tests {
         assert_eq!(exec.map(4, |i| i), vec![0, 1, 2, 3]);
     }
 }
+
+#[cfg(test)]
+mod configuration_tests {
+    #[test]
+    fn explicit_widths_are_bounded() {
+        for width in 1..=8 {
+            assert_eq!(super::Execution::new(width).unwrap().threads(), width);
+        }
+    }
+}

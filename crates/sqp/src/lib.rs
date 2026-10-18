@@ -828,6 +828,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
     ) -> Result<SolveResult> {
         options.validate()?;
         self.settings.validate()?;
+        self.qp.set_threads(options.threads)?;
         if self.settings.elastic_mode && !self.qp.supports_elastic() {
             return Err(Error::Unsupported(
                 "elastic_mode needs a QP backend with elastic support, such as ActiveSetQp".into(),
