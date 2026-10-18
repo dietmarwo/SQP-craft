@@ -19,6 +19,7 @@ def main():
     p.add_argument("--full", action="store_true")
     p.add_argument("--baseline", action="store_true", help="measure only supported 0.15 modes")
     p.add_argument("--qp-only", action="store_true")
+    p.add_argument("--case", action="append", help="family:size:backend:inner:outer:jobs")
     a = p.parse_args()
     builds = dict(v.split("=", 1) for v in a.builds)
     # inner threads * outer workers never exceeds eight.
@@ -38,6 +39,8 @@ def main():
                     cases.append((family, size, backend, inner, outer, 32))
     if a.qp_only:
         cases = [("qp", n, "active-set", w, 1, 1) for n in [128, 256, 512, 1024] for w in [1, 2, 4, 8]]
+    if a.case:
+        cases = [(v[0],int(v[1]),v[2],int(v[3]),int(v[4]),int(v[5])) for value in a.case for v in [value.split(":")]]
     records = []
     env = dict(os.environ, OMP_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1", MKL_NUM_THREADS="1")
     for repeat in range(a.repeats + 1):

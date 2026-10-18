@@ -69,7 +69,7 @@ pub(crate) fn inverse_transpose_parallel(
     n: usize,
     execution: &sqp_craft_parallel::Execution,
 ) {
-    if n < 128
+    if n < 512
         || execution.threads() == 1
         || l.chunks_exact(n)
             .enumerate()
@@ -176,7 +176,7 @@ pub(crate) fn reflect_parallel(
                 axpy(v, column, w);
             }
         }
-        if n >= 256 && execution.threads() > 1 {
+        if n >= 512 && execution.threads() > 1 {
             execution.chunks_mut(columns, n, n * used * 3, |start, column| {
                 let v = tail[start / n];
                 if v != 0.0 {
@@ -361,7 +361,7 @@ mod parallel_inverse_tests {
     #[test]
     fn inverse_columns_are_bit_identical_at_dispatch_boundaries() {
         let execution = sqp_craft_parallel::Execution::new(8).unwrap();
-        for n in [0, 1, 31, 127, 128, 129, 256] {
+        for n in [0, 1, 31, 127, 128, 129, 256, 511, 512] {
             let mut l = vec![0.0; n * n];
             for k in 0..n {
                 l[k * n + k] = 1.0 + k as f64 * 0.01;
@@ -387,7 +387,7 @@ mod parallel_reflector_tests {
     #[test]
     fn reflector_target_columns_are_bit_identical() {
         let execution = sqp_craft_parallel::Execution::new(8).unwrap();
-        for n in [17, 128, 256] {
+        for n in [17, 128, 256, 512] {
             for q in [0, n / 2, n - 1] {
                 let mut a: Vec<_> = (0..n * n).map(|i| (i % 97) as f64 * 0.001 - 0.02).collect();
                 let mut b = a.clone();

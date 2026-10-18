@@ -804,7 +804,7 @@ fn inverse_cache_promotes_on_reuse_and_tracks_hessian_not_row_data() {
 #[test]
 fn parallel_transformed_normals_match_the_original_dots() {
     let execution = sqp_craft_parallel::Execution::new(8).unwrap();
-    for n in [128, 256] {
+    for n in [128, 256, 512] {
         let model = QpModel {
             hessian_lower: CsrMatrix {
                 pattern: CsrPattern {
@@ -856,7 +856,7 @@ fn parallel_transformed_normals_match_the_original_dots() {
 fn parallel_kkt_outputs_retain_scalar_accumulation_order() {
     let parallel = sqp_craft_parallel::Execution::new(8).unwrap();
     let serial = sqp_craft_parallel::Execution::default();
-    for n in [127, 256] {
+    for n in [127, 256, 512] {
         for q in [0, 17, n] {
             let j: Vec<_> = (0..n * n).map(|i| (i % 23) as f64 * 0.001 - 0.01).collect();
             let mut r = vec![0.; n * n];

@@ -118,7 +118,7 @@ impl Workspace {
         // triangle is computed and mirrored; the result is bit-identical to
         // `0.5·(N + Nᵀ)` of the matrix expression.
         let n = b.nrows();
-        let finite = if self.execution.threads() > 1 {
+        let finite = if self.execution.threads() > 1 && n >= 256 {
             let finite = std::sync::atomic::AtomicBool::new(true);
             let (source, bs, r) = (b.as_slice(), self.bs.as_slice(), self.r.as_slice());
             self.execution
@@ -157,7 +157,7 @@ impl Workspace {
         if !finite {
             return None;
         }
-        let parallel_commit = self.execution.threads() > 1 && n >= 128;
+        let parallel_commit = self.execution.threads() > 1 && n >= 256;
         if !parallel_commit {
             let next = self.next.as_mut_slice();
             for j in 0..n {

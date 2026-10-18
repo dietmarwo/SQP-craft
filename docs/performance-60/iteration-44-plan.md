@@ -1,0 +1,3 @@
+# Iteration 44: Evidence-based dense scheduling thresholds
+
+The frozen coupled QP matrix shows inverse parallelism losing at128/256 and winning at512/1024; the small NLP matrix shows parallel BFGS dispatch losses at164. Raise QP inverse/reflector/normal/KKT thresholds to512 and BFGS triangle/commit thresholds to256. Retain parallel-capability tests above the new boundaries, not only fallback tests. Extend the driver with explicit case selection and confirm a256-variable separable NLP at1/8 threads. Run full release suites, paired original fixtures, and larger-QP scaling confirmation. This is a work-size policy change only; no tolerance/model/formula changes.

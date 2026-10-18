@@ -488,7 +488,7 @@ impl Sources<'_> {
             }
             return;
         }
-        if n >= 256 && indices.len() >= n / 2 && self.execution.threads() > 1 {
+        if n >= 512 && indices.len() >= n / 2 && self.execution.threads() > 1 {
             self.execution
                 .chunks_mut(d, 1, n * indices.len(), |k, out| {
                     let column = &j[k * n..(k + 1) * n];
@@ -1169,7 +1169,7 @@ fn kkt_solve(
     u: &mut [f64],
     execution: &sqp_craft_parallel::Execution,
 ) {
-    if n >= 256 && execution.threads() > 1 {
+    if n >= 512 && execution.threads() > 1 {
         execution.chunks_mut(c, 1, n * n, |k, out| {
             out[0] = dense::dot(&j[k * n..(k + 1) * n], gd)
         });
@@ -1183,7 +1183,7 @@ fn kkt_solve(
         let v = (bp[k] - dense::dot(&column[..k], &u[..k])) / column[k];
         u[k] = v;
     }
-    if n >= 256 && execution.threads() > 1 {
+    if n >= 512 && execution.threads() > 1 {
         execution.chunks_mut(x, 32, n * n, |start, part| {
             part.fill(0.0);
             for k in 0..n {
