@@ -46,7 +46,8 @@ stay as delivered, apart from the corrections listed here.
    gzip-compressed: 15.1 MB become 1.1 MB. The report scripts read either form
    and regenerate both `TABLES.md` files byte for byte. On GitHub, the 0.15 and
    0.16 work is one squashed commit. The checkpoint commits and tags stay in the
-   delivery archive's source-history bundle.
+   delivery archive's source-history bundle; GitHub also keeps the commits under
+   pull request #11.
 
 An independent agent's differential tests against `4d776bb` found the nesting
 bug and the signed zeros. They also confirmed the following:

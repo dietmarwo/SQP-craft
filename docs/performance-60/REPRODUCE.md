@@ -2,7 +2,7 @@
 
 Base is tested local 0.15 commit `7ae0520a9da86fd0b49b9e7e486180ead82a88d8`; original upstream is `4d776bbd89f187fe176be805ab91fd64305a8c44`. The delivery archive contains both incremental and cumulative patches, complete source, raw evidence and a source-history bundle.
 
-On GitHub, the 0.15 and 0.16 work reached `main` as one squashed commit. The 63 checkpoint commits and their tags (`sqp-perf30-00` to `sqp-perf30-30`, `sqp-parallel-31` to `sqp-parallel-60`, `sqp-parallel-52-cyclic-experiment`) are in the source-history bundle of the delivery archive (`history/sqp-parallel.bundle`), together with the large raw stress dumps and logs; they are not in this repository. Raw files of more than 50 kB are stored gzip-compressed here (`data/*.json.gz`). Fresh runs write plain JSON, and the report scripts read either form.
+On GitHub, the 0.15 and 0.16 work reached `main` as one squashed commit. The 63 checkpoint commits and their tags (`sqp-perf30-00` to `sqp-perf30-30`, `sqp-parallel-31` to `sqp-parallel-60`, `sqp-parallel-52-cyclic-experiment`) are in the source-history bundle of the delivery archive (`history/sqp-parallel.bundle`), together with the large raw stress dumps and logs. They are not on a branch of this repository; GitHub keeps the commits under pull request #11. Raw files of more than 50 kB are stored gzip-compressed here (`data/*.json.gz`). Fresh runs write plain JSON, and the report scripts read either form.
 
 ## Build and tests
 
