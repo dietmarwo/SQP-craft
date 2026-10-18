@@ -1,0 +1,381 @@
+{
+  "artifacts": {
+    "results": "results.jsonl"
+  },
+  "completed_tasks": 8,
+  "elapsed_seconds": 0.015921019,
+  "known_work_lower_bound": {
+    "derivatives": 16,
+    "functions": 24,
+    "iterations": 8,
+    "qp_iterations": 112,
+    "validation_calls": 16
+  },
+  "payload_schema": "sqp.solve/1",
+  "requested_tasks": 8,
+  "results": [
+    {
+      "elapsed_seconds": 0.000121042,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 0,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000142774,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 1,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000159099,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 2,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000175184,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 3,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.00015279,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 4,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000154763,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 5,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000146941,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 6,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000127201,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+      "task_id": 7,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 14,
+        "validation_calls": 2
+      }
+    }
+  ],
+  "runner": {
+    "accounting_complete": true,
+    "attempt_id": "6c30b1f4144ceb30a6fe76b7fb6be987",
+    "build": {
+      "engine_version": "0.16.0",
+      "job_api_version": "0.1.0"
+    },
+    "profile": "optimization.runner/0.1",
+    "recovery": "journal_only_no_resume",
+    "resources": {
+      "cpu_slots": 8,
+      "inner_threads": 1,
+      "outer_workers": 8
+    },
+    "spec_digest": "eab7a0a76901a7e023d75ea3e5578a340048e57d04961d8ca90dd33902e60d95",
+    "worker_digest": "551e67cef52edd61281ab82395d129444c1a6f31626687a3908fad435b1aadbe"
+  },
+  "schema_version": "optimization.result/0.1",
+  "status": "completed",
+  "work": {
+    "derivatives": 16,
+    "functions": 24,
+    "iterations": 8,
+    "qp_iterations": 112,
+    "validation_calls": 16
+  },
+  "worker": "sqp"
+}

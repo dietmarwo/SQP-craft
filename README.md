@@ -1,3 +1,9 @@
+> **Shared agent job API 0.1:** this source tree includes the common Rust job
+> protocol/runner and a native solver worker. See the [API guide](docs/job-api.md),
+> [runnable tutorial](tutorials/job-api/README.md) and
+> [validation report](docs/job-api/VALIDATION.md) and [review](docs/job-api/REVIEW.md).
+> Existing solver APIs remain available.
+
 # SQP-craft
 
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
