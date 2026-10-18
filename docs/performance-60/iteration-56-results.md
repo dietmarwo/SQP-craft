@@ -13,4 +13,4 @@ Full release Rust workspace tests passed before serial paired timings. Each time
 
 Small changes may be noise. Retained code reduces identifiable work or supplies a tested parallel capability; no per-checkpoint monotonic wall-time claim. Negative/noisy timings and failures are retained.
 
-The exploratory matrix completed all70 configurations (one warmup and one measured sample each), including both backends, propagation,256-variable separable and mixed batches. These are diagnostic samples, not final precision claims. Source/raw: data/iteration-56-exploratory-matrix.json. The matrix supports flat eight-worker throughput for small NLPs and inner parallelism for expensive native propagation.
+The exploratory matrix completed all 70 configurations (one warmup and one measured sample each), including both backends, propagation,256-variable separable and mixed batches. These are diagnostic samples, not final precision claims. Source/raw: data/iteration-56-exploratory-matrix.json. The matrix supports flat eight-worker throughput for small NLPs and inner parallelism for expensive native propagation.

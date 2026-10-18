@@ -10,39 +10,41 @@ Use explicit reusable local execution resources, no mutation of the global Rayon
 
 Before each iteration: write its detailed plan; then implement, run correctness tests, build release harnesses and measure paired checkpoints. Record negative/noisy results honestly and adapt the next candidate. This is not a guarantee of thirty statistically monotone wall-time improvements. Native parallel work on small matrices can lose; retain serial fallbacks and use batch throughput where appropriate.
 
-## Planned sequence
+## Completed implementation ledger
 
-| Iteration | Planned work |
-|---:|---|
-| 31 | [Eight-worker benchmark contract](iteration-31-plan.md): Add common 1/2/4/8 CPU-budget native latency and batch-throughput fixtures; immutable 0.15 reference; verify every result with existing objective/KKT assertions. |
-| 32 | [Bounded persistent execution resources](iteration-32-plan.md): Introduce an isolated explicit-width Rayon pool with sequential default and ordered disjoint output; test exact worker bound and panic propagation. |
-| 33 | [Thread configuration seam](iteration-33-plan.md): Allow explicit native thread budgets and provide a backend capability seam; retain explicit errors for unsupported backends and dummy methods. |
-| 34 | [Parallel inverse-factor columns](iteration-34-plan.md): Parallelize independent triangular inverse columns without changing within-column reductions; verify bit-identical factors. |
-| 35 | [Parallel BFGS triangle](iteration-35-plan.md): Assign independent columns of the rank-two update to workers; preserve finite rejection and all scalar operation orders. |
-| 36 | [Parallel BFGS mirror](iteration-36-plan.md): Write independent target columns from immutable computed lower entries, retaining exact symmetry and rejected-update behavior. |
-| 37 | [Parallel BFGS matrix-vector work](iteration-37-plan.md): Parallelize independent output rows only above measured thresholds; retain sequential reduction order or reject the candidate. |
-| 38 | [Parallel Householder column updates](iteration-38-plan.md): Run independent reflector target columns concurrently after the unchanged ordered normal accumulation. |
-| 39 | [Parallel transformed constraint normals](iteration-39-plan.md): Compute independent projected normal components concurrently for sufficiently dense/large rows. |
-| 40 | [Parallel KKT projection dots](iteration-40-plan.md): Distribute independent J-column dot products, preserving each scalar dot reduction and working-set decisions. |
-| 41 | [Parallel KKT primal reconstruction](iteration-41-plan.md): Assign independent primal coordinates with original column accumulation order; retain multiplier solves serially. |
-| 42 | [Dense QP scheduling thresholds](iteration-42-plan.md): Measure dispatch versus work on 128/256/512/1024 QPs and retain thresholds that avoid small-work regressions. |
-| 43 | [Pool reuse across execution owners](iteration-43-plan.md): Share compatible owned pool handles without mutating the global Rayon pool; test teardown, width changes and concurrent callers. |
-| 44 | [Nested execution budget](iteration-44-plan.md): Ensure an outer batch reuses its worker budget and avoids a second worker pool per inner solve. |
-| 45 | [Ordered native batch entry point](iteration-45-plan.md): Add a usable Rust factory-based batch API with independent solver/model state and deterministic result ordering. |
-| 46 | [Per-worker solver reuse](iteration-46-plan.md): Retain each worker backend across tasks so compatible buffers and exact-key factors can be reused without cross-model state leaks. |
-| 47 | [Dynamic batch scheduling](iteration-47-plan.md): Use work stealing or atomic next-task assignment to balance heterogeneous solves, retaining deterministic output indices. |
-| 48 | [Batch cancellation and errors](iteration-48-plan.md): Bound cancellation latency between tasks, retain completed results and explicit per-task failures; never turn failures into throughput wins. |
-| 49 | [Python eight-thread API coverage](iteration-49-plan.md): Exercise native threads=8 through the real extension, including callback ownership, exceptions, observer and cancellation semantics. |
-| 50 | [Dense-row QP norm work](iteration-50-plan.md): Distribute expensive independent row norm work while leaving small sparse rows serial. |
-| 51 | [Hessian materialization work](iteration-51-plan.md): Parallelize disjoint dense factor-input columns where measured work justifies dispatch; preserve cache invalidation. |
-| 52 | [Large unconstrained QP coverage](iteration-52-plan.md): Add coupled larger QPs and measured independent-column scaling with checked residuals; retain the 256-variable NLP pilot cap. |
-| 53 | [BFGS task partition tuning](iteration-53-plan.md): Balance triangular column work by estimated arithmetic rather than equal column counts; compare numerical identity and latency. |
-| 54 | [Short native-work bypass](iteration-54-plan.md): Avoid pool entry for small matrices, sparse normals and zero work; test threshold boundaries. |
-| 55 | [Eight-worker callback workload](iteration-55-plan.md): Add a costly deterministic Rust model to distinguish callback throughput from tiny-kernel overhead without changing old models. |
-| 56 | [Concurrency isolation stress](iteration-56-plan.md): Test simultaneous callers, different thread budgets, repeated and changed Hessians, independent errors and cancellation. |
-| 57 | [Full CPU-budget benchmark matrix](iteration-57-plan.md): Retain latency, throughput, CPU time and cold/warm measurements for 1/2/4/8 configurations and both backends. |
-| 58 | [Adversarial parallel numerical audit](iteration-58-plan.md): Pair serial/eight-thread outcomes on fixed random QPs/NLPs, elastic/restoration/options and independent KKT checks. |
-| 59 | [Final measured scheduling refinement](iteration-59-plan.md): Apply only evidence-backed scheduling or allocation refinements discovered by the full CPU-budget matrix; record rejected experiments. |
-| 60 | [Release integration and reproduction](iteration-60-plan.md): Freeze 0.16 source, run full Rust/Python/style/docs gates, verify baseline patch/history and package all thirty plans/results/raw evidence. |
+All 30 iterations are implemented and tested; retained/rejected experiments are documented individually. Defaults, original mathematical inputs and the NLP cap remain. Numerical prototype reversions are recorded rather than hidden. The final release additionally includes all-case three-way validation and repeated baseline/scaling/heldout timing.
 
-Candidates may change after measurement. Each result file records what actually shipped and why. Final source will be delivered as a new version; the 0.15 package remains intact.
+| Iteration | Detailed plan | Tests and measurements |
+|---:|---|---|
+| 31 | [Eight-worker benchmark contract](iteration-31-plan.md) | [Result](iteration-31-results.md) |
+| 32 | [Bounded persistent execution resources](iteration-32-plan.md) | [Result](iteration-32-results.md) |
+| 33 | [Thread configuration seam](iteration-33-plan.md) | [Result](iteration-33-results.md) |
+| 34 | [Parallel inverse-factor columns](iteration-34-plan.md) | [Result](iteration-34-results.md) |
+| 35 | [Share compatible owned worker pools](iteration-35-plan.md) | [Result](iteration-35-results.md) |
+| 36 | [Larger coupled QP scaling harness](iteration-36-plan.md) | [Result](iteration-36-results.md) |
+| 37 | [Parallel BFGS triangle with shared resources](iteration-37-plan.md) | [Result](iteration-37-results.md) |
+| 38 | [Parallel BFGS symmetric commit](iteration-38-plan.md) | [Result](iteration-38-results.md) |
+| 39 | [Explicit native model thread-budget opt-in](iteration-39-plan.md) | [Result](iteration-39-results.md) |
+| 40 | [Parallel independent Householder column updates](iteration-40-plan.md) | [Result](iteration-40-results.md) |
+| 41 | [Parallel dense transformed normals](iteration-41-plan.md) | [Result](iteration-41-results.md) |
+| 42 | [Parallel KKT projection dots](iteration-42-plan.md) | [Result](iteration-42-results.md) |
+| 43 | [Parallel KKT primal reconstruction](iteration-43-plan.md) | [Result](iteration-43-results.md) |
+| 44 | [Evidence-based dense scheduling thresholds](iteration-44-plan.md) | [Result](iteration-44-results.md) |
+| 45 | [Ordered native independent-solve batch API](iteration-45-plan.md) | [Result](iteration-45-results.md) |
+| 46 | [Per-worker solver state reuse](iteration-46-plan.md) | [Result](iteration-46-results.md) |
+| 47 | [Linear ordered collection and bounded task claims](iteration-47-plan.md) | [Result](iteration-47-results.md) |
+| 48 | [Batch cancellation with input-error precedence](iteration-48-plan.md) | [Result](iteration-48-results.md) |
+| 49 | [Compiled Python eight-thread contract coverage](iteration-49-plan.md) | [Result](iteration-49-results.md) |
+| 50 | [Parallel bounded dense-row norms](iteration-50-plan.md) | [Result](iteration-50-results.md) |
+| 51 | [Disjoint dense Hessian materialization](iteration-51-plan.md) | [Result](iteration-51-results.md) |
+| 52 | [Balance inverse-column cost across bounded lanes](iteration-52-plan.md) | [Result](iteration-52-results.md) |
+| 53 | [Avoid unused worker creation for small native work](iteration-53-plan.md) | [Result](iteration-53-results.md) |
+| 54 | [Parallel native nonlinear propagation workload](iteration-54-plan.md) | [Result](iteration-54-results.md) |
+| 55 | [Concurrent caller and cache isolation stress](iteration-55-plan.md) | [Result](iteration-55-results.md) |
+| 56 | [Full CPU-budget benchmark matrix and certificates](iteration-56-plan.md) | [Result](iteration-56-results.md) |
+| 57 | [Independent three-way numerical audit](iteration-57-plan.md) | [Result](iteration-57-results.md) |
+| 58 | [Remove measured overhead from retained production paths](iteration-58-plan.md) | [Result](iteration-58-results.md) |
+| 59 | [Fallible factories and fail-closed harness regressions](iteration-59-plan.md) | [Result](iteration-59-results.md) |
+| 60 | [Freeze 0.16 and run complete release gates](iteration-60-plan.md) | [Result](iteration-60-results.md) |
+
+Final validation: 196 regular Rust tests,211 forced all-target tests,156 Python tests and 52,116 independently journaled solver calls, with unchanged audited statuses/outer iterations/accepted objectives/points. See [RESULTS.md](RESULTS.md), [TABLES.md](TABLES.md), [VALIDITY.md](VALIDITY.md) and [REPRODUCE.md](REPRODUCE.md).

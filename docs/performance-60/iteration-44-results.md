@@ -1,6 +1,6 @@
 # Iteration 44: results
 
-Raised dense-QP dispatch to512 variables and BFGS triangle/commit dispatch to256, following measured small-size losses and512/1024 gains. Expanded exact parallel tests above the new boundaries. This scheduling change retains scalar formulas, original models, budgets and residual thresholds.
+Raised dense-QP dispatch to 512 variables and BFGS triangle/commit dispatch to 256, following measured small-size losses and 512/1024 gains. Expanded exact parallel tests above the new boundaries. This scheduling change retains scalar formulas, original models, budgets and residual thresholds.
 
 Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-44.json`.
 
@@ -15,4 +15,4 @@ Small changes may be noise. Retained code reduces identifiable work or supplies 
 
 ## Threshold confirmation
 
-Five-repeat separable256 comparison: eight-thread time falls from546.50 to115.80 ms after avoiding fine-grained QP dispatch; scalar candidate107.95 ms. The remaining eight-thread overhead is visible. Full1/2/4/8 fresh-H QP scaling is in data/iteration-44-qp-scaling.json; threshold comparison raw samples are in data/iteration-44-threshold-confirmation.json.
+Five-repeat separable256 comparison: eight-thread time falls from 546.50 to 115.80 ms after avoiding fine-grained QP dispatch; scalar candidate107.95 ms. The remaining eight-thread overhead is visible. Full1/2/4/8 fresh-H QP scaling is in data/iteration-44-qp-scaling.json; threshold comparison raw samples are in data/iteration-44-threshold-confirmation.json.

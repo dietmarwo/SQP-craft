@@ -1,6 +1,6 @@
 # Iteration 49: results
 
-The compiled Python boundary is now exercised at1/2/4/8 native widths with both backends, owner-thread callbacks/observers, unchanged exception identity, cancellation and independent eight-caller execution. Existing out-of-range guidance is preserved. The full extension suite gates this checkpoint before timing.
+The compiled Python boundary is now exercised at 1/2/4/8 native widths with both backends, owner-thread callbacks/observers, unchanged exception identity, cancellation and independent eight-caller execution. Existing out-of-range guidance is preserved. The full extension suite gates this checkpoint before timing.
 
 Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-49.json`.
 

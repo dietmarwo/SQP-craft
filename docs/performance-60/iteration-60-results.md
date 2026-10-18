@@ -1,6 +1,6 @@
 # Iteration 60: results
 
-Frozen local0.16.0 with explicit native/batch eight-worker support, retained useful large-QP/propagation parallelism and measured scalar fallbacks. Worker setup is included in the cooperative solve deadline and skipped on pre-cancel. Full release/debug/all-target/all-feature Rust, compiled Python, Clippy/rustfmt/rustdoc,52,116-call independent numerical audit and1/8-budget harder-QP census gate this release before timing.
+Frozen local 0.16.0 with explicit native/batch eight-worker support, retained useful large-QP/propagation parallelism and measured scalar fallbacks. Worker setup is included in the cooperative solve deadline and skipped on pre-cancel. Full release/debug/all-target/all-feature Rust, compiled Python, Clippy/rustfmt/rustdoc,52,116-call independent numerical audit and 1/8-budget harder-QP census gate this release before timing.
 
 Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-60.json`.
 
@@ -12,3 +12,5 @@ Full release Rust workspace tests passed before serial paired timings. Each time
 | separable / 128 / active-set / 8 / 1 / 1 | 16.557 | 16.458 | 1.006 |
 
 Small changes may be noise. Retained code reduces identifiable work or supplies a tested parallel capability; no per-checkpoint monotonic wall-time claim. Negative/noisy timings and failures are retained.
+
+Final release evidence: all final scaling/heldout/baseline campaigns passed. The three-way audit records 52,116 calls and 34,744 paired comparisons with no changed statuses, accepted points/objectives or outer iterations. Full raw journals and logs ship with the package; `data/validation-summary.json` records checkpoint/source/log hashes and the explicitly retrospective 173-test checkpoint 31 verification. Final regular Rust / forced all-target / compiled Python counts are 196 / 211 / 156. The numerical source remains exactly tag `sqp-parallel-60`.

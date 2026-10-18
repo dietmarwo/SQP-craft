@@ -1,6 +1,6 @@
 # Iteration 51: results
 
-Changed fully stored dense lower Hessians now materialize disjoint factor-input columns in parallel at512+ variables. Scalar sparse loading and all complete bit-key/cache invalidation gates remain unchanged. Initial loads, factor reuse and changed-value invalidation match scalar buffers/factors exactly.
+Changed fully stored dense lower Hessians now materialize disjoint factor-input columns in parallel at 512+ variables. Scalar sparse loading and all complete bit-key/cache invalidation gates remain unchanged. Initial loads, factor reuse and changed-value invalidation match scalar buffers/factors exactly.
 
 Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-51.json`.
 

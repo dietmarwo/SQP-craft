@@ -1,6 +1,6 @@
 # Iteration 39: results
 
-Native models can explicitly receive and use the worker budget while all callback entry points stay on their caller thread. A deliberately non-Send Rc-backed model passes with both QP backends at1/4/8 threads and invalid input prevents configuration/evaluation. Existing models inherit a serial no-op hook.
+Native models can explicitly receive and use the worker budget while all callback entry points stay on their caller thread. A deliberately non-Send Rc-backed model passes with both QP backends at 1/4/8 threads and invalid input prevents configuration/evaluation. Existing models inherit a serial no-op hook.
 
 Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-39.json`.
 

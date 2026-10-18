@@ -1,6 +1,6 @@
 # Iteration 36: results
 
-Added independent planted coupled-QP scaling coverage at128/256/512/1024 variables, fresh Hessians on every call, retained resources, and explicit resource setup/CPU-time records. Every result must pass the original KKT rule and known primal/dual solution. The existing NLP cap and all original callbacks remain unchanged.
+Added independent planted coupled-QP scaling coverage at 128/256/512/1024 variables, fresh Hessians on every call, retained resources, and explicit resource setup/CPU-time records. Every result must pass the original KKT rule and known primal/dual solution. The existing NLP cap and all original callbacks remain unchanged.
 
 Full release Rust workspace tests passed before serial paired timings. Each timed child validates every result against unchanged objective/KKT assertions. The process may contain up to eight numerical workers; no build/stress work ran concurrently. One warmup plus three measured samples. Unsupported pre-API configurations remain recorded as failures and are not speedups. Raw samples, commands, hashes, quota and CPU time are in `data/iteration-36.json`.
 
