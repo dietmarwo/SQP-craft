@@ -851,3 +851,39 @@ fn parallel_transformed_normals_match_the_original_dots() {
         }
     }
 }
+
+#[test]
+fn parallel_kkt_outputs_retain_scalar_accumulation_order() {
+    let parallel = sqp_craft_parallel::Execution::new(8).unwrap();
+    let serial = sqp_craft_parallel::Execution::default();
+    for n in [127, 256] {
+        for q in [0, 17, n] {
+            let j: Vec<_> = (0..n * n).map(|i| (i % 23) as f64 * 0.001 - 0.01).collect();
+            let mut r = vec![0.; n * n];
+            for k in 0..n {
+                r[k * n + k] = 1.;
+                for i in 0..k {
+                    r[k * n + i] = 0.001;
+                }
+            }
+            let g: Vec<_> = (0..n)
+                .map(|i| {
+                    if i % 3 == 0 {
+                        0.0
+                    } else {
+                        (i % 13) as f64 * 0.001
+                    }
+                })
+                .collect();
+            let bp = vec![0.01; q];
+            let run = |execution: &sqp_craft_parallel::Execution| {
+                let mut c = vec![0.; n];
+                let mut x = c.clone();
+                let mut u = vec![0.; q];
+                kkt_solve((&j, &r, n, q), &g, &bp, &mut c, &mut x, &mut u, execution);
+                (c, x, u)
+            };
+            assert_eq!(run(&serial), run(&parallel));
+        }
+    }
+}

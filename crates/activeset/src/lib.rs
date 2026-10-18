@@ -869,6 +869,7 @@ impl Work {
             &mut self.c,
             &mut self.x,
             &mut self.u,
+            &self.execution,
         );
         for _ in 0..REFINEMENT_STEPS {
             model.hessian_product(&self.x, &mut self.rd);
@@ -887,6 +888,7 @@ impl Work {
                 &mut self.c,
                 &mut self.dx,
                 &mut self.du[..q],
+                &self.execution,
             );
             dense::axpy(1.0, &self.dx, &mut self.x);
             dense::axpy(1.0, &self.du[..q], &mut self.u);
@@ -1165,9 +1167,16 @@ fn kkt_solve(
     c: &mut [f64],
     x: &mut [f64],
     u: &mut [f64],
+    execution: &sqp_craft_parallel::Execution,
 ) {
-    for (ck, column) in c.iter_mut().zip(j.chunks_exact(n)) {
-        *ck = dense::dot(column, gd);
+    if n >= 256 && execution.threads() > 1 {
+        execution.chunks_mut(c, 1, n * n, |k, out| {
+            out[0] = dense::dot(&j[k * n..(k + 1) * n], gd)
+        });
+    } else {
+        for (ck, column) in c.iter_mut().zip(j.chunks_exact(n)) {
+            *ck = dense::dot(column, gd);
+        }
     }
     for k in 0..q {
         let column = &r[k * n..k * n + k + 1];
