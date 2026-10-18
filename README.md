@@ -4,13 +4,13 @@ A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
 for smooth constrained problems such as trajectory transcriptions.
 
 **Version 0.16.0: eight-worker execution and thirty further experiments**
-(iterations31–60). Native `Options(threads=8)` offers a maximum worker budget;
+(iterations 31–60). Native `Options(threads=8)` offers a maximum worker budget;
 large active-set QP outputs and opt-in native propagation models can use it.
 Small pilot kernels and full BFGS keep their measured scalar path. Rust
 `batch::solve_many` / `try_solve_many` run ordered independent starts with
 worker-local models/backends, shared cancellation and an eight-CPU total budget.
 Python callbacks/observers remain on their calling thread; the Clarabel engine
-remains serial. Default threads=1 and the256-variable NLP limit are unchanged.
+remains serial. Default threads=1 and the 256-variable NLP limit are unchanged.
 See [the parallel plan](docs/performance-60/PLAN.md),
 [results](docs/performance-60/RESULTS.md) and
 [reproduction/API guide](docs/performance-60/REPRODUCE.md).

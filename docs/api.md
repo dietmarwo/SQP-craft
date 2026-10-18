@@ -112,7 +112,7 @@ cancellation.
 
 `Options` holds settings shared by all methods: `feasibility_tolerance`
 (absolute, unscaled; default `1e-7`; the primal threshold of the convergence
-test) and `threads` (maximum native workers, `1..=8`, default `1`). Values above8 are `Unsupported` / `NotImplementedError`; zero is invalid. Dummy/custom unsupported backends explicitly reject multi-thread requests. Small work uses serial fallbacks.
+test) and `threads` (maximum native workers, `1..=8`, default `1`). Values above 8 are `Unsupported` / `NotImplementedError`; zero is invalid. Dummy/custom unsupported backends explicitly reject multi-thread requests. Small work uses serial fallbacks.
 
 ### `SqpOptions`
 
@@ -414,7 +414,9 @@ step.
 Clarabel 0.11.1, an interior-point conic solver in Rust. It does not solve
 elastic QPs (`configure` returns `Unsupported`). Cold starts only:
 supplied warm-start data is validated, then rejected as `Unsupported` rather
-than ignored. At most eight native workers, positive-definite Hessians, at most256 NLP variables.
+than ignored. Its engine is serial: it accepts a budget of up to eight workers,
+which only a native model's own `set_threads` work can use. Positive-definite
+Hessians, at most 256 NLP variables.
 Every model's Hessian is checked exactly before conversion: a strictly
 diagonally dominant one is accepted by an upward-rounded Gershgorin test, a
 pattern that splits into disconnected components is factorized per component,
@@ -580,7 +582,7 @@ last complete point.
 `Options.threads` is a maximum, not a promise of eight useful tasks for every
 matrix. Active-set inverse columns, reflector targets, dense normal/KKT outputs
 and dense materialization may use bounded shared pools when work is large.
-The default256-variable NLP pilot keeps BFGS scalar after parallel prototypes
+The default 256-variable NLP pilot keeps BFGS scalar after parallel prototypes
 regressed; 512/1024-variable performance fixtures are **standalone QPs**, not
 an extension of the NLP cap. Clarabel's engine remains serial.
 
@@ -594,7 +596,7 @@ workers, factory, cancellation)` constructs each model on its owning worker,
 reuses a backend per worker, and returns ordered per-start Results. The
 factory is Send+Sync; model/backend instances need not be. `try_solve_many`
 accepts a factory returning Result<Model>, retaining its errors per start.
-`workers * options.threads <= 8`; use eight outer workers with inner1 for
+`workers * options.threads <= 8`; use eight outer workers with inner 1 for
 small NLPs. Compatible resource owners share a private pool per width, so
 nested configurations do not multiply pools. Simultaneous independent callers
 must budget their own total work. No global Rayon pool is configured.
