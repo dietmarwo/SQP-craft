@@ -136,3 +136,72 @@ fn native_batch_keeps_order_errors_and_non_send_model_ownership() {
         .is_err()
     );
 }
+
+#[test]
+fn batch_cancellation_retains_completed_results_and_skips_factories() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let spec = ProblemSpec::new(
+        Bounds::new(vec![-3.; 2], vec![3.; 2]),
+        Bounds::free(0),
+        CsrPattern::dense(0, 2),
+    )
+    .unwrap();
+    let starts = vec![vec![1., -1.]; 16];
+    let calls = AtomicUsize::new(0);
+    let token = CancellationToken::default();
+    let make = |i| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        if i == 3 {
+            token.cancel();
+        }
+        LocalModel {
+            owner: thread::current().id(),
+            width: Rc::new(Cell::new(0)),
+        }
+    };
+    let results = sqp_craft_solver::batch::solve_many::<ActiveSetQp, _, _>(
+        &spec,
+        &starts,
+        &SqpOptions::default(),
+        &Options::default(),
+        1,
+        make,
+        &token,
+    )
+    .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 4);
+    for (i, r) in results.into_iter().enumerate() {
+        assert_eq!(
+            r.unwrap().status,
+            if i < 3 {
+                Status::Converged
+            } else {
+                Status::Cancelled
+            }
+        );
+    }
+    calls.store(0, Ordering::SeqCst);
+    let mut invalid = starts.clone();
+    invalid[7][0] = 4.;
+    let results = sqp_craft_solver::batch::solve_many::<ActiveSetQp, _, _>(
+        &spec,
+        &invalid,
+        &SqpOptions::default(),
+        &Options::default(),
+        8,
+        make,
+        &token,
+    )
+    .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    for (i, r) in results.into_iter().enumerate() {
+        if i == 7 {
+            assert!(r.is_err());
+        } else {
+            let r = r.unwrap();
+            assert_eq!(r.status, Status::Cancelled);
+            assert!(r.candidate.is_none());
+            assert_eq!(r.counts.functions, 0);
+        }
+    }
+}

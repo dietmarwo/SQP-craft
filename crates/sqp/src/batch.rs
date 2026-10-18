@@ -32,6 +32,12 @@ where
     if starts.is_empty() {
         return Ok(Vec::new());
     }
+    if cancel.is_cancelled() {
+        return Ok(starts
+            .iter()
+            .map(|x| spec.check_point(x, "start point").map(|_| not_started()))
+            .collect());
+    }
     let execution = Execution::new(workers).map_err(Error::Unsupported)?;
     Ok(execution.map_with_init(
         starts.len(),
@@ -40,8 +46,18 @@ where
             settings: settings.clone(),
         },
         |solver, index| {
+            spec.check_point(&starts[index], "start point")?;
+            if cancel.is_cancelled() {
+                return Ok(not_started());
+            }
             let mut model = factory(index);
             solver.solve(spec, &mut model, &starts[index], options, cancel, None)
         },
     ))
+}
+
+fn not_started() -> SolveResult {
+    let mut result = SolveResult::empty(Status::Cancelled, "cancelled before batch task started");
+    result.report.method = "sqp".into();
+    result
 }
