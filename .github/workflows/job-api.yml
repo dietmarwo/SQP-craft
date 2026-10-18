@@ -35,6 +35,8 @@ jobs:
           cargo build --release --locked -p optimization-runner -p sqp-job-worker
       - name: Lifecycle and numerical integration
         run: python3 scripts/job-api/test_integration.py
+      - name: Review regressions
+        run: python3 scripts/job-api/test_review.py
       - name: Runnable tutorial
         run: python3 tutorials/job-api/run.py --root "$RUNNER_TEMP/job-api-tutorial"
   msrv:
