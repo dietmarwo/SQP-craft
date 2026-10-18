@@ -1,0 +1,3 @@
+# Iteration 49: Compiled Python eight-thread contract coverage
+
+Rebuild the real extension and run the full existing Python suite plus1/2/4/8-width tests with both backends. Assert callback/observer owner-thread identity, original exception identity, pre-cancelled zero callbacks, explicit dummy rejection, original KKT checks and ordered eight concurrent independent solves. Keep the legacy out-of-range guidance string so existing assertions remain valid; do not relax numerical tests. Gate timing on both Rust and compiled-extension tests. Python model bodies remain serial by default; native phases release the interpreter as before.

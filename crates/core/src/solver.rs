@@ -115,7 +115,7 @@ impl Options {
         ensure(self.threads > 0, || "threads must be at least 1".into())?;
         if self.threads > 8 {
             return Err(Error::Unsupported(format!(
-                "parallel threads must lie in 1..=8, got {}",
+                "parallel threads must lie in 1..=8, got {}; run independent solves for more concurrency",
                 self.threads
             )));
         }
