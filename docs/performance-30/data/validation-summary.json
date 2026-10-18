@@ -1,0 +1,260 @@
+{
+  "base": "4d776bbd89f187fe176be805ab91fd64305a8c44",
+  "version": "0.15.0",
+  "iterations": [
+    {
+      "iteration": 1,
+      "tag": "sqp-perf30-01",
+      "commit": "1fd26adf0082919d109c8a73e68a6fcfcd52e5ab",
+      "release_tests_passed": 165,
+      "release_test_log_sha256": "cb75fecf7078ffd627558dd0f608d24239436f3bd6e66a04ce9440d2fd7d4989"
+    },
+    {
+      "iteration": 2,
+      "tag": "sqp-perf30-02",
+      "commit": "51038334e43f6a38c679da8ef177ed7e1d3ff7c6",
+      "release_tests_passed": 165,
+      "release_test_log_sha256": "308ca9e1ac8eade5bf2faec75a3cd19d9bb1b446579f7a1f2264f2f9fcd852f9"
+    },
+    {
+      "iteration": 3,
+      "tag": "sqp-perf30-03",
+      "commit": "7ca62ee8283b501812099b7e0660202e38bbb927",
+      "release_tests_passed": 165,
+      "release_test_log_sha256": "35fea0f45a1d7823234a6a51cbe01a399f79d34545209455114b789e67727a9c"
+    },
+    {
+      "iteration": 4,
+      "tag": "sqp-perf30-04",
+      "commit": "3d9995dc3234c1e45810e4d652e3d112c43ae40a",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "aa3f0cedd6b362fa1f9cf78740201b4126fe5f0af8211c71e99c6520cab30d67"
+    },
+    {
+      "iteration": 5,
+      "tag": "sqp-perf30-05",
+      "commit": "e50e513771e23c604d2697fcb26983537522faf8",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "ef450bed58a06ea834f7c181a8fb3dda19a89ae40f1bcf709af2deec6bc6f152"
+    },
+    {
+      "iteration": 6,
+      "tag": "sqp-perf30-06",
+      "commit": "5906a81a614959659af4cbe897c19fe3b08de959",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "9370c3783d2f541c182f444955f69a8dc916074871764cdcc90c6d7d15445f86"
+    },
+    {
+      "iteration": 7,
+      "tag": "sqp-perf30-07",
+      "commit": "5f31ab078f50225ebec5b10200b9a574c1c5a2b7",
+      "release_tests_passed": 134,
+      "release_test_log_sha256": "ec2dae7b11a38cd1ae278e651ec293df13f36820049e4c4a0f144da504b56cc6"
+    },
+    {
+      "iteration": 8,
+      "tag": "sqp-perf30-08",
+      "commit": "608b2305654f1df3e94f2583e8c7fffdf5c30073",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "c685ee4794188f04cb9e450741a74582ae63d06e2c3e1d215e763209b29eae90"
+    },
+    {
+      "iteration": 9,
+      "tag": "sqp-perf30-09",
+      "commit": "adb4211ca9b473bf526b504daecc755eb595a8c9",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "e9453ac87581fcda33deade696fa4597e9d622a6569e8566e2a37608329be07c"
+    },
+    {
+      "iteration": 10,
+      "tag": "sqp-perf30-10",
+      "commit": "0a65becbc07e5488a523d0b876b2fec41ba54527",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "c328342df8c9bf3de2e6d944bc175bef32ee1c236fd5e9673f497a0772b1db38"
+    },
+    {
+      "iteration": 11,
+      "tag": "sqp-perf30-11",
+      "commit": "f17f8aea6066e5c865127f3318bd145eab456f83",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "13354a44511774fb08611cee9866d628593899a36721d6e40782fa50027e152e"
+    },
+    {
+      "iteration": 12,
+      "tag": "sqp-perf30-12",
+      "commit": "cec25b30cdea954f0ea25a4fa760a4a574bf10c5",
+      "release_tests_passed": 167,
+      "release_test_log_sha256": "32ac42d0213e11752450bd1108e4235a46f77fdb607a2e79a9f8472859eaf937"
+    },
+    {
+      "iteration": 13,
+      "tag": "sqp-perf30-13",
+      "commit": "c7cc63042c5a2f93192ead456f47a99a44502fe4",
+      "release_tests_passed": 166,
+      "release_test_log_sha256": "5f0829934c9a26b099cbfd929454821c87ec1fea542fe0c698bb84d0281707de"
+    },
+    {
+      "iteration": 14,
+      "tag": "sqp-perf30-14",
+      "commit": "20141e9b80eb5557389ae690fcfc85768588314e",
+      "release_tests_passed": 167,
+      "release_test_log_sha256": "0d0867659a8b21ecba559040ce75748880350d1f174b5f78f80901a022c8b38f"
+    },
+    {
+      "iteration": 15,
+      "tag": "sqp-perf30-15",
+      "commit": "fe9090c4e169542479faf97cfcb515d9913f1dc0",
+      "release_tests_passed": 140,
+      "release_test_log_sha256": "4cb3c14ce36961bf302c20762bb31ed054bd3041594fbccfe12d6298d6d60404"
+    },
+    {
+      "iteration": 16,
+      "tag": "sqp-perf30-16",
+      "commit": "179966e5a3a81219d34444f52529af1531dba61b",
+      "release_tests_passed": 167,
+      "release_test_log_sha256": "b4d0c628bd7f337c73c8d39b3127681441ff1d340978b77211b0aabae31145e0"
+    },
+    {
+      "iteration": 17,
+      "tag": "sqp-perf30-17",
+      "commit": "e5042ae056cc949894475b93ca3cd27d1536406c",
+      "release_tests_passed": 135,
+      "release_test_log_sha256": "4bfe3e405954d3a80b88605f611c62282167460269012ac1fc916507ad2e27eb"
+    },
+    {
+      "iteration": 18,
+      "tag": "sqp-perf30-18",
+      "commit": "20497481b1b7a4448c005355d53919813a431624",
+      "release_tests_passed": 167,
+      "release_test_log_sha256": "994038648d53da3621248c68b74470c6e7513b1718f8bb39914656bea335a349"
+    },
+    {
+      "iteration": 19,
+      "tag": "sqp-perf30-19",
+      "commit": "7e3871e14f02e63e021f894ed38a37231535408c",
+      "release_tests_passed": 167,
+      "release_test_log_sha256": "514cf3be302bf09b1bf649dbf90bdbd75e7275607f51e18b1f0f9130615c3c35"
+    },
+    {
+      "iteration": 20,
+      "tag": "sqp-perf30-20",
+      "commit": "070860a39b5d202a0ad01e118f7f4476cc138968",
+      "release_tests_passed": 168,
+      "release_test_log_sha256": "c1c16d5bdd844360af29aae8a49131bdadb5da620150d49b1d40c4a2e1a9d626"
+    },
+    {
+      "iteration": 21,
+      "tag": "sqp-perf30-21",
+      "commit": "b9535a91ea3d94d1100f4ddd94702a0b5b39fe49",
+      "release_tests_passed": 168,
+      "release_test_log_sha256": "40c8c63f755564c98d8fdf713faeb73f9610313a759e3ac0a54744566545c07d"
+    },
+    {
+      "iteration": 22,
+      "tag": "sqp-perf30-22",
+      "commit": "7fba156c15bb41534466d84a287b69290be33d16",
+      "release_tests_passed": 168,
+      "release_test_log_sha256": "1680a2826cb1c1d5c8a887e5ad6f0e103b10fd753bc8f95a0d3959291aecda09"
+    },
+    {
+      "iteration": 23,
+      "tag": "sqp-perf30-23",
+      "commit": "500349f6708b7d5a9d763f362291d83ec323559d",
+      "release_tests_passed": 168,
+      "release_test_log_sha256": "138cb429641881ea03f598fcb18f45577e59369e8034a9755954b31359c863dc"
+    },
+    {
+      "iteration": 24,
+      "tag": "sqp-perf30-24",
+      "commit": "c84a1fc06f17687405185f1165b45ba6b92b70b2",
+      "release_tests_passed": 168,
+      "release_test_log_sha256": "676373bfc24d9fae05f31ba907aa6390424c31dd69beb2ec8cde24402d364001"
+    },
+    {
+      "iteration": 25,
+      "tag": "sqp-perf30-25",
+      "commit": "a15840eb1ef0eac60f1c3b384bbacb526428ab61",
+      "release_tests_passed": 169,
+      "release_test_log_sha256": "d8ce82bade8073eb900f8d711a853061e936f0bbec165adbf35abf56e15ae803"
+    },
+    {
+      "iteration": 26,
+      "tag": "sqp-perf30-26",
+      "commit": "9ef73042cc431e4c43642abf0a7a99d8633f25d7",
+      "release_tests_passed": 168,
+      "release_test_log_sha256": "b24eeb302beceaec97866e9985f67bca8e9e0b7a578b0434d97b22b63aa67bbf"
+    },
+    {
+      "iteration": 27,
+      "tag": "sqp-perf30-27",
+      "commit": "4b4470e0adbd8f328e0fa22c9429aa872cdeea8f",
+      "release_tests_passed": 138,
+      "release_test_log_sha256": "97bf6210649c5bb08e2dc7144c612a12e19eb007018f31ef99e731d955d09646"
+    },
+    {
+      "iteration": 28,
+      "tag": "sqp-perf30-28",
+      "commit": "32cd0fefa64fe5c59021f5bc7aceb2fba3295ebb",
+      "release_tests_passed": 171,
+      "release_test_log_sha256": "3e9945dc8950f773fd114fde17725b05314a428567df3f39541cf206472d4300"
+    },
+    {
+      "iteration": 29,
+      "tag": "sqp-perf30-29",
+      "commit": "c47aa1f7c59486e85e0505eaeb3f3cb863bd1af4",
+      "release_tests_passed": 172,
+      "release_test_log_sha256": "28556f1f6ad1b906e4d2f007114beaadd1edbd648f9e4f2839658b08dc1284a7"
+    },
+    {
+      "iteration": 30,
+      "tag": "sqp-perf30-30",
+      "commit": "1a0e7ce8ace4f3e5e43e745e357c3f987fa1dffd",
+      "release_tests_passed": 173,
+      "release_test_log_sha256": "4a78b569e0b86b4a7caebd80373578487edd0646fe93a5f248798c5de972f0e4"
+    }
+  ],
+  "final_regular_rust_tests": 173,
+  "final_forced_all_targets_all_features_tests": 184,
+  "python_tests": 135,
+  "independent": {
+    "paired_solves": 17372,
+    "total_solver_calls": 34744,
+    "losses": [],
+    "status_or_acceptance_changes": [],
+    "outer_iteration_changes": 0,
+    "max_accepted_objective_difference": 0.0
+  },
+  "harder_qp_census": {
+    "cases": 1000,
+    "seed": 2026,
+    "baseline_counts": [
+      "     4 feasible QP: active-set check, clarabel error",
+      "     1 feasible QP: active-set limit, clarabel optimal",
+      "     5 feasible QP: active-set optimal, clarabel check",
+      "    11 feasible QP: active-set optimal, clarabel error",
+      "   735 feasible QP: active-set optimal, clarabel optimal",
+      "     1 infeasible QP: active-set infeasible, clarabel check",
+      "     2 infeasible QP: active-set infeasible, clarabel error",
+      "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+    ],
+    "final_counts": [
+      "     4 feasible QP: active-set check, clarabel error",
+      "     1 feasible QP: active-set limit, clarabel optimal",
+      "     5 feasible QP: active-set optimal, clarabel check",
+      "    11 feasible QP: active-set optimal, clarabel error",
+      "   735 feasible QP: active-set optimal, clarabel optimal",
+      "     1 infeasible QP: active-set infeasible, clarabel check",
+      "     2 infeasible QP: active-set infeasible, clarabel error",
+      "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+    ],
+    "counts_identical": true,
+    "most_working_set_changes": 294,
+    "note": "Four active-set independent-check rejections and one limit are retained, not counted as solves."
+  },
+  "clippy_warnings_denied": true,
+  "rustdoc_warnings_denied": true,
+  "rustfmt_passed": true,
+  "original_callbacks_byte_identical": true,
+  "additional_release_refinement": "Exact two-entry CSR sum preserves original scalar reduction order; full numerical suites, paired independent audit and timing rerun.",
+  "scope": "Linux x86_64, Rust 1.99.1, CPython 3.12.14; declared Rust 1.85 minimum and other platforms not executed; no upstream publication."
+}

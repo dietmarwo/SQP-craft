@@ -32,7 +32,9 @@
 //! that ends infeasible or fails the independent check [`QpModel::accepts`]
 //! is repeated once from a cold start within the same budget.
 //!
-//! Dense storage: three `n × n` matrices, reused across calls.
+//! Dense storage: three working `n × n` matrices, plus an exact Hessian key.
+//! Repeated Hessians may also retain one unrotated inverse matrix. All caches
+//! are backend-local, owned, and invalidated by exact structure/value changes.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
@@ -71,7 +73,9 @@ const REFINEMENT_STEPS: usize = 1;
 
 /// Dense dual active-set QP backend. Configure it through
 /// [`QpBackend::configure`]; [`QpOptions::reuse_workspace`] has no effect,
-/// since buffers are always reused and never change a result.
+/// since buffers and exactly matching factors are always reused. Factors are
+/// reused only under a complete bitwise Hessian key; independent acceptance
+/// checks remain mandatory.
 #[derive(Clone, Debug, Default)]
 pub struct ActiveSetQp {
     settings: QpOptions,

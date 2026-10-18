@@ -3,7 +3,17 @@
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
 for smooth constrained problems such as trajectory transcriptions.
 
-**Version 0.14.0: ten tested performance iterations** based on reviewed
+**Version 0.15.0: thirty further performance iterations** build on main
+`4d776bb`. They reduce validation and symmetric-product work, streamline BFGS,
+reuse exact-matching active-set factors, and independently check direct
+unconstrained/diagonal-box QP proposals before accepting them. Solver defaults,
+callbacks, numerical tolerances and the 256-variable pilot scope remain.
+See the [thirty plans and checkpoints](docs/performance-30/PLAN.md),
+[measured results](docs/performance-30/RESULTS.md) and
+[reproduction commands](docs/performance-30/REPRODUCE.md). Improvements are
+workload-dependent; raw slower/noisy observations are retained.
+
+**Previous version 0.14.0: ten tested performance iterations** based on reviewed
 `main` at `73d8d0c`. This is still a research pilot with at most 256 variables
 and one numerical thread per solve. It uses damped BFGS, QPs solved by
 Clarabel or by a dense active-set method, an L1 merit line search, bounded
@@ -13,8 +23,9 @@ certificate.
 
 The performance work reuses numerical/checking/callback buffers, caches QP and
 conic conversion structure, reduces symmetric update work and preserves exact
-sparsity in restoration. Each BFGS matrix is checked for positive
-definiteness exactly once per iteration, by the QP adapter. A failed check
+sparsity in restoration. QP adapters check positive definiteness of every new BFGS matrix. The
+active-set adapter may reuse a successful factor only for bit-identical
+Hessian structure and values. A failed check
 resets it, like a failed update. Full BFGS remains the default. An explicit
 `SqpOptions(hessian_block_size=...)` requests contiguous curvature blocks;
 failed block updates switch once to full BFGS within the existing reset budget.

@@ -215,6 +215,9 @@ impl CsrPattern {
             let range = self.indptr[r]..self.indptr[r + 1];
             *out = if range.len() == 1 {
                 0.0 + values[range.start] * x[self.indices[range.start]]
+            } else if range.len() == 2 {
+                let k = range.start;
+                (0.0 + values[k] * x[self.indices[k]]) + values[k + 1] * x[self.indices[k + 1]]
             } else if range.len() == self.cols {
                 // A full, valid, strictly sorted row has columns 0..cols.
                 values[range].iter().zip(x).map(|(&a, &v)| a * v).sum()

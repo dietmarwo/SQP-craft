@@ -96,9 +96,13 @@ def test_warm_start_saves_working_set_changes_and_keeps_the_result():
         assert r.status == "converged", r.message
         assert r.candidate == pytest.approx([1, -1, 1, -1, 1, -1], abs=1e-12)
         assert_kkt(spec, r)
-    # A cold QP enters all six bounds; a warm one starts with them.
-    assert cold.report.qp_iterations == n * cold.report.qp_solves
-    assert warm.report.qp_iterations == n
+    # The first diagonal QP is closed-form and returns all active bounds.
+    # Later cold QPs enter them; warm QPs reuse that working set.
+    assert cold.report.qp_iterations == n * (cold.report.qp_solves - 1)
+    assert warm.report.qp_iterations == 0
+    assert warm.iterations == cold.iterations
+    assert warm.counts.functions == cold.counts.functions
+    assert warm.counts.derivatives == cold.counts.derivatives
 
 
 def test_unknown_qp_solver_is_rejected():

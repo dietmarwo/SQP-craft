@@ -24,3 +24,7 @@ Full release Rust workspace tests passed before timing. Same benchmark sources, 
 | nlp | orbit 40 | 266.1249 | 266.8070 | 0.9974 |
 | nlp | separable 128 | 17.5799 | 17.1817 | 1.0232 |
 | nlp | restoration 64 | 0.8784 | 0.8447 | 1.0399 |
+
+## Final release refinement
+
+The final common-harness comparison exposed a two-entry sparse-row regression from the additional dispatch branches. The 0.15 release adds a direct two-term sum as the corresponding short-row path, retaining the original arithmetic order. The slower pre-refinement common measurements are preserved as final-common-before-shortrow.json. Full numerical tests, paired independent validation and final timings were rerun for the refined release; see RESULTS.md.
