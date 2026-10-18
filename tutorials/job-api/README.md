@@ -78,8 +78,10 @@ solver checkpoint resume in this job protocol.
 Use `cpu_slots=8, outer_workers=8, inner_threads=1` for multistart throughput, or
 `8 / 1 / 8` for one solve with an inner numerical allowance. Small kernels and
 full BFGS may remain serial; Clarabel's engine is serial. The registered model
-functions here are inexpensive and serial, so batch parallelism is usually the
-useful choice. `8 / 8 / 8` is rejected.
+functions here are inexpensive and serial, and the active-set QP kernels split
+their work only from 512 variables or 32,768 bounded-row entries, which these
+models (at most 256 variables and one row) never reach. For them `inner_threads`
+above 1 changes nothing; batch parallelism is the useful choice. `8 / 8 / 8` is rejected.
 
 To add a trajectory model, extend `registered` and the model implementation in
 `crates/sqp-job-worker/src/main.rs`, or create a separate worker using the shared

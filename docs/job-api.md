@@ -81,13 +81,17 @@ widths are errors. Validation resolves defaults through the selected worker;
 it does not run an optimization. `validate` does not reserve slots. `run` and
 `submit` also check the requested slots against the node capacity.
 
-Input paths are relative to the submitted specification. Absolute paths,
-parent traversal, duplicate names and symlinks escaping that directory are
-rejected. Each file is limited to 64 MiB, with at most 16 inputs. The runner
-checks hashes, copies inputs into the attempt directory and validates using a
-staged copy of the registered executable. The LP worker checks the model hash
-again when it starts. The model is loaded once per worker execution and shared
-immutably by its tasks. Worker validation output is capped at 4 MiB.
+Input paths are relative to the submitted specification (`model.json` or
+`./model.json`). Absolute paths, parent traversal, duplicate names and symlinks
+escaping that directory are rejected. Each file is limited to 64 MiB, with at
+most 16 inputs. The runner checks hashes, copies inputs into the attempt
+directory and validates using a staged copy of the registered executable, in a
+`.staging-*` directory under the node root; the root must allow execution,
+`TMPDIR` need not. The LP worker checks the model hash again when it starts. The
+model is loaded once per worker execution and shared immutably by its tasks.
+Worker validation output is capped at 4 MiB. Validation prints the resolved
+specification, so this also bounds the specification itself: about 600,000
+one-dimensional SQP starts fit, not the 1,000,000 tasks the envelope allows.
 
 The JSON parser enables exact f64 round trips, preserving small numerical
 values and reproducible content digests across journal/manifest reads.
@@ -144,7 +148,10 @@ The examples use the executable name for brevity; use `./target/release/optimiza
 unless it is on your PATH. `run` blocks, prints a final JSON job object, and
 captures bounded worker logs. Its exit code reports runner/protocol errors;
 a normal cancellation, timeout or solver failure can still return a job object.
-Always inspect job `state`, then each mathematical outcome.
+Always inspect job `state`, then each mathematical outcome. With a request key
+that already names a job, `run` and `submit` start nothing and print that job's
+current state, which need not be final; use `jobs wait`. A signal during
+validation also stops the validator.
 
 Lifecycle states are `submitted`, `starting` (detached only), `waiting`,
 `running`, then `completed`, `cancelled`, `timed_out`, `failed` or `interrupted`.
@@ -199,10 +206,16 @@ optimization-run --root NODE jobs repair JOB_ID
 ```
 
 Reconciliation only releases slots when process termination is established.
-Repair refuses a live worker or unknown liveness. It tolerates a torn final
-journal fragment, rejects earlier corruption/duplicate task IDs, preserves a
-consistent final worker manifest if available, and otherwise seals the attempt
-as interrupted. After launcher loss, elapsed time may be unknown. Repair never
+Repair refuses a live worker or unknown liveness; an attempt whose launcher died
+while it was queued never started a worker and can be repaired. Repair tolerates
+a torn final journal fragment, preserves a consistent final worker manifest if
+available, and otherwise seals the attempt as interrupted. A journal with
+earlier corruption or duplicate task IDs is never trusted: such an attempt, and
+any attempt whose worker wrote one, is sealed `failed` with no results, `work`
+null and `runner.journal_error`. `jobs get` then reports the journal error, and
+`jobs list` shows it for that job only. Appends end a torn final fragment first
+(a valid record gets its newline, anything else is dropped), so a later record
+never joins it. After launcher loss, elapsed time may be unknown. Repair never
 resumes solver state. Use a new request key for a fresh solve. If the launcher
 dies between process creation and durable process-group recording, reservations
 are conservatively retained; reboot reconciliation can clear the old boot.
@@ -215,7 +228,8 @@ changing algorithms or resource widths.
 ## Detached operation and current limits
 
 `submit` uses a real Linux systemd user manager with `KillMode=control-group`
-and `Restart=no`; run `node doctor` first. Logout survival requires host-specific
+and `Restart=no`, in unit `optimization-job-ID.service` (`fcmaes-ID.service` for
+legacy fcmaes jobs); run `node doctor` first. Logout survival requires host-specific
 user-manager lingering. This delivery tests foreground execution and refusal
 when systemd is unavailable; it does not certify detached execution on a real
 service host. There is no simulated background-success fallback.

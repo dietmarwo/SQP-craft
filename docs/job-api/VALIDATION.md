@@ -1,9 +1,14 @@
 # Job API 0.1 validation
 
+> This is the delivery's validation. The review before the merge corrected
+> three bugs and several robustness problems; see [REVIEW.md](REVIEW.md) for
+> those corrections and for what was re-tested on `main`.
+
 Tested on Linux x86_64 with Rust 1.99.1 (2026-10-13). The API layer declares
 Rust 1.88 as its minimum; that exact toolchain was not separately tested.
 All commands use the delivered lockfiles. Solver cores are unchanged from the
-base commits recorded in `SOURCE-REVISION`.
+base commits listed in [PLAN.md](PLAN.md) (`SOURCE-REVISION` in the delivery
+archive); for SQP-craft that is the 0.16 delivery head `7bc997f`.
 
 | Gate | Observed result |
 | --- | --- |
@@ -39,8 +44,8 @@ artifact escape, duplicate journals, queued cancellation under a shared
 capacity of eight, forced timeout with unknown active-work totals, killed
 launcher with a live worker, conservative slot retention and repair without
 solver resume. Native snapshots and checked journals are retained for all
-nine tutorial examples under `validation/job-api/tutorial-runs/` in their
-respective repository archives.
+nine tutorial examples in the respective repository archives; this
+repository keeps its three under `validation/job-api/tutorial-runs/`.
 
 ## Fixes found during acceptance
 
@@ -84,5 +89,7 @@ cargo test --release --locked -p sqp-craft -p sqp-craft-solver \
 binary hashes in the recorded attempt provenance. Those paths refer to the
 validation host and are evidence, not portable execution configuration.
 `docs/job-api/SHARED-SOURCES.sha256` verifies identical shared implementation
-files across the three archives. `MANIFEST.sha256` covers every delivered file
-except itself and can be checked with `sha256sum -c MANIFEST.sha256` after unzip.
+files across the three archives; in this repository it lists the reviewed
+shared files, which differ from the delivered ones (see [REVIEW.md](REVIEW.md)).
+The delivery archive's `MANIFEST.sha256` covers every delivered file except
+itself and can be checked with `sha256sum -c MANIFEST.sha256` after unzip.
