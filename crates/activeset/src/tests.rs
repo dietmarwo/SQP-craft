@@ -925,3 +925,45 @@ fn parallel_bounded_row_norms_match_scalar_and_skip_free_rows() {
     assert_eq!(a, b);
     assert!(b.iter().enumerate().all(|(i, &v)| i % 2 == 0 || v == 0.0));
 }
+
+#[test]
+fn dense_parallel_materialization_and_invalidation_match_scalar() {
+    let n = 512;
+    let mut model = QpModel {
+        hessian_lower: CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr: (0..=n).map(|i| i * (i + 1) / 2).collect(),
+                indices: (0..n).flat_map(|i| 0..=i).collect(),
+            },
+            values: (0..n)
+                .flat_map(|i| (0..=i).map(move |j| if i == j { 2.0 } else { 0.001 }))
+                .collect(),
+        },
+        gradient: vec![0.; n],
+        variables: Bounds::free(n),
+        matrix: CsrMatrix {
+            pattern: CsrPattern::dense(0, n),
+            values: vec![],
+        },
+        rows: Bounds::free(0),
+    };
+    let mut a = Work::default();
+    let mut b = Work {
+        execution: sqp_craft_parallel::Execution::new(8).unwrap(),
+        ..Default::default()
+    };
+    for step in 0..3 {
+        if step == 2 {
+            model.hessian_lower.values[0] += 0.001;
+        }
+        a.load(&model, 1e-10, None, &[]);
+        b.load(&model, 1e-10, None, &[]);
+        assert_eq!(a.l, b.l);
+        assert_eq!(a.factor_reused, b.factor_reused);
+        assert!(a.factor());
+        assert!(b.factor());
+        assert_eq!(a.l, b.l);
+    }
+}

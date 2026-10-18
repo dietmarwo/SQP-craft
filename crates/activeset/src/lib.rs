@@ -669,9 +669,19 @@ impl Work {
             v.resize(n, 0.0);
         }
         if !self.factor_reused {
-            for i in 0..n {
-                for a in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
-                    self.l[h.pattern.indices[a] * n + i] = h.values[a];
+            if full && n >= 512 && self.execution.threads() > 1 {
+                self.execution
+                    .chunks_mut(&mut self.l, n, n * n, |start, column| {
+                        let k = start / n;
+                        for (i, out) in column.iter_mut().enumerate().skip(k) {
+                            *out = h.values[h.pattern.indptr[i] + k];
+                        }
+                    });
+            } else {
+                for i in 0..n {
+                    for a in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                        self.l[h.pattern.indices[a] * n + i] = h.values[a];
+                    }
                 }
             }
         }
