@@ -443,6 +443,8 @@ struct Work {
     entered: Vec<bool>,
     /// Sources with at least one finite bound, rebuilt for each model.
     bounded: Vec<usize>,
+    /// Equality sources in original order, rebuilt alongside bounded.
+    equalities: Vec<usize>,
     /// Elastic weight `γ` of an elastic QP; rows are then soft.
     weight: Option<f64>,
     /// Rows that stay hard in an elastic QP (empty: none).
@@ -508,18 +510,22 @@ impl Work {
         self.hard.clear();
         self.hard.extend_from_slice(hard);
         self.bounded.clear();
-        self.bounded.extend(
-            model
-                .variables
-                .lower
-                .iter()
-                .zip(&model.variables.upper)
-                .chain(model.rows.lower.iter().zip(&model.rows.upper))
-                .enumerate()
-                .filter_map(|(i, (&lo, &hi))| {
-                    (lo != f64::NEG_INFINITY || hi != f64::INFINITY).then_some(i)
-                }),
-        );
+        self.equalities.clear();
+        for (i, (&lo, &hi)) in model
+            .variables
+            .lower
+            .iter()
+            .zip(&model.variables.upper)
+            .chain(model.rows.lower.iter().zip(&model.rows.upper))
+            .enumerate()
+        {
+            if lo != f64::NEG_INFINITY || hi != f64::INFINITY {
+                self.bounded.push(i);
+                if lo == hi {
+                    self.equalities.push(i);
+                }
+            }
+        }
         self.tolerance = tolerance;
     }
 
@@ -553,12 +559,11 @@ impl Work {
         self.entered.fill(false);
         self.elastic.fill(0.0);
         self.polished = false;
-        for s in 0..sources.count() {
-            let (lower, upper) = sources.bounds(s);
-            if lower == upper {
-                let member = self.member(sources, s, 1.0, lower, true);
-                self.force(sources, member);
-            }
+        for k in 0..self.equalities.len() {
+            let s = self.equalities[k];
+            let (lower, _) = sources.bounds(s);
+            let member = self.member(sources, s, 1.0, lower, true);
+            self.force(sources, member);
         }
         if let Some(set) = warm {
             for (s, activity) in set.variables.iter().chain(&set.rows).enumerate() {

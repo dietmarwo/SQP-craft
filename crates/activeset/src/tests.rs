@@ -644,11 +644,14 @@ fn source_lists_follow_mutated_bound_kinds() {
     let mut b = backend();
     optimal(&mut b, &model, None);
     assert!(b.work.bounded.is_empty());
+    assert!(b.work.equalities.is_empty());
     model.rows = Bounds::fixed(vec![3.0]);
     optimal(&mut b, &model, None);
     assert_eq!(b.work.bounded, vec![2]);
+    assert_eq!(b.work.equalities, vec![2]);
     model.variables = Bounds::fixed(vec![0.0; 2]);
     model.rows = Bounds::free(1);
     optimal(&mut b, &model, None);
     assert_eq!(b.work.bounded, vec![0, 1]);
+    assert_eq!(b.work.equalities, vec![0, 1]);
 }
