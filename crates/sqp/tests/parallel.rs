@@ -87,3 +87,52 @@ fn non_send_callbacks_stay_on_the_caller_for_both_backends() {
     check::<ActiveSetQp>();
     check::<ClarabelQp>();
 }
+
+#[test]
+fn native_batch_keeps_order_errors_and_non_send_model_ownership() {
+    let spec = ProblemSpec::new(
+        Bounds::new(vec![-3.; 2], vec![3.; 2]),
+        Bounds::free(0),
+        CsrPattern::dense(0, 2),
+    )
+    .unwrap();
+    let mut starts: Vec<_> = (0..17).map(|i| vec![i as f64 * 0.01, -1.]).collect();
+    starts[7][0] = 4.;
+    let make = |_| LocalModel {
+        owner: thread::current().id(),
+        width: Rc::new(Cell::new(0)),
+    };
+    let results = sqp_craft_solver::batch::solve_many::<ActiveSetQp, _, _>(
+        &spec,
+        &starts,
+        &SqpOptions::default(),
+        &Options::default(),
+        8,
+        make,
+        &CancellationToken::default(),
+    )
+    .unwrap();
+    assert_eq!(results.len(), 17);
+    for (i, r) in results.iter().enumerate() {
+        if i == 7 {
+            assert!(r.is_err());
+        } else {
+            assert_eq!(r.as_ref().unwrap().status, Status::Converged);
+        }
+    }
+    assert!(
+        sqp_craft_solver::batch::solve_many::<ActiveSetQp, _, _>(
+            &spec,
+            &starts,
+            &SqpOptions::default(),
+            &Options {
+                threads: 2,
+                ..Default::default()
+            },
+            8,
+            make,
+            &CancellationToken::default()
+        )
+        .is_err()
+    );
+}

@@ -31,6 +31,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod batch;
 mod bfgs;
 mod linear;
 mod merit;
