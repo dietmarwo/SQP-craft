@@ -66,7 +66,7 @@ impl Workspace {
         y: &[f64],
         repair: Option<(&Repair<'_>, usize)>,
     ) -> Option<CurvatureUpdate> {
-        if s.iter().fold(0.0_f64, |v, s| v.max(s.abs())) < 1e-14 {
+        if s.iter().all(|v| v.abs() < 1e-14) {
             return Some(CurvatureUpdate::Negligible);
         }
         let sv = DVectorView::from_slice(s, s.len());
@@ -463,4 +463,17 @@ mod tests {
             }
         }
     }
+}
+
+#[cfg(test)]
+#[test]
+fn nonfinite_displacement_is_not_a_negligible_bfgs_step() {
+    let mut b = DMatrix::identity(2, 2);
+    let before = b.clone();
+    assert!(
+        Workspace::new(2, false)
+            .update(&mut b, &[f64::NAN, 0.0], &[1.0, 1.0], None)
+            .is_none()
+    );
+    assert_eq!(b, before);
 }
