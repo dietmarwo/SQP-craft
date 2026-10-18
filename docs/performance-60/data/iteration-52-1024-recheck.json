@@ -1,0 +1,683 @@
+{
+  "repeats": 7,
+  "cases": [
+    [
+      "qp",
+      1024,
+      "active-set",
+      8,
+      1,
+      1
+    ]
+  ],
+  "environment": {
+    "affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "cpu_max": "800000 100000"
+  },
+  "binaries": {
+    "previous": {
+      "path": "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+      "sha256": "ff720e566408c6255ad4efa7caaeaed0b51f19ed23d444b58ea12df291215cb9"
+    },
+    "candidate": {
+      "path": "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+      "sha256": "b0790310de6476c3582e4c4290b48839d1cb6e81da477c7830e078f5cb14dda5"
+    }
+  },
+  "records": [
+    {
+      "build": "previous",
+      "repeat": 0,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.2247308090009028,
+      "cpu_seconds": 0.42296999999999996,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.207813266,
+          "resource_setup_seconds": 0.000664244,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.207813266
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 0,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.28868130200135056,
+      "cpu_seconds": 0.5023139999999998,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.263230141,
+          "resource_setup_seconds": 0.000691039,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.263230141
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 1,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.21301903800485888,
+      "cpu_seconds": 0.4117200000000002,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.196594432,
+          "resource_setup_seconds": 0.000722026,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.196594432
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 1,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.21073448300012387,
+      "cpu_seconds": 0.4082330000000002,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.194253233,
+          "resource_setup_seconds": 0.00056896,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.194253233
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 2,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.22020927799894707,
+      "cpu_seconds": 0.4094230000000002,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.203006161,
+          "resource_setup_seconds": 0.000414373,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.203006161
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 2,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.22135772299952805,
+      "cpu_seconds": 0.4258080000000002,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.205538903,
+          "resource_setup_seconds": 0.000565139,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.205538903
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 3,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.22852209900156595,
+      "cpu_seconds": 0.4356070000000002,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.213060195,
+          "resource_setup_seconds": 0.000506191,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.213060195
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 3,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.22445331199560314,
+      "cpu_seconds": 0.4300089999999997,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.20600690099999996,
+          "resource_setup_seconds": 0.00099152,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.20600690099999996
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 4,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.21371771299891407,
+      "cpu_seconds": 0.4179140000000002,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.197954631,
+          "resource_setup_seconds": 0.000357287,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.197954631
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 4,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.2366865020012483,
+      "cpu_seconds": 0.43615800000000043,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.21892115099999998,
+          "resource_setup_seconds": 0.000504188,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.21892115099999998
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 5,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.21009384599892655,
+      "cpu_seconds": 0.41194699999999995,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.19439973700000002,
+          "resource_setup_seconds": 0.000546962,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.19439973700000002
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 5,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.24445539599400945,
+      "cpu_seconds": 0.45390599999999987,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.22536790699999998,
+          "resource_setup_seconds": 0.000502836,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.22536790699999998
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 6,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.21240793400647817,
+      "cpu_seconds": 0.424019,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.19704294700000002,
+          "resource_setup_seconds": 0.000632681,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.19704294700000002
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 6,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.22374395599763375,
+      "cpu_seconds": 0.42114400000000013,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.207536451,
+          "resource_setup_seconds": 0.000451419,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.207536451
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 7,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/52/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.24970444299833616,
+      "cpu_seconds": 0.46942999999999985,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.232485047,
+          "resource_setup_seconds": 0.000398068,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.232485047
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 7,
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/51/performance_qp",
+        "1024",
+        "8"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.21126177100086352,
+      "cpu_seconds": 0.4195879999999999,
+      "results": [
+        {
+          "family": "qp",
+          "size": 1024,
+          "threads": 8,
+          "seconds": 0.19519903299999997,
+          "resource_setup_seconds": 0.000475916,
+          "objective": 3.5426533949999754,
+          "iterations": 0,
+          "fresh_hessian_calls": 3
+        },
+        {
+          "kind": "batch",
+          "jobs": 1,
+          "seconds": 0.19519903299999997
+        }
+      ],
+      "stderr": ""
+    }
+  ],
+  "summary": [
+    {
+      "build": "previous",
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "passed": 7,
+      "samples": 7,
+      "seconds": 0.197954631,
+      "cpu_seconds": 0.4195879999999999,
+      "objective": 3.5426533949999754,
+      "iterations": 0
+    },
+    {
+      "build": "candidate",
+      "case": [
+        "qp",
+        1024,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "passed": 7,
+      "samples": 7,
+      "seconds": 0.207536451,
+      "cpu_seconds": 0.4258080000000002,
+      "objective": 3.5426533949999754,
+      "iterations": 0
+    }
+  ]
+}

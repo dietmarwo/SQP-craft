@@ -170,3 +170,17 @@ fn reusable_checks_match_allocating_and_revalidate_inputs() {
             .is_err()
     );
 }
+
+#[test]
+fn checked_qp_arithmetic_still_rejects_every_invalid_multiplier_vector() {
+    let q = bound_qp();
+    for (rows, vars) in [
+        (vec![0.0], vec![0.5]),
+        (vec![], vec![]),
+        (vec![], vec![f64::NAN]),
+        (vec![], vec![f64::INFINITY]),
+    ] {
+        let s = solution(&[-0.5], &rows, &vars);
+        assert!(q.accepts(&s, 1e-7).is_err());
+    }
+}

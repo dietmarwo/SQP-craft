@@ -22,6 +22,7 @@ pub struct ClarabelQp {
     checks: QpResidualWorkspace,
     conversion: Option<ConversionCache>,
     pd: PdScratch,
+    threads: usize,
     #[cfg(test)]
     cancel_at_iteration: Option<u32>,
     #[cfg(test)]
@@ -37,6 +38,7 @@ impl Clone for ClarabelQp {
             checks: QpResidualWorkspace::default(),
             conversion: None,
             pd: PdScratch::default(),
+            threads: self.threads,
             #[cfg(test)]
             cancel_at_iteration: self.cancel_at_iteration,
             #[cfg(test)]
@@ -475,6 +477,12 @@ impl ClarabelQp {
 }
 
 impl QpBackend for ClarabelQp {
+    fn set_threads(&mut self, threads: usize) -> Result<()> {
+        sqp_craft_parallel::validate_threads(threads).map_err(Error::Unsupported)?;
+        self.threads = threads;
+        Ok(())
+    }
+
     fn configure(&mut self, options: &QpOptions) -> Result<()> {
         options.validate()?;
         if options.elastic_weight.is_some() {

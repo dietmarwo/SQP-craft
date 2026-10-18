@@ -39,6 +39,21 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
     debug_assert_eq!(l.len(), n * n);
     debug_assert_eq!(j.len(), n * n);
     j.fill(0.0);
+    if n == 0 {
+        return;
+    }
+    if l.chunks_exact(n)
+        .enumerate()
+        .all(|(k, col)| col[k + 1..].iter().all(|&v| v == 0.0))
+    {
+        // The general recurrence below gives −0.0 above the diagonal
+        // (−dot/l with dot = +0.0 and l > 0); keep those bits.
+        for k in 0..n {
+            j[k * n..k * n + k].fill(-0.0);
+            j[k * n + k] = 1.0 / l[k * n + k];
+        }
+        return;
+    }
     // Column k solves Lᵀ y = e_k; y vanishes below row k.
     for k in 0..n {
         let column = &mut j[k * n..(k + 1) * n];
@@ -48,6 +63,33 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
             column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
         }
     }
+}
+
+/// Independent inverse columns with unchanged within-column arithmetic.
+pub(crate) fn inverse_transpose_parallel(
+    l: &[f64],
+    j: &mut [f64],
+    n: usize,
+    execution: &sqp_craft_parallel::Execution,
+) {
+    if n < 512
+        || execution.threads() == 1
+        || l.chunks_exact(n)
+            .enumerate()
+            .all(|(k, col)| col[k + 1..].iter().all(|&v| v == 0.0))
+    {
+        inverse_transpose(l, j, n);
+        return;
+    }
+    j.fill(0.0);
+    execution.chunks_mut(j, n, n * n * n / 3, |start, column| {
+        let k = start / n;
+        column[k] = 1.0 / l[k * n + k];
+        for i in (0..k).rev() {
+            let li = &l[i * n..(i + 1) * n];
+            column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
+        }
+    });
 }
 
 /// `Σ a_i b_i` with four partial sums, so the loop vectorizes.
@@ -105,11 +147,27 @@ pub(crate) fn rotate(x: &mut [f64], y: &mut [f64], c: f64, s: f64) {
 /// operations, against `6 n·len` for a chain of Givens rotations. The first
 /// column is negated if needed, so the leading entry is nonnegative. `w` is
 /// scratch of length `n`.
+#[cfg(test)]
 pub(crate) fn reflect(j: &mut [f64], n: usize, q: usize, tail: &mut [f64], w: &mut [f64]) {
+    reflect_parallel(j, n, q, tail, w, &sqp_craft_parallel::Execution::default());
+}
+
+/// Disjoint reflector target columns, with an ordered unchanged accumulator.
+pub(crate) fn reflect_parallel(
+    j: &mut [f64],
+    n: usize,
+    q: usize,
+    tail: &mut [f64],
+    w: &mut [f64],
+    execution: &sqp_craft_parallel::Execution,
+) {
     let columns = &mut j[q * n..];
     debug_assert_eq!(columns.len(), tail.len() * n);
-    if tail[1..].iter().any(|&v| v != 0.0) {
+    let used = tail.iter().rposition(|&v| v != 0.0).map_or(1, |i| i + 1);
+    let columns = &mut columns[..used * n];
+    if used > 1 {
         let size = norm(tail);
+        let tail = &mut tail[..used];
         let alpha = tail[0];
         let beta = if alpha >= 0.0 { -size } else { size };
         // H = I − τ v vᵀ with v = tail − β e₁ and vᵀv = 2‖tail‖(‖tail‖ + |α|).
@@ -121,11 +179,21 @@ pub(crate) fn reflect(j: &mut [f64], n: usize, q: usize, tail: &mut [f64], w: &m
                 axpy(v, column, w);
             }
         }
-        for (&v, column) in tail.iter().zip(columns.chunks_exact_mut(n)) {
-            if v != 0.0 {
-                axpy(-tau * v, w, column);
+        if n >= 512 && execution.threads() > 1 {
+            execution.chunks_mut(columns, n, n * used * 3, |start, column| {
+                let v = tail[start / n];
+                if v != 0.0 {
+                    axpy(-tau * v, w, column);
+                }
+            });
+        } else {
+            for (&v, column) in tail.iter().zip(columns.chunks_exact_mut(n)) {
+                if v != 0.0 {
+                    axpy(-tau * v, w, column);
+                }
             }
         }
+
         tail[0] = beta;
         tail[1..].fill(0.0);
     }
@@ -242,5 +310,110 @@ mod tests {
         assert_eq!(givens(0.0, 0.0), (1.0, 0.0, 0.0));
         let a: Vec<f64> = (0..11).map(|i| i as f64).collect();
         assert_eq!(dot(&a, &a), (0..11).map(|i| (i * i) as f64).sum::<f64>());
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn diagonal_inverse_is_exact_and_tiny_coupling_keeps_the_general_path() {
+    for n in [0, 1, 7, 32] {
+        let mut l = vec![0.0; n * n];
+        for k in 0..n {
+            l[k * n + k] = 2.0 + k as f64;
+        }
+        let mut j = vec![f64::NAN; n * n];
+        inverse_transpose(&l, &mut j, n);
+        for col in 0..n {
+            for row in 0..n {
+                // As the general recurrence: −0.0 above the diagonal.
+                let expected = match row.cmp(&col) {
+                    std::cmp::Ordering::Less => -0.0,
+                    std::cmp::Ordering::Equal => 1.0 / (2.0 + col as f64),
+                    std::cmp::Ordering::Greater => 0.0,
+                };
+                assert_eq!(j[col * n + row].to_bits(), f64::to_bits(expected));
+            }
+        }
+    }
+    let mut j = vec![0.0; 4];
+    inverse_transpose(&[2.0, 1e-12, f64::NAN, 3.0], &mut j, 2);
+    assert!((j[2] + 1e-12 / 6.0).abs() < 1e-28);
+}
+
+/// Solves L L^T x = rhs in place, using the checked lower factor.
+pub(crate) fn solve_factored(l: &[f64], x: &mut [f64], n: usize) {
+    debug_assert_eq!(l.len(), n * n);
+    debug_assert_eq!(x.len(), n);
+    for i in 0..n {
+        let mut value = x[i];
+        for k in 0..i {
+            value -= l[k * n + i] * x[k];
+        }
+        x[i] = value / l[i * n + i];
+    }
+    for i in (0..n).rev() {
+        let col = &l[i * n..(i + 1) * n];
+        x[i] = (x[i] - dot(&col[i + 1..], &x[i + 1..])) / col[i];
+    }
+}
+
+#[cfg(test)]
+mod parallel_inverse_tests {
+    use super::*;
+    #[test]
+    fn inverse_columns_are_bit_identical_at_dispatch_boundaries() {
+        let execution = sqp_craft_parallel::Execution::new(8).unwrap();
+        for n in [0, 1, 31, 127, 128, 129, 256, 511, 512, 768] {
+            let mut l = vec![0.0; n * n];
+            for k in 0..n {
+                l[k * n + k] = 1.0 + k as f64 * 0.01;
+                for i in k + 1..n {
+                    l[k * n + i] = ((i + k) % 17) as f64 * 0.001;
+                }
+            }
+            let mut a = vec![f64::NAN; n * n];
+            let mut b = a.clone();
+            inverse_transpose(&l, &mut a, n);
+            inverse_transpose_parallel(&l, &mut b, n, &execution);
+            assert_eq!(
+                a.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+                b.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod parallel_reflector_tests {
+    use super::*;
+    #[test]
+    fn reflector_target_columns_are_bit_identical() {
+        let execution = sqp_craft_parallel::Execution::new(8).unwrap();
+        for n in [17, 128, 256, 512] {
+            for q in [0, n / 2, n - 1] {
+                let mut a: Vec<_> = (0..n * n).map(|i| (i % 97) as f64 * 0.001 - 0.02).collect();
+                let mut b = a.clone();
+                let mut ta: Vec<_> = (0..n - q)
+                    .map(|i| {
+                        if i % 3 == 0 {
+                            0.0
+                        } else {
+                            (i % 13) as f64 * 0.01 - 0.02
+                        }
+                    })
+                    .collect();
+                if ta.iter().all(|&x| x == 0.0) {
+                    ta[0] = 0.5;
+                }
+                let mut tb = ta.clone();
+                let mut wa = vec![0.0; n];
+                let mut wb = wa.clone();
+                reflect(&mut a, n, q, &mut ta, &mut wa);
+                reflect_parallel(&mut b, n, q, &mut tb, &mut wb, &execution);
+                assert_eq!(a, b);
+                assert_eq!(ta, tb);
+                assert_eq!(wa, wb);
+            }
+        }
     }
 }

@@ -38,6 +38,14 @@ use crate::error::Result;
 /// is mutable and local to one solve. Parallel strategies run independent
 /// solves with independent model instances.
 pub trait NlpProblem {
+    /// Offers a validated native worker budget before the first evaluation.
+    /// The default keeps callbacks serial. An opt-in native model may split
+    /// independent numeric work while retaining model ownership on its caller
+    /// thread. Python callbacks are not moved to worker threads by this hook.
+    fn set_threads(&mut self, _threads: usize) -> Result<()> {
+        Ok(())
+    }
+
     /// Evaluates the objective `f(x)`, returned, and the constraints `c(x)`,
     /// written to `constraints` (length `m`).
     fn functions(&mut self, x: &[f64], constraints: &mut [f64]) -> Result<f64>;

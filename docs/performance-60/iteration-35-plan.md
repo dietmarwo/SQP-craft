@@ -1,0 +1,3 @@
+# Iteration 35: Share compatible owned worker pools
+
+Before adding a second execution owner for BFGS, ensure compatible explicit widths reuse a process-local weakly indexed Arc pool. Hold a short creation lock to prevent duplicate simultaneous construction; no global Rayon pool mutation, no permanent strong retention. Different widths stay independent. Clones/callers own their handles; after the last owner drops, the pool can shut down. Test same-width identity, different widths, dropping owners and recreation. Timing still includes cold construction/teardown, so no speedup claim is expected where only one owner exists. Full release suites and paired native/batch timings. This adapts the candidate order to prevent oversubscription before BFGS integration.

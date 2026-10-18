@@ -1,0 +1,3 @@
+# Iteration 38: Parallel BFGS symmetric commit
+
+The computed lower triangle is immutable once the finite gate passes. For explicit multi-thread execution on n>=128, commit independent full target columns into B by reading the corresponding lower entry from scratch; this avoids mutable aliasing or unsafe code. Preserve the scalar mirror/swap for small/default runs. If block positive-definiteness checking is enabled, check the computed lower triangle before any B mutation; nalgebra Cholesky uses that triangle. Test serial/eight-thread bit equality and rejected-update B preservation. Full release tests plus paired NLP and batch measurements; acknowledge extra lower-copy work and tune by evidence.

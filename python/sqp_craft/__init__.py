@@ -33,7 +33,7 @@ from ._native import check_derivatives as _check_derivatives
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.14.0"
+__version__ = "0.16.0"
 
 __all__ = [
     "Cancellation",
@@ -99,7 +99,12 @@ class Options:
     feasibility_tolerance: float = 1e-7
     """Absolute tolerance, in original units, on the largest bound violation."""
     threads: int = 1
-    """Only 1 is supported; run independent solves for parallelism."""
+    """Maximum native worker threads inside one solve, 1 through 8. Python
+    callbacks and observers still run on the calling thread. Only the
+    active-set backend splits native work, and only when it is large: row
+    norms from 32,768 bounded-row Jacobian entries, the dense kernels from 512
+    variables (standalone QPs; the NLP limit is 256). Below that the solve is
+    serial; for many small problems, run independent solves instead."""
 
 
 @dataclass(frozen=True, kw_only=True)

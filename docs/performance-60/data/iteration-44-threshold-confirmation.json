@@ -1,0 +1,1533 @@
+{
+  "repeats": 5,
+  "cases": [
+    [
+      "separable",
+      256,
+      "active-set",
+      1,
+      1,
+      1
+    ],
+    [
+      "separable",
+      256,
+      "active-set",
+      8,
+      1,
+      1
+    ]
+  ],
+  "environment": {
+    "affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "cpu_max": "800000 100000"
+  },
+  "binaries": {
+    "previous": {
+      "path": "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+      "sha256": "99f987e45538ad6080737683ceaa237bbcba23239c4088075dcd33c39d166425"
+    },
+    "candidate": {
+      "path": "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+      "sha256": "ee1d26d1692d01a8cdd778b63c641027e2673c8d7ede699fb2410701bc21004a"
+    }
+  },
+  "records": [
+    {
+      "build": "previous",
+      "repeat": 0,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11697277399798622,
+      "cpu_seconds": 0.116586,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.114986719,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0032331909999999994,
+          "conversion_seconds": 0.0032675079999999997,
+          "engine_seconds": 0.08492310600000001,
+          "setup_seconds": 0.016014804999999997,
+          "check_seconds": 0.001855666,
+          "qp_seconds": 0.10697570100000002,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.115106829,
+          "throughput": 8.687581863626875
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 0,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11366061699663987,
+      "cpu_seconds": 0.11316699999999999,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.111741623,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0032105659999999998,
+          "conversion_seconds": 0.003153836000000001,
+          "engine_seconds": 0.08380419600000001,
+          "setup_seconds": 0.014944212999999998,
+          "check_seconds": 0.0018013070000000003,
+          "qp_seconds": 0.10460739,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.111873852,
+          "throughput": 8.938639209455307
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 0,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.1393474819997209,
+      "cpu_seconds": 0.163437,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.136956394,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.014836799000000003,
+          "conversion_seconds": 0.003614251,
+          "engine_seconds": 0.090856566,
+          "setup_seconds": 0.018271530999999997,
+          "check_seconds": 0.0022709040000000002,
+          "qp_seconds": 0.11612264400000001,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.137419189,
+          "throughput": 7.277004087107515
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 0,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.5405572519957786,
+      "cpu_seconds": 1.7978979999999998,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.538099388,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.00664804,
+          "conversion_seconds": 0.004668828,
+          "engine_seconds": 0.5034402899999999,
+          "setup_seconds": 0.014548132000000002,
+          "check_seconds": 0.0022812229999999998,
+          "qp_seconds": 0.52613717,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.538812991,
+          "throughput": 1.8559314951632262
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 1,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.10836201599886408,
+      "cpu_seconds": 0.1079610000000002,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.106478956,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0032064890000000003,
+          "conversion_seconds": 0.0030508469999999998,
+          "engine_seconds": 0.07985783900000001,
+          "setup_seconds": 0.013748052999999998,
+          "check_seconds": 0.001625696,
+          "qp_seconds": 0.09918652300000001,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.106603823,
+          "throughput": 9.380526625203675
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 1,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.10400127199682174,
+      "cpu_seconds": 0.10344699999999984,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.102047757,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0032272710000000003,
+          "conversion_seconds": 0.00289327,
+          "engine_seconds": 0.075837746,
+          "setup_seconds": 0.013609323999999999,
+          "check_seconds": 0.001620136,
+          "qp_seconds": 0.094917053,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.102177582,
+          "throughput": 9.786882606010387
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 1,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.6861178030012525,
+      "cpu_seconds": 1.9607170000000003,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.684007938,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.008637640999999998,
+          "conversion_seconds": 0.0045393529999999994,
+          "engine_seconds": 0.647727502,
+          "setup_seconds": 0.014331881000000001,
+          "check_seconds": 0.002147255,
+          "qp_seconds": 0.6698176979999999,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.68428871,
+          "throughput": 1.4613714728685205
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 1,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11760236300324323,
+      "cpu_seconds": 0.12909300000000012,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.115512292,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.005056227000000001,
+          "conversion_seconds": 0.003010262,
+          "engine_seconds": 0.08567658200000002,
+          "setup_seconds": 0.014233375999999999,
+          "check_seconds": 0.0017970219999999997,
+          "qp_seconds": 0.10577205299999998,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.115801978,
+          "throughput": 8.635431080460474
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 2,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11210364400176331,
+      "cpu_seconds": 0.11099700000000023,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.110419758,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0031200900000000003,
+          "conversion_seconds": 0.0030559759999999997,
+          "engine_seconds": 0.08280019899999999,
+          "setup_seconds": 0.014584871000000001,
+          "check_seconds": 0.0017365089999999998,
+          "qp_seconds": 0.10316943299999998,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.110631877,
+          "throughput": 9.038986114282414
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 2,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11771400999714388,
+      "cpu_seconds": 0.11736299999999966,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.115840685,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0031648569999999997,
+          "conversion_seconds": 0.0030133089999999996,
+          "engine_seconds": 0.08794402999999999,
+          "setup_seconds": 0.015078613,
+          "check_seconds": 0.0018003160000000002,
+          "qp_seconds": 0.108744149,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.115972663,
+          "throughput": 8.622721718479466
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 2,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11817552900174633,
+      "cpu_seconds": 0.1350899999999995,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.11580019,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.007393896999999999,
+          "conversion_seconds": 0.0030734580000000007,
+          "engine_seconds": 0.08373924,
+          "setup_seconds": 0.014075338000000001,
+          "check_seconds": 0.0017107529999999998,
+          "qp_seconds": 0.10352105900000001,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.116116835,
+          "throughput": 8.612015647860192
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 2,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.5088075419989764,
+      "cpu_seconds": 1.756306,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.506616008,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0071405420000000015,
+          "conversion_seconds": 0.004151874999999999,
+          "engine_seconds": 0.4727965509999999,
+          "setup_seconds": 0.013944599999999998,
+          "check_seconds": 0.0019408809999999998,
+          "qp_seconds": 0.49384803099999997,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.507155078,
+          "throughput": 1.971783470932731
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 3,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.10943531600059941,
+      "cpu_seconds": 0.10908700000000016,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.10781438,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0031956420000000003,
+          "conversion_seconds": 0.0031705730000000007,
+          "engine_seconds": 0.08070981299999998,
+          "setup_seconds": 0.014146965000000003,
+          "check_seconds": 0.0016682500000000002,
+          "qp_seconds": 0.10058211,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.10794755,
+          "throughput": 9.263758186267312
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 3,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.10882845200103475,
+      "cpu_seconds": 0.10840100000000019,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.106783018,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.003249012,
+          "conversion_seconds": 0.0029114729999999995,
+          "engine_seconds": 0.07975487600000002,
+          "setup_seconds": 0.014023377000000002,
+          "check_seconds": 0.001715128,
+          "qp_seconds": 0.09932687199999995,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.106913734,
+          "throughput": 9.35333527870236
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 3,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.5485769049992086,
+      "cpu_seconds": 1.9197669999999993,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.546209632,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.006426668,
+          "conversion_seconds": 0.005139154000000001,
+          "engine_seconds": 0.5120609609999999,
+          "setup_seconds": 0.013820844999999998,
+          "check_seconds": 0.002065716,
+          "qp_seconds": 0.5342316869999999,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.546500319,
+          "throughput": 1.8298250984186526
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 3,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11704004800412804,
+      "cpu_seconds": 0.1381050000000008,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.114517963,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.009897726999999999,
+          "conversion_seconds": 0.0029355320000000002,
+          "engine_seconds": 0.08089684299999998,
+          "setup_seconds": 0.013783096000000002,
+          "check_seconds": 0.00166342,
+          "qp_seconds": 0.100191762,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.114943132,
+          "throughput": 8.699954339159646
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 4,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11323347900179215,
+      "cpu_seconds": 0.1127619999999987,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.111484915,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.003814953000000001,
+          "conversion_seconds": 0.0029633740000000004,
+          "engine_seconds": 0.08294675400000001,
+          "setup_seconds": 0.014072408999999996,
+          "check_seconds": 0.0024613800000000004,
+          "qp_seconds": 0.10343427699999999,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.111610133,
+          "throughput": 8.959759952978462
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 4,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.1098580559992115,
+      "cpu_seconds": 0.10948100000000016,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.108133533,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.0031393359999999995,
+          "conversion_seconds": 0.0029264589999999997,
+          "engine_seconds": 0.08111679200000001,
+          "setup_seconds": 0.014370006,
+          "check_seconds": 0.001798561,
+          "qp_seconds": 0.10117355600000001,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.108288426,
+          "throughput": 9.234597241260115
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 4,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.12563624900212744,
+      "cpu_seconds": 0.1464209999999997,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.123359387,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.010611809000000002,
+          "conversion_seconds": 0.003065507,
+          "engine_seconds": 0.08678375599999999,
+          "setup_seconds": 0.014916839000000001,
+          "check_seconds": 0.001866745,
+          "qp_seconds": 0.10760540299999999,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.123757105,
+          "throughput": 8.080344154786102
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 4,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.5457255079963943,
+      "cpu_seconds": 1.6858059999999995,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.543440223,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.02964157,
+          "conversion_seconds": 0.004126074,
+          "engine_seconds": 0.4862978320000001,
+          "setup_seconds": 0.014620373,
+          "check_seconds": 0.0021066989999999996,
+          "qp_seconds": 0.508268651,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.544159775,
+          "throughput": 1.8376955555011394
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 5,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.1083450959995389,
+      "cpu_seconds": 0.1077900000000005,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.106363347,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.003184206,
+          "conversion_seconds": 0.0031073289999999994,
+          "engine_seconds": 0.0797899,
+          "setup_seconds": 0.013754884,
+          "check_seconds": 0.0016745569999999997,
+          "qp_seconds": 0.09924086100000001,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.106503528,
+          "throughput": 9.389360322411104
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 5,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "1",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.1078837629975169,
+      "cpu_seconds": 0.10752099999999931,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.106001595,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.003347713,
+          "conversion_seconds": 0.0030461290000000007,
+          "engine_seconds": 0.078691088,
+          "setup_seconds": 0.014243463999999997,
+          "check_seconds": 0.0017743159999999997,
+          "qp_seconds": 0.098647633,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.106129968,
+          "throughput": 9.422409323632321
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "previous",
+      "repeat": 5,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/43/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.5494851379989996,
+      "cpu_seconds": 1.8745260000000004,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.546826082,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.007892251,
+          "conversion_seconds": 0.004820757,
+          "engine_seconds": 0.5096059009999999,
+          "setup_seconds": 0.014869587999999996,
+          "check_seconds": 0.002305535,
+          "qp_seconds": 0.5329549949999999,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.547341036,
+          "throughput": 1.8270144831603674
+        }
+      ],
+      "stderr": ""
+    },
+    {
+      "build": "candidate",
+      "repeat": 5,
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "command": [
+        "/workspace/scratch/f38b380ad117/sqp-parallel-validation/checkpoints/44/performance_parallel",
+        "separable",
+        "256",
+        "reuse",
+        "0",
+        "active-set",
+        "8",
+        "1",
+        "1"
+      ],
+      "returncode": 0,
+      "process_seconds": 0.11491350800497457,
+      "cpu_seconds": 0.1259560000000004,
+      "results": [
+        {
+          "family": "separable",
+          "backend": "active-set",
+          "size": 256,
+          "reuse": true,
+          "hessian_block_size": 0,
+          "seconds": 0.112780683,
+          "objective": 4.854967335172301e-12,
+          "iterations": 22,
+          "qp_calls": 23,
+          "qp_iterations": 116,
+          "bfgs_seconds": 0.004513891000000001,
+          "conversion_seconds": 0.003138896,
+          "engine_seconds": 0.083100375,
+          "setup_seconds": 0.014568624999999998,
+          "check_seconds": 0.001867426,
+          "qp_seconds": 0.10360261800000001,
+          "block_hessian_fallbacks": 0,
+          "setups": 23,
+          "updates": 0,
+          "primal": 4.440892098500626e-16,
+          "stationarity": 7.938834475587418e-07
+        },
+        {
+          "kind": "batch",
+          "workers": 1,
+          "jobs": 1,
+          "seconds": 0.113117138,
+          "throughput": 8.840393398213452
+        }
+      ],
+      "stderr": ""
+    }
+  ],
+  "summary": [
+    {
+      "build": "previous",
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "passed": 5,
+      "samples": 5,
+      "seconds": 0.106913734,
+      "cpu_seconds": 0.10840100000000019,
+      "objective": 4.854967335172301e-12,
+      "iterations": 22
+    },
+    {
+      "build": "candidate",
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        1,
+        1,
+        1
+      ],
+      "passed": 5,
+      "samples": 5,
+      "seconds": 0.10794755,
+      "cpu_seconds": 0.10908700000000016,
+      "objective": 4.854967335172301e-12,
+      "iterations": 22
+    },
+    {
+      "build": "previous",
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "passed": 5,
+      "samples": 5,
+      "seconds": 0.546500319,
+      "cpu_seconds": 1.8745260000000004,
+      "objective": 4.854967335172301e-12,
+      "iterations": 22
+    },
+    {
+      "build": "candidate",
+      "case": [
+        "separable",
+        256,
+        "active-set",
+        8,
+        1,
+        1
+      ],
+      "passed": 5,
+      "samples": 5,
+      "seconds": 0.115801978,
+      "cpu_seconds": 0.1350899999999995,
+      "objective": 4.854967335172301e-12,
+      "iterations": 22
+    }
+  ]
+}

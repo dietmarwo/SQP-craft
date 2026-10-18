@@ -1,0 +1,38 @@
+{
+  "seed": 2026,
+  "cases": 1000,
+  "counts": {
+    "reference-census.log": [
+      "     4 feasible QP: active-set check, clarabel error",
+      "     1 feasible QP: active-set limit, clarabel optimal",
+      "     5 feasible QP: active-set optimal, clarabel check",
+      "    11 feasible QP: active-set optimal, clarabel error",
+      "   735 feasible QP: active-set optimal, clarabel optimal",
+      "     1 infeasible QP: active-set infeasible, clarabel check",
+      "     2 infeasible QP: active-set infeasible, clarabel error",
+      "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+    ],
+    "release-census-1.log": [
+      "     4 feasible QP: active-set check, clarabel error",
+      "     1 feasible QP: active-set limit, clarabel optimal",
+      "     5 feasible QP: active-set optimal, clarabel check",
+      "    11 feasible QP: active-set optimal, clarabel error",
+      "   735 feasible QP: active-set optimal, clarabel optimal",
+      "     1 infeasible QP: active-set infeasible, clarabel check",
+      "     2 infeasible QP: active-set infeasible, clarabel error",
+      "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+    ],
+    "release-census-8.log": [
+      "     4 feasible QP: active-set check, clarabel error",
+      "     1 feasible QP: active-set limit, clarabel optimal",
+      "     5 feasible QP: active-set optimal, clarabel check",
+      "    11 feasible QP: active-set optimal, clarabel error",
+      "   735 feasible QP: active-set optimal, clarabel optimal",
+      "     1 infeasible QP: active-set infeasible, clarabel check",
+      "     2 infeasible QP: active-set infeasible, clarabel error",
+      "   241 infeasible QP: active-set infeasible, clarabel infeasible"
+    ]
+  },
+  "identical": true,
+  "note": "Known independent-check rejections/errors/limit remain outcomes, not successful solves; census dimensions at most100, with separate512+ kernel/stress coverage."
+}

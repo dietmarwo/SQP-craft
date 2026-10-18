@@ -7,9 +7,7 @@
 //! backend-specific warm-start state are still to come.
 
 use crate::error::{Error, Result, ensure, first_non_finite};
-use crate::kkt::{
-    KktPoint, KktResiduals, elastic_residuals_with_hard_rows, residuals_with_workspace,
-};
+use crate::kkt::{KktPoint, KktResiduals, elastic_residuals_with_hard_rows, residuals_validated};
 use crate::solver::{CancellationToken, Multipliers};
 use crate::spec::{Bounds, CsrMatrix};
 
@@ -94,7 +92,8 @@ impl QpModel {
             )
         })?;
         for i in 0..n {
-            if let Some(&j) = h.row(i).iter().find(|&&j| j > i) {
+            if h.row(i).last().is_some_and(|&j| j > i) {
+                let j = *h.row(i).iter().find(|&&j| j > i).expect("above diagonal");
                 return Err(Error::InvalidInput(format!(
                     "QP Hessian: entry ({i}, {j}) is above the diagonal; store the lower triangle only"
                 )));
@@ -114,15 +113,28 @@ impl QpModel {
         out.fill(0.0);
         for i in 0..self.n() {
             let range = h.pattern.indptr[i]..h.pattern.indptr[i + 1];
+            let pi = p[i];
+            let mut value = out[i];
+            if range.len() == i + 1 {
+                // In a valid lower-only sorted row, full length proves 0..=i.
+                let values = &h.values[range];
+                for ((&v, &pj), outj) in values[..i].iter().zip(&p[..i]).zip(&mut out[..i]) {
+                    value += v * pj;
+                    *outj += v * pi;
+                }
+                out[i] = value + values[i] * pi;
+                continue;
+            }
             for (&j, &v) in h.pattern.indices[range.clone()]
                 .iter()
                 .zip(&h.values[range])
             {
-                out[i] += v * p[j];
+                value += v * p[j];
                 if j != i {
-                    out[j] += v * p[i];
+                    out[j] += v * pi;
                 }
             }
+            out[i] = value;
         }
     }
 
@@ -230,7 +242,31 @@ impl QpModel {
             jacobian_values: &self.matrix.values,
         };
         let Some((weight, slack, hard)) = elastic else {
-            return residuals_with_workspace(&point, &solution.multipliers, transpose);
+            for (what, values, expected) in [
+                (
+                    "variable multipliers",
+                    solution.multipliers.variables.as_slice(),
+                    self.n(),
+                ),
+                (
+                    "row multipliers",
+                    solution.multipliers.constraints.as_slice(),
+                    self.m(),
+                ),
+            ] {
+                ensure(values.len() == expected, || {
+                    format!(
+                        "KKT input: {what} has length {}, expected {expected}",
+                        values.len()
+                    )
+                })?;
+                if let Some((i, v)) = first_non_finite(values) {
+                    return Err(Error::InvalidInput(format!(
+                        "KKT input: {what} entry {i} is {v}"
+                    )));
+                }
+            }
+            return residuals_validated(&point, &solution.multipliers, transpose);
         };
         let mut relaxed = Bounds::new(std::mem::take(relaxed_lower), std::mem::take(relaxed_upper));
         let result = elastic_residuals_with_hard_rows(
@@ -477,6 +513,18 @@ pub enum QpOutcome {
 
 /// A QP subproblem solver.
 pub trait QpBackend {
+    /// Sets a maximum native worker budget. Custom backends default to one
+    /// thread and explicitly reject an unsupported parallel request.
+    fn set_threads(&mut self, threads: usize) -> Result<()> {
+        if threads == 1 {
+            Ok(())
+        } else {
+            Err(Error::Unsupported(format!(
+                "parallel threads = {threads} unsupported by this QP backend"
+            )))
+        }
+    }
+
     /// Configure tolerances and per-call budgets. Unsupported by the dummy.
     fn configure(&mut self, _options: &QpOptions) -> Result<()> {
         Err(Error::Unsupported("QP options are not implemented".into()))

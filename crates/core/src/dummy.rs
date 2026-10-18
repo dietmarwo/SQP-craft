@@ -41,6 +41,11 @@ impl SqpSolver for DummySolver {
         observer: Option<&mut dyn Observer>,
     ) -> Result<SolveResult> {
         options.validate()?;
+        if options.threads != 1 {
+            return Err(Error::Unsupported(
+                "dummy method supports only one thread".into(),
+            ));
+        }
         spec.check_point(x0, "start point")?;
 
         let mut result = SolveResult {

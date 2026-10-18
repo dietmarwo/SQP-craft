@@ -6,3 +6,13 @@ __pycache__/
 *.so
 *.pyd
 *.egg-info/
+
+# Large paired stress dumps and logs ship in the performance-30 source archive.
+/docs/performance-30/data/stress/
+/docs/performance-30/data/validation/
+/SOURCE-REVISION
+/MANIFEST.sha256
+
+/docs/performance-60/data/stress/
+/docs/performance-60/data/validation/
+/docs/performance-60/data/*.progress.json

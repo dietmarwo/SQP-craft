@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "sqp-craft"
-version = "0.14.0"
+version = "0.16.0"
 description = "SQP solver in Rust (dense-BFGS pilot with Clarabel QPs) with Python bindings"
 readme = "README.md"
 license = "MIT"
