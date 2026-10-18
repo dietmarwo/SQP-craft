@@ -110,8 +110,8 @@ pub fn residuals_with_workspace(
 
     let primal = point
         .variable_bounds
-        .checked_violation(point.x)?
-        .max(point.row_bounds.checked_violation(point.rows)?);
+        .violation_with_valid_bounds(point.x)?
+        .max(point.row_bounds.violation_with_valid_bounds(point.rows)?);
 
     jt_lambda.resize(n, 0.);
     point

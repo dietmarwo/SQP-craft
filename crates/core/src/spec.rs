@@ -81,6 +81,13 @@ impl Bounds {
     /// Checked bound violation, rejecting malformed inputs and arithmetic overflow.
     pub fn checked_violation(&self, values: &[f64]) -> Result<f64> {
         self.validate(values.len(), "bounds")?;
+        self.violation_with_valid_bounds(values)
+    }
+
+    /// Bounds/lengths must have been validated by the caller. Values and arithmetic remain checked.
+    pub(crate) fn violation_with_valid_bounds(&self, values: &[f64]) -> Result<f64> {
+        debug_assert_eq!(values.len(), self.lower.len());
+        debug_assert_eq!(values.len(), self.upper.len());
         let mut result = 0.0_f64;
         for (i, &v) in values.iter().enumerate() {
             ensure(v.is_finite(), || format!("point entry {i} must be finite"))?;
