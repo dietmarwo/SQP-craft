@@ -157,10 +157,13 @@ impl Workspace {
         if !finite {
             return None;
         }
-        let next = self.next.as_mut_slice();
-        for j in 0..n {
-            for i in j + 1..n {
-                next[i * n + j] = next[j * n + i];
+        let parallel_commit = self.execution.threads() > 1 && n >= 128;
+        if !parallel_commit {
+            let next = self.next.as_mut_slice();
+            for j in 0..n {
+                for i in j + 1..n {
+                    next[i * n + j] = next[j * n + i];
+                }
             }
         }
         if let Some(buffer) = self.check.as_mut() {
@@ -174,7 +177,22 @@ impl Workspace {
                 }
             }
         }
-        std::mem::swap(b, &mut self.next);
+        if parallel_commit {
+            let next = self.next.as_slice();
+            self.execution
+                .chunks_mut(b.as_mut_slice(), n, n * n, |start, target| {
+                    let j = start / n;
+                    for (i, out) in target.iter_mut().enumerate() {
+                        *out = if i >= j {
+                            next[start + i]
+                        } else {
+                            next[i * n + j]
+                        };
+                    }
+                });
+        } else {
+            std::mem::swap(b, &mut self.next);
+        }
         Some(kind)
     }
 
