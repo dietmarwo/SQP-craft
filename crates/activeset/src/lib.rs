@@ -442,8 +442,11 @@ impl Work {
         let n = model.n();
         self.n = n;
         self.l.resize(n * n, 0.0);
-        for (k, column) in self.l.chunks_exact_mut(n).enumerate() {
-            column[k..].fill(0.0);
+        let full = n.checked_mul(n + 1).map(|v| v / 2) == Some(model.hessian_lower.values.len());
+        if !full {
+            for (k, column) in self.l.chunks_exact_mut(n).enumerate() {
+                column[k..].fill(0.0);
+            }
         }
         // `j` and `r` are fully written before they are read.
         self.j.resize(n * n, 0.0);
