@@ -963,7 +963,9 @@ fn kkt_solve(
     x.fill(0.0);
     for (k, column) in j.chunks_exact(n).enumerate() {
         let f = if k < q { u[k] } else { -c[k] };
-        dense::axpy(f, column, x);
+        if f != 0.0 {
+            dense::axpy(f, column, x);
+        }
     }
     for k in 0..q {
         u[k] += c[k];
