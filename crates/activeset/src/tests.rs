@@ -94,7 +94,10 @@ fn bound_constrained_qp_clips_the_unconstrained_minimizer() {
         set.variables,
         [Activity::AtUpper, Activity::AtLower, Activity::Inactive]
     );
-    assert_eq!(s.iterations, 2);
+    assert_eq!(
+        s.iterations, 0,
+        "closed-form box solve changes no working set"
+    );
 }
 
 #[test]
@@ -326,7 +329,7 @@ fn the_budget_charges_drops_and_reentries_only() {
         s.iterations
     );
     assert_eq!(report.iterations, s.iterations);
-    // A box QP solved by first entries alone needs no budget at all.
+    // A diagonal box QP needs no working-set changes or iteration budget.
     let clip = qp(
         &[&[1., 0.], &[0., 1.]],
         &[-3., 3.],
@@ -342,7 +345,7 @@ fn the_budget_charges_drops_and_reentries_only() {
     .unwrap();
     assert!(matches!(
         b.solve(&clip, None, &token).unwrap(),
-        QpOutcome::Optimal(QpSolution { iterations: 2, .. })
+        QpOutcome::Optimal(QpSolution { iterations: 0, .. })
     ));
 }
 
@@ -672,4 +675,25 @@ fn unconstrained_coupled_qp_uses_checked_triangular_solutions() {
         close(&s.step, &[0.2, 0.6], 1e-12);
         assert_eq!(s.iterations, 0);
     }
+}
+
+#[test]
+fn diagonal_box_proposal_keeps_original_rows_and_falls_back_when_needed() {
+    let model = qp(
+        &[&[1.0, 0.0], &[0.0, 1.0]],
+        &[-3.0, -3.0],
+        (&[0.0; 2], &[1.0; 2]),
+        &[&[1.0, 1.0]],
+        (&[1.0], &[1.0]),
+    );
+    let s = optimal(&mut backend(), &model, None);
+    close(&s.step, &[0.5, 0.5], 1e-12);
+    let mut impossible = model.clone();
+    impossible.rows = Bounds::fixed(vec![3.0]);
+    assert!(matches!(
+        backend()
+            .solve(&impossible, None, &CancellationToken::default())
+            .unwrap(),
+        QpOutcome::Infeasible
+    ));
 }

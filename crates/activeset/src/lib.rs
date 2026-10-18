@@ -232,34 +232,72 @@ impl ActiveSetQp {
         }
     }
 
-    /// A checked unconstrained proposal; failure preserves the general fallback.
+    /// A checked unconstrained/diagonal-box proposal; failure preserves the general fallback.
     fn direct(&mut self, model: &QpModel, budget: &Budget) -> Result<Option<QpOutcome>> {
-        if self.work.weight.is_some() || !self.work.bounded.is_empty() {
+        if self.work.weight.is_some() {
             return Ok(None);
+        }
+        let boxed = !self.work.bounded.is_empty();
+        if boxed {
+            let h = &model.hessian_lower;
+            for i in 0..model.n() {
+                for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
+                    if h.pattern.indices[k] != i && h.values[k] != 0.0 {
+                        return Ok(None);
+                    }
+                }
+            }
         }
         if let Err(stop) = budget.check() {
             return Ok(Some(self.stopped(stop)));
         }
         let t = Instant::now();
         let n = model.n();
-        for (x, &g) in self.work.x.iter_mut().zip(&model.gradient) {
-            *x = -g;
+        let mut variables = vec![0.0; n];
+        let mut activity = vec![Activity::Inactive; n];
+        if boxed {
+            let h = &model.hessian_lower;
+            for i in 0..n {
+                // A positive-definite diagonal matrix has a positive stored diagonal.
+                let diagonal = h.values[h.pattern.indptr[i + 1] - 1];
+                let (lo, hi) = (model.variables.lower[i], model.variables.upper[i]);
+                let value = (-model.gradient[i] / diagonal).clamp(lo, hi);
+                self.work.x[i] = value;
+                let side = if value == lo && lo.is_finite() {
+                    Activity::AtLower
+                } else if value == hi && hi.is_finite() {
+                    Activity::AtUpper
+                } else {
+                    Activity::Inactive
+                };
+                if side != Activity::Inactive {
+                    let mu = diagonal * value + model.gradient[i];
+                    variables[i] = mu;
+                    if mu != 0.0 || lo == hi {
+                        activity[i] = side;
+                    }
+                }
+            }
+        } else {
+            for (x, &g) in self.work.x.iter_mut().zip(&model.gradient) {
+                *x = -g;
+            }
+            dense::solve_factored(&self.work.l, &mut self.work.x, n);
+            model.hessian_product(&self.work.x, &mut self.work.rd);
+            for (r, &g) in self.work.rd.iter_mut().zip(&model.gradient) {
+                *r = -(*r + g);
+            }
+            dense::solve_factored(&self.work.l, &mut self.work.rd, n);
+            dense::axpy(1.0, &self.work.rd, &mut self.work.x);
         }
-        dense::solve_factored(&self.work.l, &mut self.work.x, n);
-        model.hessian_product(&self.work.x, &mut self.work.rd);
-        for (r, &g) in self.work.rd.iter_mut().zip(&model.gradient) {
-            *r = -(*r + g);
-        }
-        dense::solve_factored(&self.work.l, &mut self.work.rd, n);
-        dense::axpy(1.0, &self.work.rd, &mut self.work.x);
         let solution = QpSolution {
             step: self.work.x.clone(),
             multipliers: Multipliers {
-                variables: vec![0.0; n],
+                variables,
                 constraints: vec![0.0; model.m()],
             },
             active_set: Some(ActiveSet {
-                variables: vec![Activity::Inactive; n],
+                variables: activity,
                 rows: vec![Activity::Inactive; model.m()],
             }),
             iterations: 0,

@@ -105,9 +105,13 @@ fn the_previous_working_set_warm_starts_the_next_qp() {
     let cold = run::<ActiveSetQp>(&spec, &mut Pull, &[0.0; 6], with(false));
     assert_eq!(warm.candidate, cold.candidate);
     assert_eq!(warm.iterations, cold.iterations);
-    // A cold QP enters all six bounds; a warm one starts with them.
-    assert_eq!(cold.report.qp_iterations, n as u64 * cold.report.qp_solves);
-    assert_eq!(warm.report.qp_iterations, n as u64);
+    // The first diagonal QP is closed-form and reports its six active bounds.
+    // Later cold QPs enter them; warm QPs reuse that returned working set.
+    assert_eq!(
+        cold.report.qp_iterations,
+        n as u64 * (cold.report.qp_solves - 1)
+    );
+    assert_eq!(warm.report.qp_iterations, 0);
 }
 
 #[test]
