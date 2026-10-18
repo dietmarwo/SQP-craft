@@ -78,6 +78,7 @@ const REFINEMENT_STEPS: usize = 1;
 /// checks remain mandatory.
 #[derive(Clone, Debug, Default)]
 pub struct ActiveSetQp {
+    threads: usize,
     settings: QpOptions,
     last: QpReport,
     work: Work,
@@ -87,10 +88,8 @@ pub struct ActiveSetQp {
 
 impl QpBackend for ActiveSetQp {
     fn set_threads(&mut self, threads: usize) -> Result<()> {
-        if self.work.execution.threads() != threads {
-            self.work.execution =
-                sqp_craft_parallel::Execution::new(threads).map_err(Error::Unsupported)?;
-        }
+        sqp_craft_parallel::validate_threads(threads).map_err(Error::Unsupported)?;
+        self.threads = threads;
         Ok(())
     }
 
@@ -167,6 +166,15 @@ impl ActiveSetQp {
     ) -> Result<QpOutcome> {
         if let Err(stop) = budget.check() {
             return Ok(self.stopped(stop));
+        }
+        let width = if self.threads > 1 && (model.n() >= 512 || row_work(model) >= 32768) {
+            self.threads
+        } else {
+            1
+        };
+        if self.work.execution.threads() != width {
+            self.work.execution =
+                sqp_craft_parallel::Execution::new(width).map_err(Error::Unsupported)?;
         }
         let t = Instant::now();
         self.work.load(
@@ -340,6 +348,18 @@ impl ActiveSetQp {
     }
 }
 
+fn row_work(model: &QpModel) -> usize {
+    if model.matrix.values.len() < 32768 || model.m() < 8 {
+        return 0;
+    }
+    (0..model.m())
+        .filter(|&i| {
+            model.rows.lower[i] != f64::NEG_INFINITY || model.rows.upper[i] != f64::INFINITY
+        })
+        .map(|i| model.matrix.pattern.indptr[i + 1] - model.matrix.pattern.indptr[i])
+        .sum()
+}
+
 fn row_norms(model: &QpModel, norms: &mut Vec<f64>, execution: &sqp_craft_parallel::Execution) {
     let row_norm = |i: usize| {
         if model.rows.lower[i] == f64::NEG_INFINITY && model.rows.upper[i] == f64::INFINITY {
@@ -351,13 +371,8 @@ fn row_norms(model: &QpModel, norms: &mut Vec<f64>, execution: &sqp_craft_parall
             )
         }
     };
-    let work = if execution.threads() > 1 && model.matrix.values.len() >= 32768 && model.m() >= 8 {
-        (0..model.m())
-            .filter(|&i| {
-                model.rows.lower[i] != f64::NEG_INFINITY || model.rows.upper[i] != f64::INFINITY
-            })
-            .map(|i| model.matrix.pattern.indptr[i + 1] - model.matrix.pattern.indptr[i])
-            .sum()
+    let work = if execution.threads() > 1 {
+        row_work(model)
     } else {
         0
     };

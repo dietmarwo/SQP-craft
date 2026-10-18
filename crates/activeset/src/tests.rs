@@ -967,3 +967,21 @@ fn dense_parallel_materialization_and_invalidation_match_scalar() {
         assert_eq!(a.l, b.l);
     }
 }
+
+#[test]
+fn small_eight_budget_qps_do_not_start_unused_workers() {
+    let model = qp(
+        &[&[2., 0.], &[0., 2.]],
+        &[-1., 1.],
+        (&[-2.; 2], &[2.; 2]),
+        &[],
+        (&[], &[]),
+    );
+    let mut b = backend();
+    b.set_threads(8).unwrap();
+    assert_eq!(b.work.execution.threads(), 1);
+    optimal(&mut b, &model, None);
+    assert_eq!(b.work.execution.threads(), 1);
+    assert!(b.set_threads(0).is_err());
+    assert!(b.set_threads(9).is_err());
+}

@@ -6,6 +6,15 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 static POOLS: OnceLock<Mutex<BTreeMap<usize, Weak<rayon::ThreadPool>>>> = OnceLock::new();
 
+/// Validates a requested maximum without allocating or starting workers.
+pub fn validate_threads(threads: usize) -> Result<(), String> {
+    if !(1..=8).contains(&threads) {
+        Err(format!("parallel threads must lie in 1..=8, got {threads}"))
+    } else {
+        Ok(())
+    }
+}
+
 /// Reusable owned execution resources; one means no worker pool.
 #[derive(Clone, Debug, Default)]
 pub struct Execution {
@@ -15,9 +24,7 @@ pub struct Execution {
 impl Execution {
     /// Creates at most `threads` workers. Supported budgets are 1 through 8.
     pub fn new(threads: usize) -> Result<Self, String> {
-        if !(1..=8).contains(&threads) {
-            return Err(format!("parallel threads must lie in 1..=8, got {threads}"));
-        }
+        validate_threads(threads)?;
         if threads == 1 {
             return Ok(Self::default());
         }

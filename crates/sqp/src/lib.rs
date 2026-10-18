@@ -830,8 +830,6 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         options.validate()?;
         self.settings.validate()?;
         self.qp.set_threads(options.threads)?;
-        let execution =
-            sqp_craft_parallel::Execution::new(options.threads).map_err(Error::Unsupported)?;
         if self.settings.elastic_mode && !self.qp.supports_elastic() {
             return Err(Error::Unsupported(
                 "elastic_mode needs a QP backend with elastic support, such as ActiveSetQp".into(),
@@ -845,6 +843,9 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 self.settings.dense_size_limit
             )));
         }
+        let execution =
+            sqp_craft_parallel::Execution::new(if spec.n() < 256 { 1 } else { options.threads })
+                .map_err(Error::Unsupported)?;
         model.set_threads(options.threads)?;
         let settings = &self.settings;
         let qp_acceptance = options

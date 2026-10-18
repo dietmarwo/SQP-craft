@@ -42,6 +42,7 @@ fn main() {
         })
         .unwrap();
     let setup = Instant::now();
+    let _resources = sqp_craft_parallel::Execution::new(threads).unwrap();
     backend.set_threads(threads).unwrap();
     let resource_setup = setup.elapsed().as_secs_f64();
     let mut seconds = 0.0;

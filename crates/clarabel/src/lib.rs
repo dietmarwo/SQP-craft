@@ -22,7 +22,7 @@ pub struct ClarabelQp {
     checks: QpResidualWorkspace,
     conversion: Option<ConversionCache>,
     pd: PdScratch,
-    execution: sqp_craft_parallel::Execution,
+    threads: usize,
     #[cfg(test)]
     cancel_at_iteration: Option<u32>,
     #[cfg(test)]
@@ -38,7 +38,7 @@ impl Clone for ClarabelQp {
             checks: QpResidualWorkspace::default(),
             conversion: None,
             pd: PdScratch::default(),
-            execution: self.execution.clone(),
+            threads: self.threads,
             #[cfg(test)]
             cancel_at_iteration: self.cancel_at_iteration,
             #[cfg(test)]
@@ -478,10 +478,8 @@ impl ClarabelQp {
 
 impl QpBackend for ClarabelQp {
     fn set_threads(&mut self, threads: usize) -> Result<()> {
-        if self.execution.threads() != threads {
-            self.execution =
-                sqp_craft_parallel::Execution::new(threads).map_err(Error::Unsupported)?;
-        }
+        sqp_craft_parallel::validate_threads(threads).map_err(Error::Unsupported)?;
+        self.threads = threads;
         Ok(())
     }
 
