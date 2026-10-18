@@ -1,0 +1,381 @@
+{
+  "artifacts": {
+    "results": "results.jsonl"
+  },
+  "completed_tasks": 8,
+  "elapsed_seconds": 0.015734214,
+  "known_work_lower_bound": {
+    "derivatives": 16,
+    "functions": 24,
+    "iterations": 8,
+    "qp_iterations": 0,
+    "validation_calls": 16
+  },
+  "payload_schema": "sqp.solve/1",
+  "requested_tasks": 8,
+  "results": [
+    {
+      "elapsed_seconds": 0.00004015,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 0,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000038297,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 1,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000027281,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 2,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000038168,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 3,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000037657,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 4,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000021633,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 5,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000029945,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 6,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    },
+    {
+      "elapsed_seconds": 0.000038038,
+      "outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-6,
+            "dual_sign": 1e-8,
+            "primal": 1e-7,
+            "stationarity": 1e-6
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+      "task_id": 7,
+      "work": {
+        "derivatives": 2,
+        "functions": 3,
+        "iterations": 1,
+        "qp_iterations": 0,
+        "validation_calls": 2
+      }
+    }
+  ],
+  "runner": {
+    "accounting_complete": true,
+    "attempt_id": "fa76a6e362fce40f212c894fbf98d5e1",
+    "build": {
+      "engine_version": "0.16.0",
+      "job_api_version": "0.1.0"
+    },
+    "profile": "optimization.runner/0.1",
+    "recovery": "journal_only_no_resume",
+    "resources": {
+      "cpu_slots": 8,
+      "inner_threads": 1,
+      "outer_workers": 8
+    },
+    "spec_digest": "a9fef73e1fc9b2f9429994222e93ad4df11496f7d9a80ee3a5787efd92622d58",
+    "worker_digest": "551e67cef52edd61281ab82395d129444c1a6f31626687a3908fad435b1aadbe"
+  },
+  "schema_version": "optimization.result/0.1",
+  "status": "completed",
+  "work": {
+    "derivatives": 16,
+    "functions": 24,
+    "iterations": 8,
+    "qp_iterations": 0,
+    "validation_calls": 16
+  },
+  "worker": "sqp"
+}

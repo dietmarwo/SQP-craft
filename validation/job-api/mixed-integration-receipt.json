@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python",
+    "scripts/job-api/test_integration.py",
+    "--lp-ip",
+    "/workspace/scratch/f38b380ad117/job-api-build/LP-IP-craft/target/release/lp-ip-job-worker",
+    "--sqp",
+    "/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/target/release/sqp-job-worker"
+  ],
+  "exit_code": 0,
+  "completed": 1792346193.0054395,
+  "summary": [
+    "",
+    "----------------------------------------------------------------------",
+    "Ran 10 tests in 4.410s",
+    "",
+    "OK"
+  ]
+}

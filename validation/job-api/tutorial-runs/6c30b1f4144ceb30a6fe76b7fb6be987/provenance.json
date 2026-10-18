@@ -1,0 +1,12 @@
+{
+  "attempt_id": "6c30b1f4144ceb30a6fe76b7fb6be987",
+  "boot_id": "cfb6888b-32f9-4d83-962f-e12533865c89",
+  "build": {
+    "engine_version": "0.16.0",
+    "job_api_version": "0.1.0"
+  },
+  "identity": "1e1097da3086b474d1fc072c75f5f891bd1a2b3430af815a4c469276d82f9087",
+  "registered_executable": "/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/target/release/sqp-job-worker",
+  "unit": null,
+  "worker_digest": "551e67cef52edd61281ab82395d129444c1a6f31626687a3908fad435b1aadbe"
+}

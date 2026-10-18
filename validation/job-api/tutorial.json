@@ -1,0 +1,136 @@
+{
+  "node": "/workspace/scratch/f38b380ad117/job-api-build/tutorial-nodes-final/sqp",
+  "worker": "sqp",
+  "runs": [
+    {
+      "example": "simplex",
+      "job_id": "fa76a6e362fce40f212c894fbf98d5e1",
+      "directory": "/workspace/scratch/f38b380ad117/job-api-build/tutorial-nodes-final/sqp/jobs/fa76a6e362fce40f212c894fbf98d5e1",
+      "state": "completed",
+      "completed_tasks": 8,
+      "first_outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-06,
+            "dual_sign": 1e-08,
+            "primal": 1e-07,
+            "stationarity": 1e-06
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 0.0
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 0.25,
+        "termination": "converged",
+        "x": [
+          0.25,
+          0.25,
+          0.25,
+          0.25
+        ]
+      },
+      "work": {
+        "derivatives": 16,
+        "functions": 24,
+        "iterations": 8,
+        "qp_iterations": 0,
+        "validation_calls": 16
+      }
+    },
+    {
+      "example": "rosenbrock",
+      "job_id": "d0ec2b1956d155236272c032765fd1ec",
+      "directory": "/workspace/scratch/f38b380ad117/job-api-build/tutorial-nodes-final/sqp/jobs/d0ec2b1956d155236272c032765fd1ec",
+      "state": "completed",
+      "completed_tasks": 8,
+      "first_outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-06,
+            "dual_sign": 1e-08,
+            "primal": 1e-07,
+            "stationarity": 1e-06
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 0.0,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 3.478435418812952e-07
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "goldfarb-idnani 0.16.0",
+          "qp_status": "optimal"
+        },
+        "feasible": true,
+        "objective": 7.578660992385423e-17,
+        "termination": "converged",
+        "x": [
+          1.0000000010273165,
+          1.0000000011901606
+        ]
+      },
+      "work": {
+        "derivatives": 288,
+        "functions": 408,
+        "iterations": 280,
+        "qp_iterations": 16,
+        "validation_calls": 16
+      }
+    },
+    {
+      "example": "quadratic-clarabel",
+      "job_id": "6c30b1f4144ceb30a6fe76b7fb6be987",
+      "directory": "/workspace/scratch/f38b380ad117/job-api-build/tutorial-nodes-final/sqp/jobs/6c30b1f4144ceb30a6fe76b7fb6be987",
+      "state": "completed",
+      "completed_tasks": 8,
+      "first_outcome": {
+        "claim": "first_order",
+        "details": {
+          "acceptance": {
+            "complementarity": 1e-06,
+            "dual_sign": 1e-08,
+            "primal": 1e-07,
+            "stationarity": 1e-06
+          },
+          "global_optimum_certified": false,
+          "kkt": {
+            "complementarity": 1.050587146601224e-12,
+            "dual_sign": 0.0,
+            "primal": 0.0,
+            "stationarity": 9.996036005491402e-12
+          },
+          "message": "first-order KKT residuals within tolerance at the returned point",
+          "qp_backend": "clarabel 0.11.1",
+          "qp_status": "Solved"
+        },
+        "feasible": true,
+        "objective": 4.031926847246455e-23,
+        "termination": "converged",
+        "x": [
+          0.24999999999913378,
+          0.4999999999981524,
+          0.7499999999968623,
+          0.9999999999948707
+        ]
+      },
+      "work": {
+        "derivatives": 16,
+        "functions": 24,
+        "iterations": 8,
+        "qp_iterations": 112,
+        "validation_calls": 16
+      }
+    }
+  ]
+}

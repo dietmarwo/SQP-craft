@@ -1,0 +1,15 @@
+test_actual_workers_numerics_journals_and_idempotency (__main__.Jobs.test_actual_workers_numerics_journals_and_idempotency) ... ok
+test_artifact_corruption_and_escape (__main__.Jobs.test_artifact_corruption_and_escape) ... ok
+test_deadline_on_each_real_worker (__main__.Jobs.test_deadline_on_each_real_worker) ... ok
+test_discovery_and_strict_validation (__main__.Jobs.test_discovery_and_strict_validation) ... ok
+test_fcmaes_soft_budget_and_inner_threads_rejection (__main__.Jobs.test_fcmaes_soft_budget_and_inner_threads_rejection) ... ok
+test_launcher_loss_retains_live_worker_then_repairs_without_resume (__main__.Jobs.test_launcher_loss_retains_live_worker_then_repairs_without_resume) ... ok
+test_lp_lp_mip_infeasible_unbounded_and_validation (__main__.Jobs.test_lp_lp_mip_infeasible_unbounded_and_validation) ... ok
+test_one_and_eight_slots_preserve_numerical_results (__main__.Jobs.test_one_and_eight_slots_preserve_numerical_results) ... ok
+test_shared_capacity_waiting_cancel_and_force_timeout (__main__.Jobs.test_shared_capacity_waiting_cancel_and_force_timeout) ... ok
+test_sqp_backends_and_initial_point_validation (__main__.Jobs.test_sqp_backends_and_initial_point_validation) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 4.410s
+
+OK

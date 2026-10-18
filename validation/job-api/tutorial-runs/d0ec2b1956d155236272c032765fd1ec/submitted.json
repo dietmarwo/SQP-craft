@@ -1,0 +1,59 @@
+{
+  "inputs": [],
+  "limits": {
+    "grace_seconds": 1.0,
+    "wall_time_seconds": 30.0
+  },
+  "payload": {
+    "backend": "active_set",
+    "dimension": 2,
+    "feasibility_tolerance": 1e-7,
+    "max_callback_calls": 4000,
+    "max_iterations": 200,
+    "problem": "benchmark.rosenbrock",
+    "starts": [
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ],
+      [
+        -1.2,
+        1.0
+      ]
+    ],
+    "stationarity_tolerance": 1e-6
+  },
+  "payload_schema": "sqp.solve/1",
+  "request_key": "tutorial.sqp.rosenbrock.v1",
+  "resources": {
+    "cpu_slots": 8,
+    "inner_threads": 1,
+    "outer_workers": 8
+  },
+  "schema_version": "optimization.job/0.1",
+  "worker": "sqp"
+}

@@ -1,0 +1,49 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling syn v3.0.9
+   Compiling serde_derive v1.0.229
+   Compiling serde v1.0.229
+   Compiling optimization-job-api v0.1.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/optimization-job-api)
+    Finished `release` profile [optimized] target(s) in 14.25s
+     Running unittests src/lib.rs (target/release/deps/optimization_job_api-cd4569da730d20d7)
+
+running 5 tests
+test legacy::spec::tests::cassini1_bounds_must_stay_in_the_canonical_box ... ok
+test legacy::spec::tests::rejects_zero_unknown_and_overflowing_inputs ... ok
+test legacy::spec::tests::digest_ignores_request_key_but_not_the_experiment ... ok
+test legacy::spec::tests::resolves_defaults_and_broadcast_bounds ... ok
+test legacy::spec::tests::de_is_soft_with_declared_overshoot_bound ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contracts.rs (target/release/deps/contracts-c0d9c40fc3df76f9)
+
+running 6 tests
+test identity_ignores_request_key_but_includes_budget_and_profile ... ok
+test resource_and_schema_boundaries ... ok
+test artifact_staging_hashes_and_path_containment ... ok
+test false_success_and_mixed_claim_comparison_are_rejected ... ok
+test numerical_json_round_trips_preserve_manifest_and_digest ... ok
+test journal_claims_duplicates_tail_recovery_and_incomplete_accounting ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/durability.rs (target/release/deps/durability-4bcd8df53129a48e)
+
+running 7 tests
+test disk_write_error_propagates ... ok
+test complete_corruption_is_not_truncation ... ok
+test process_group_liveness_uses_current_pid_namespace ... ok
+test tail_repair_preserves_valid_records_and_rejects_checksum_corruption ... ok
+test concurrent_completions_and_atomic_snapshots ... ok
+test argv_fidelity_and_stream_overflow ... ok
+test deadline_kills_descendants_and_closes_inherited_pipes ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+
+   Doc-tests optimization_job_api
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

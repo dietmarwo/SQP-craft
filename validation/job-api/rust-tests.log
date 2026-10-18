@@ -1,0 +1,402 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling syn v3.0.9
+   Compiling sqp-craft-parallel v0.16.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/parallel)
+   Compiling sqp-craft v0.16.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/core)
+   Compiling serde_derive v1.0.229
+   Compiling serde v1.0.229
+   Compiling serde-big-array v0.5.1
+   Compiling optimization-job-api v0.1.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/optimization-job-api)
+   Compiling clarabel v0.11.1
+   Compiling sqp-craft-clarabel v0.16.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/clarabel)
+   Compiling sqp-craft-solver v0.16.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/sqp)
+   Compiling sqp-craft-activeset v0.16.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/activeset)
+   Compiling sqp-job-worker v0.1.0 (/workspace/scratch/f38b380ad117/job-api-build/SQP-craft/crates/sqp-job-worker)
+    Finished `release` profile [optimized] target(s) in 25.22s
+     Running unittests src/lib.rs (target/release/deps/sqp_craft-9d708482129d509b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/derivative_check.rs (target/release/deps/derivative_check-6bd1cc1272f329ac)
+
+running 6 tests
+test fixed_and_unvisited_coordinates_are_inconclusive ... ok
+test max_directions_leaves_the_rest_skipped ... ok
+test undefined_perturbations_skip_the_coordinate_instead_of_aborting ... ok
+test a_point_just_inside_a_bound_uses_a_full_one_sided_step ... ok
+test fixed_variables_alone_do_not_make_a_check_inconclusive ... ok
+test grouped_cache_order_and_injected_derivative_error ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dummy_contract.rs (target/release/deps/dummy_contract-7c733325c0255fab)
+
+running 12 tests
+test cancellation_before_start_makes_no_call ... ok
+test cancellation_after_complete_evaluation_keeps_it_and_skips_observer ... ok
+test cancellation_between_calls_returns_no_partial_candidate ... ok
+test constraint_violation_is_reported_not_repaired ... ok
+test evaluates_start_once_in_order_and_claims_nothing ... ok
+test input_errors_take_precedence_over_cancellation ... ok
+test model_failures_abort_with_their_kind ... ok
+test observer_error_aborts ... ok
+test observer_sees_start_and_can_stop ... ok
+test start_outside_variable_bounds_is_rejected_before_any_call ... ok
+test unwritten_output_entries_are_detected ... ok
+test malformed_start_and_options_are_rejected ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/kkt_residuals.rs (target/release/deps/kkt_residuals-cd34b3a5b8f3b8a0)
+
+running 8 tests
+test equality_constraint_with_correct_and_flipped_sign ... ok
+test hard_rows_are_tested_as_ordinary_rows_in_the_elastic_residuals ... ok
+test elastic_residuals_accept_a_violated_row_only_at_the_weight ... ok
+test elastic_residuals_treat_tolerance_level_violations_as_satisfied ... ok
+test lower_bound_activity_requires_positive_multiplier ... ok
+test upper_bound_activity_requires_negative_multiplier ... ok
+test variable_bound_multipliers_and_complementarity ... ok
+test primal_residual_and_input_checks ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/numerical_boundaries.rs (target/release/deps/numerical_boundaries-dbb8c2b3d9941ac2)
+
+running 2 tests
+test raw_bounds_and_nonfinite_qp_starts_are_rejected ... ok
+test overflowing_kkt_product_does_not_disappear ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/qp_seam.rs (target/release/deps/qp_seam-f1b863c4c9646e85)
+
+running 7 tests
+test bound_constrained_solution_has_zero_residuals ... ok
+test dummy_backend_never_fabricates_a_step ... ok
+test lower_triangle_expands_symmetrically ... ok
+test checked_qp_arithmetic_still_rejects_every_invalid_multiplier_vector ... ok
+test reusable_checks_match_allocating_and_revalidate_inputs ... ok
+test row_constrained_solution_and_wrong_sign ... ok
+test validation_rejects_upper_triangle_and_shape_errors ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/spec_validation.rs (target/release/deps/spec_validation-a1c713b86d216645)
+
+running 11 tests
+test accepts_zero_constraints ... ok
+test accepts_free_one_sided_and_equality_rows ... ok
+test check_point_requires_finite_in_bounds_points ... ok
+test bound_errors_name_the_offending_entry ... ok
+test csr_invariants ... ok
+test csr_products ... ok
+test error_display_has_category ... ok
+test jacobian_shape_must_match_bounds ... ok
+test linear_rows_are_validated_and_compared ... ok
+test rejects_zero_variables ... ok
+test violation_measures_largest_excess ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/sqp_craft_activeset-d9fb50c2768fd3f4)
+
+running 38 tests
+test dense::tests::givens_zeroes_the_second_entry_and_dot_matches_the_plain_sum ... ok
+test dense::tests::reflect_maps_the_tail_to_its_norm_and_keeps_jt_n_consistent ... ok
+test dense::tests::cholesky_rejects_indefinite_singular_and_nonfinite_matrices ... ok
+test dense::tests::cholesky_and_inverse_transpose_reproduce_the_identity ... ok
+test tests::a_block_diagonal_hessian_factorizes_by_blocks ... ok
+test dense::diagonal_inverse_is_exact_and_tiny_coupling_keeps_the_general_path ... ok
+test tests::a_nearly_singular_hessian_does_not_make_independent_constraints_dependent ... ok
+test tests::a_large_weight_reproduces_the_ordinary_solution ... ok
+test tests::an_active_upper_row_and_a_fixed_variable_get_negative_multipliers ... ok
+test tests::an_elastic_row_that_becomes_satisfied_re_enters ... ok
+test tests::a_small_weight_caps_the_multiplier_and_lets_the_row_be_violated ... ok
+test tests::bound_constrained_qp_clips_the_unconstrained_minimizer ... ok
+test tests::cancellation_and_an_exhausted_time_budget_stop_before_any_work ... ok
+test tests::clarabel_and_the_dummy_reject_an_elastic_configuration ... ok
+test tests::contradicting_rows_are_both_violated_at_the_elastic_weight ... ok
+test tests::dependent_and_duplicate_constraints_are_handled ... ok
+test tests::hard_rows_stay_satisfied_in_an_elastic_qp ... ok
+test tests::diagonal_box_proposal_keeps_original_rows_and_falls_back_when_needed ... ok
+test tests::equality_and_inequality_rows_match_the_closed_form ... ok
+test tests::inconsistent_constraints_are_infeasible ... ok
+test tests::invalid_input_is_an_error ... ok
+test tests::inverse_cache_promotes_on_reuse_and_tracks_hessian_not_row_data ... ok
+test tests::not_positive_definite_is_an_outcome ... ok
+test tests::factor_cache_uses_complete_exact_keys_and_never_reuses_failure ... ok
+test tests::reused_buffers_never_change_a_result ... ok
+test tests::small_eight_budget_qps_do_not_start_unused_workers ... ok
+test tests::source_lists_follow_mutated_bound_kinds ... ok
+test tests::the_budget_charges_drops_and_reentries_only ... ok
+test tests::unconstrained_coupled_qp_uses_checked_triangular_solutions ... ok
+test tests::variable_bounds_stay_hard_in_an_elastic_qp ... ok
+test tests::parallel_bounded_row_norms_match_scalar_and_skip_free_rows ... ok
+test tests::warm_starts_from_the_solution_or_a_wrong_set_reach_the_same_point ... ok
+test dense::parallel_reflector_tests::reflector_target_columns_are_bit_identical ... ok
+test tests::parallel_transformed_normals_match_the_original_dots ... ok
+test tests::parallel_kkt_outputs_retain_scalar_accumulation_order ... ok
+test tests::dense_parallel_materialization_and_invalidation_match_scalar ... ok
+test dense::parallel_inverse_tests::inverse_columns_are_bit_identical_at_dispatch_boundaries ... ok
+test tests::parallel_large_factor_failure_invalidates_the_promoted_inverse ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/against_clarabel.rs (target/release/deps/against_clarabel-781ea9ad6f895f15)
+
+running 7 tests
+test census ... ignored, census for the documentation; run explicitly
+test elastic_warm_starts_reach_the_cold_solution ... ok
+test warm_starts_reproduce_the_cold_solution_and_save_changes ... ok
+test a_weight_above_the_multipliers_reproduces_the_ordinary_qp ... ok
+test random_infeasible_qps_are_infeasible_for_both ... ok
+test random_elastic_qps_are_always_solved_and_pass_the_elastic_check ... ok
+test random_feasible_qps_match_clarabel ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running unittests src/lib.rs (target/release/deps/sqp_craft_clarabel-804b16f498e91257)
+
+running 12 tests
+test tests::cancels_from_inside_the_running_qp_callback ... ok
+test tests::conversion_cache_refreshes_every_value_and_checks_structure ... ok
+test tests::conversion_cache_tracks_signed_sparse_jacobian_and_rhs_changes ... ok
+test tests::cancellation_inside_reused_engine_does_not_retry ... ok
+test tests::a_hessian_that_is_not_positive_definite_is_an_outcome_and_keeps_both_caches ... ok
+test tests::dominance_gate_and_cholesky_fallback_cover_boundary_cases ... ok
+test tests::partial_update_failure_discards_workspace ... ok
+test tests::rejection_with_exhausted_iteration_budget_does_not_retry ... ok
+test tests::direct_conversion_equals_the_sorted_triplet_conversion ... ok
+test tests::rejected_reused_solution_gets_one_checked_cold_retry ... ok
+test tests::the_positive_definiteness_scratch_follows_dimension_and_pattern_changes ... ok
+test tests::reused_workspace_time_limit_counts_only_the_current_call ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/qp.rs (target/release/deps/qp-14cc61ce92e44593)
+
+running 9 tests
+test off_diagonal_storage_is_not_doubled ... ok
+test impossible_rows_and_zero_iteration_limit ... ok
+test changed_zero_time_and_iteration_limits_apply_to_cached_workspace ... ok
+test cache_clone_disabling_and_cancellation_do_not_reuse_stale_state ... ok
+test reused_infeasibility_is_confirmed_cold_and_not_cached ... ok
+test cancellation_and_warm_start_validation ... ok
+test signed_lower_upper_and_fixed_duals ... ok
+test structure_changes_rebuild_even_with_same_number_of_conic_rows ... ok
+test updates_every_numeric_input_and_preserves_structural_zeros ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/release/deps/sqp_craft_parallel-d4fbc003e97ac28a)
+
+running 5 tests
+test state_tests::state_is_local_and_results_are_ordered ... ok
+test sharing_tests::compatible_owners_share_without_permanent_retention ... ok
+test tests::width_order_disjoint_outputs_and_budget ... ok
+test tests::panic_returns_to_caller_without_poisoning_pool ... ok
+test configuration_tests::explicit_widths_are_bounded ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/release/deps/sqp_craft_solver-78f924830c213880)
+
+running 23 tests
+test bfgs::nonfinite_displacement_is_not_a_negligible_bfgs_step ... ok
+test bfgs::tests::block_repairs_use_only_their_own_columns ... ok
+test bfgs::tests::damping_preserves_positive_definiteness ... ok
+test bfgs::tests::entrywise_update_is_bit_identical_to_the_matrix_expression ... ok
+test bfgs::tests::only_checked_blocks_factorize_and_reject_an_indefinite_result ... ok
+test bfgs::tests::without_a_usable_repair_the_update_is_damped ... ok
+test bfgs::tests::the_repair_raises_the_curvature_to_the_threshold_in_closed_form ... ok
+test merit::tests::slacks_minimize_the_merit_within_the_row_bounds ... ok
+test merit::tests::skipped_rows_do_not_enter_the_merit ... ok
+test merit::tests::the_penalty_is_the_minimum_norm_solution_and_its_decrease_is_damped ... ok
+test restoration::tests::overflowing_gauss_newton_curvature_is_an_error ... ok
+test restoration::tests::residual_merit_distinguishes_equalities_free_and_one_sided_rows ... ok
+test scaling::tests::factors_are_powers_of_two_and_equalize_a_badly_scaled_matrix ... ok
+test scaling::tests::scaling_names_round_trip ... ok
+test scaling::tests::unselected_rows_and_empty_columns_keep_the_factor_one ... ok
+test tests::a_trial_capped_at_a_bound_stays_inside_the_box ... ok
+test tests::explicit_curvature_blocks_preserve_spd_and_sparse_pattern ... ok
+test tests::recycled_callback_buffers_still_reject_missing_entries ... ok
+test tests::reused_qp_template_matches_fresh_numeric_data ... ok
+test tests::rounding_levels_scale_with_the_terms_of_each_residual ... ok
+test tests::snapping_moves_only_tolerance_level_overshoots ... ok
+test restoration::tests::diagonal_restoration_has_only_diagonal_curvature ... ok
+test merit::tests::the_slope_matches_a_finite_difference_of_the_merit ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/acceptance.rs (target/release/deps/acceptance-2d25e452e840d943)
+
+running 5 tests
+test observers_cancellation_and_limits ... ok
+test budgets_never_return_partial_trial ... ok
+test infeasible_linearization_is_not_nonlinear_infeasibility ... ok
+test undefined_trial_is_recovered ... ok
+test analytic_suite_and_signed_multipliers ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/active_set_backend.rs (target/release/deps/active_set_backend-aed08bcbdcbd419a)
+
+running 3 tests
+test the_previous_working_set_warm_starts_the_next_qp ... ok
+test clarabel_runs_do_not_depend_on_the_warm_start_setting ... ok
+test the_orbit_transfer_takes_the_same_path_as_with_clarabel ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running tests/elastic_mode.rs (target/release/deps/elastic_mode-4ef2aa6152e75ee8)
+
+running 4 tests
+test a_zero_jacobian_start_is_left_by_an_elastic_step ... ok
+test an_infeasible_problem_ends_locally_infeasible_at_the_largest_weight ... ok
+test elastic_mode_needs_a_backend_with_elastic_support ... ok
+test with_a_large_weight_the_orbit_takes_the_ordinary_path ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/hessian_gate.rs (target/release/deps/hessian_gate-c59586008c4d0a00)
+
+running 3 tests
+test repeated_rejections_stop_when_the_reset_budget_is_spent ... ok
+test a_rejected_hessian_is_reset_and_the_same_qp_is_solved_again ... ok
+test an_update_that_rounds_indefinite_resets_b_instead_of_failing_the_solve ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/orbit_transfer.rs (target/release/deps/orbit_transfer-da291bdde3c468bd)
+
+running 2 tests
+test derivatives_are_consistent_and_fixed_states_do_not_make_the_check_inconclusive ... ok
+test converges_to_the_reference_radius ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests/parallel.rs (target/release/deps/parallel-9d170d2ac7bc4407)
+
+running 6 tests
+test batch_cancellation_retains_completed_results_and_skips_factories ... ok
+test non_send_callbacks_stay_on_the_caller_for_both_backends ... ok
+test fallible_factories_return_ordered_errors_without_poisoning_workers ... ok
+test native_batch_keeps_order_errors_and_non_send_model_ownership ... ok
+test native_budget_includes_worker_setup_and_precancel_skips_it ... ok
+test pilot_boundary_eight_budget_keeps_scalar_curvature_results ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/parallel_stress.rs (target/release/deps/parallel_stress-85faaa2e657c44d2)
+
+running 4 tests
+test propagation::tests::rk4_sensitivities_match_finite_differences_and_refinement ... ok
+test propagation::tests::serial_and_eight_segment_outputs_are_bit_identical ... ok
+test concurrent_native_callers_and_batch_keep_models_isolated ... ok
+test concurrent_large_qps_keep_numeric_caches_private ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/random_instances.rs (target/release/deps/random_instances-a1a37ce8acf28945)
+
+running 3 tests
+test a_step_overshooting_a_nearly_active_bound_by_roundoff_does_not_stall ... ok
+test an_infeasible_stationary_point_of_psi_ends_restoration_promptly ... ok
+test a_step_at_the_qp_noise_level_is_taken_instead_of_stalling ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/regressions.rs (target/release/deps/regressions-b66f8f87a4d792d2)
+
+running 5 tests
+test qp_acceptance_scales_with_multipliers_but_catches_sign_errors ... ok
+test hs071_restoration_recovers_the_previously_inconsistent_start ... ok
+test history_records_each_iterate ... ok
+test hs071_converges_and_reports_an_inconsistent_linearization_honestly ... ok
+test interior_point_complementarity_with_large_multipliers_is_accepted ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/restoration.rs (target/release/deps/restoration-051efbae6ad39447)
+
+running 5 tests
+test observer_stop_after_restoration_has_no_stale_multipliers ... ok
+test partial_trial_budget_and_cancellation_retain_the_last_complete_point ... ok
+test disabled_restoration_and_distinct_outer_and_restoration_limits ... ok
+test restoration_options_are_validated_before_callbacks ... ok
+test inconsistent_problem_is_not_certified_and_fixed_coordinate_never_moves ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/second_order_correction.rs (target/release/deps/second_order_correction-3a518354ac41fd27)
+
+running 2 tests
+test linear_rows_never_need_a_correction ... ok
+test the_correction_accepts_full_steps_that_the_merit_rejects ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/snopt_lessons.rs (target/release/deps/snopt_lessons-dc1739e056c68e6a)
+
+running 14 tests
+test a_row_wrongly_declared_linear_is_an_error ... ok
+test elastic_steps_keep_the_l1_merit_under_the_augmented_lagrangian ... ok
+test declared_rows_stay_hard_in_the_elastic_qp ... ok
+test inconsistent_linear_rows_end_the_solve_as_linear_infeasible ... ok
+test a_start_off_the_linear_rows_is_projected_onto_them ... ok
+test linear_scaling_without_linear_rows_is_the_identity ... ok
+test merit_settings_are_checked_before_any_model_call ... ok
+test scaling_works_with_elastic_mode_and_declared_linear_rows ... ok
+test restoration_keeps_declared_rows_satisfied ... ok
+test the_augmented_lagrangian_merit_takes_unit_steps_on_a_curved_constraint ... ok
+test the_violation_limit_keeps_trial_points_near_the_constraints ... ok
+test jacobian_scaling_undoes_bad_units_and_keeps_original_unit_residuals ... ok
+test without_curved_rows_the_repair_falls_back_to_damping_exactly ... ok
+test the_repair_replaces_damping_on_a_curved_constraint ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/release/deps/sqp_job_worker-dda42b4d7e8f0cee)
+
+running 1 test
+test tests::registered_derivatives_match_finite_differences ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sqp_craft
+
+running 1 test
+test crates/core/src/lib.rs - (line 8) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.16s; merged doctests compilation took 0.15s
+   Doc-tests sqp_craft_activeset
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sqp_craft_clarabel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sqp_craft_parallel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests sqp_craft_solver
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
