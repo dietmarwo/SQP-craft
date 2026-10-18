@@ -205,3 +205,54 @@ fn batch_cancellation_retains_completed_results_and_skips_factories() {
         }
     }
 }
+
+#[test]
+fn pilot_boundary_eight_budget_keeps_scalar_curvature_results() {
+    struct Model;
+    impl NlpProblem for Model {
+        fn functions(&mut self, x: &[f64], _: &mut [f64]) -> Result<f64> {
+            Ok(x.iter()
+                .enumerate()
+                .map(|(i, &v)| {
+                    0.5 * (1 + i % 9) as f64 * (v - (1.0 + (i % 3) as f64 * 0.01)).powi(2)
+                })
+                .sum())
+        }
+        fn derivatives(&mut self, x: &[f64], g: &mut [f64], _: &mut [f64]) -> Result<()> {
+            for (i, out) in g.iter_mut().enumerate() {
+                *out = (1 + i % 9) as f64 * (x[i] - (1.0 + (i % 3) as f64 * 0.01));
+            }
+            Ok(())
+        }
+    }
+    let n = 256;
+    let spec = ProblemSpec::new(Bounds::free(n), Bounds::free(0), CsrPattern::dense(0, n)).unwrap();
+    let run = |width| {
+        let mut solver = NativeSqp {
+            qp: ActiveSetQp::default(),
+            settings: SqpOptions::default(),
+        };
+        solver
+            .solve(
+                &spec,
+                &mut Model,
+                &vec![0.; n],
+                &Options {
+                    threads: width,
+                    ..Default::default()
+                },
+                &CancellationToken::default(),
+                None,
+            )
+            .unwrap()
+    };
+    let a = run(1);
+    let b = run(8);
+    assert_eq!(a.status, Status::Converged);
+    assert!(a.evaluation.as_ref().unwrap().objective < 1e-9);
+    assert_eq!(a.status, b.status);
+    assert_eq!(a.candidate, b.candidate);
+    assert_eq!(a.iterations, b.iterations);
+    assert_eq!(a.counts.functions, b.counts.functions);
+    assert_eq!(a.counts.derivatives, b.counts.derivatives);
+}

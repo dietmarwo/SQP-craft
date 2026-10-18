@@ -79,33 +79,12 @@ pub(crate) fn inverse_transpose_parallel(
         return;
     }
     j.fill(0.0);
-    // Larger factors favor the existing cache-contiguous dynamic schedule.
-    if n >= 768 {
-        execution.chunks_mut(j, n, n * n * n / 3, |start, column| {
-            let k = start / n;
-            column[k] = 1.0 / l[k * n + k];
-            for i in (0..k).rev() {
-                let li = &l[i * n..(i + 1) * n];
-                column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
-            }
-        });
-        return;
-    }
-    let width = execution.threads();
-    let mut lanes: Vec<Vec<_>> = (0..width)
-        .map(|_| Vec::with_capacity(n.div_ceil(width)))
-        .collect();
-    for (k, column) in j.chunks_exact_mut(n).enumerate() {
-        lanes[k % width].push((k, column));
-    }
-    execution.chunks_mut(&mut lanes, 1, n * n * n / 3, |_, lane| {
-        for (k, column) in &mut lane[0] {
-            let k = *k;
-            column[k] = 1.0 / l[k * n + k];
-            for i in (0..k).rev() {
-                let li = &l[i * n..(i + 1) * n];
-                column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
-            }
+    execution.chunks_mut(j, n, n * n * n / 3, |start, column| {
+        let k = start / n;
+        column[k] = 1.0 / l[k * n + k];
+        for i in (0..k).rev() {
+            let li = &l[i * n..(i + 1) * n];
+            column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
         }
     });
 }

@@ -31,7 +31,6 @@ pub(crate) struct Repair<'a> {
 /// driver resets B and re-solves, as it does after a failed update. A
 /// factorization here would repeat that O(n³) check once per iteration.
 pub(crate) struct Workspace {
-    execution: sqp_craft_parallel::Execution,
     next: DMatrix<f64>,
     bs: DVector<f64>,
     r: DVector<f64>,
@@ -46,7 +45,6 @@ pub(crate) struct Workspace {
 impl Workspace {
     pub fn new(n: usize, check: bool) -> Self {
         Self {
-            execution: sqp_craft_parallel::Execution::default(),
             next: DMatrix::zeros(n, n),
             bs: DVector::zeros(n),
             r: DVector::zeros(n),
@@ -118,52 +116,29 @@ impl Workspace {
         // triangle is computed and mirrored; the result is bit-identical to
         // `0.5·(N + Nᵀ)` of the matrix expression.
         let n = b.nrows();
-        let finite = if self.execution.threads() > 1 && n >= 256 {
-            let finite = std::sync::atomic::AtomicBool::new(true);
-            let (source, bs, r) = (b.as_slice(), self.bs.as_slice(), self.r.as_slice());
-            self.execution
-                .chunks_mut(self.next.as_mut_slice(), n, n * n * 8, |start, target| {
-                    let j = start / n;
-                    let mut okay = true;
-                    for i in j..n {
-                        let v = (source[start + i] - (bs[i] * bs[j]) / t) + (r[i] * r[j]) / sr;
-                        okay &= v.is_finite();
-                        target[i] = v;
-                    }
-                    if !okay {
-                        finite.store(false, std::sync::atomic::Ordering::Relaxed);
-                    }
-                });
-            finite.load(std::sync::atomic::Ordering::Relaxed)
-        } else {
-            let mut finite = true;
-            for j in 0..n {
-                let source = &b.as_slice()[j * n..(j + 1) * n];
-                let target = &mut self.next.as_mut_slice()[j * n..(j + 1) * n];
-                let (bsj, rj) = (self.bs[j], self.r[j]);
-                for (((out, &old), &bs), &r) in target[j..]
-                    .iter_mut()
-                    .zip(&source[j..])
-                    .zip(&self.bs.as_slice()[j..])
-                    .zip(&self.r.as_slice()[j..])
-                {
-                    let v = (old - (bs * bsj) / t) + (r * rj) / sr;
-                    finite &= v.is_finite();
-                    *out = v;
-                }
+        let mut finite = true;
+        for j in 0..n {
+            let source = &b.as_slice()[j * n..(j + 1) * n];
+            let target = &mut self.next.as_mut_slice()[j * n..(j + 1) * n];
+            let (bsj, rj) = (self.bs[j], self.r[j]);
+            for (((out, &old), &bs), &r) in target[j..]
+                .iter_mut()
+                .zip(&source[j..])
+                .zip(&self.bs.as_slice()[j..])
+                .zip(&self.r.as_slice()[j..])
+            {
+                let v = (old - (bs * bsj) / t) + (r * rj) / sr;
+                finite &= v.is_finite();
+                *out = v;
             }
-            finite
-        };
+        }
         if !finite {
             return None;
         }
-        let parallel_commit = self.execution.threads() > 1 && n >= 256;
-        if !parallel_commit {
-            let next = self.next.as_mut_slice();
-            for j in 0..n {
-                for i in j + 1..n {
-                    next[i * n + j] = next[j * n + i];
-                }
+        let next = self.next.as_mut_slice();
+        for j in 0..n {
+            for i in j + 1..n {
+                next[i * n + j] = next[j * n + i];
             }
         }
         if let Some(buffer) = self.check.as_mut() {
@@ -177,22 +152,7 @@ impl Workspace {
                 }
             }
         }
-        if parallel_commit {
-            let next = self.next.as_slice();
-            self.execution
-                .chunks_mut(b.as_mut_slice(), n, n * n, |start, target| {
-                    let j = start / n;
-                    for (i, out) in target.iter_mut().enumerate() {
-                        *out = if i >= j {
-                            next[start + i]
-                        } else {
-                            next[i * n + j]
-                        };
-                    }
-                });
-        } else {
-            std::mem::swap(b, &mut self.next);
-        }
+        std::mem::swap(b, &mut self.next);
         Some(kind)
     }
 
@@ -292,16 +252,6 @@ impl Curvature {
             })
             .collect();
         Self { full: None, blocks }
-    }
-
-    /// Shares solve-local worker resources with the QP backend.
-    pub fn set_execution(&mut self, execution: &sqp_craft_parallel::Execution) {
-        if let Some(w) = self.full.as_mut() {
-            w.execution = execution.clone();
-        }
-        for block in &mut self.blocks {
-            block.work.execution = execution.clone();
-        }
     }
 
     /// Updates `b` (per block in block mode). Returns `None` if a reset is
@@ -530,37 +480,4 @@ fn nonfinite_displacement_is_not_a_negligible_bfgs_step() {
             .is_none()
     );
     assert_eq!(b, before);
-}
-
-#[cfg(test)]
-mod parallel_update_tests {
-    use super::*;
-    #[test]
-    fn eight_thread_updates_are_bit_identical_to_default() {
-        let execution = sqp_craft_parallel::Execution::new(8).unwrap();
-        for n in [1, 31, 127, 128, 164, 256] {
-            let mut a = DMatrix::identity(n, n) * 1.7;
-            let mut b = a.clone();
-            let mut serial = Workspace::new(n, false);
-            let mut parallel = Workspace::new(n, false);
-            parallel.execution = execution.clone();
-            for step in 0..8 {
-                let s: Vec<_> = (0..n)
-                    .map(|i| ((i + step) % 17) as f64 * 0.01 - 0.03)
-                    .collect();
-                let y: Vec<_> = s
-                    .iter()
-                    .map(|v| v * if step % 2 == 0 { 2.0 } else { -1.0 })
-                    .collect();
-                assert_eq!(
-                    serial.update(&mut a, &s, &y, None),
-                    parallel.update(&mut b, &s, &y, None)
-                );
-                assert_eq!(
-                    a.as_slice().iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
-                    b.as_slice().iter().map(|v| v.to_bits()).collect::<Vec<_>>()
-                );
-            }
-        }
-    }
 }
