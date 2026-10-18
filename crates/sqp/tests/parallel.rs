@@ -357,3 +357,89 @@ fn native_budget_includes_worker_setup_and_precancel_skips_it() {
     assert!(!model.configured);
     assert_eq!(r.counts.functions, 0);
 }
+
+thread_local! {
+    static SOLVE_DEPTH: Cell<usize> = const { Cell::new(0) };
+}
+
+/// A native model whose callbacks split independent work over its budget.
+struct NestingModel {
+    execution: sqp_craft_parallel::Execution,
+    deepest: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+impl NestingModel {
+    fn kernel(&self) {
+        let depth = SOLVE_DEPTH.with(|d| {
+            d.set(d.get() + 1);
+            d.get()
+        });
+        self.deepest
+            .fetch_max(depth, std::sync::atomic::Ordering::SeqCst);
+        let parts = self.execution.map(self.execution.threads(), |k| {
+            (0..20_000).fold(0.0, |s, i| s + ((i + k) as f64).sqrt())
+        });
+        assert!(parts.iter().all(|v| v.is_finite()));
+        SOLVE_DEPTH.with(|d| d.set(d.get() - 1));
+    }
+}
+impl NlpProblem for NestingModel {
+    fn set_threads(&mut self, threads: usize) -> Result<()> {
+        self.execution = sqp_craft_parallel::Execution::new(threads).map_err(Error::Unsupported)?;
+        Ok(())
+    }
+    fn functions(&mut self, x: &[f64], _: &mut [f64]) -> Result<f64> {
+        self.kernel();
+        Ok(x.iter().map(|v| (v - 0.5) * (v - 0.5)).sum())
+    }
+    fn derivatives(&mut self, x: &[f64], g: &mut [f64], _: &mut [f64]) -> Result<()> {
+        self.kernel();
+        for (g, x) in g.iter_mut().zip(x) {
+            *g = 2.0 * (x - 0.5);
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn batch_tasks_never_nest_on_one_thread_while_inner_kernels_wait() {
+    // With outer tasks on a Rayon pool, a worker waiting for its model's inner
+    // pool picked up another start and ran it on top of the suspended solve.
+    let spec = ProblemSpec::new(
+        Bounds::new(vec![-3.; 4], vec![3.; 4]),
+        Bounds::free(0),
+        CsrPattern::dense(0, 4),
+    )
+    .unwrap();
+    for (workers, threads) in [(4, 2), (2, 4), (2, 2)] {
+        for _ in 0..3 {
+            let deepest = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let starts: Vec<_> = (0..48).map(|i| vec![i as f64 * 0.01; 4]).collect();
+            let results = sqp_craft_solver::batch::solve_many::<ActiveSetQp, _, _>(
+                &spec,
+                &starts,
+                &SqpOptions::default(),
+                &Options {
+                    threads,
+                    ..Default::default()
+                },
+                workers,
+                |_| NestingModel {
+                    execution: sqp_craft_parallel::Execution::default(),
+                    deepest: deepest.clone(),
+                },
+                &CancellationToken::default(),
+            )
+            .unwrap();
+            assert!(
+                results
+                    .iter()
+                    .all(|r| r.as_ref().unwrap().status == Status::Converged)
+            );
+            assert_eq!(
+                deepest.load(std::sync::atomic::Ordering::SeqCst),
+                1,
+                "{workers} x {threads}: a solve started inside a suspended callback"
+            );
+        }
+    }
+}

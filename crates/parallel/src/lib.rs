@@ -76,42 +76,15 @@ impl Execution {
 
     /// Creates private state on each worker and reuses it for dynamically
     /// assigned tasks. State itself need not be Send or Sync; only outputs do.
+    /// Runs on `self.threads()` dedicated threads, not on this pool's workers;
+    /// see [`map_with_init`].
     pub fn map_with_init<S, T, I, F>(&self, count: usize, init: I, f: F) -> Vec<T>
     where
         T: Send,
         I: Fn(usize) -> S + Send + Sync,
         F: Fn(&mut S, usize) -> T + Send + Sync,
     {
-        use std::sync::atomic::{AtomicUsize, Ordering};
-        if count == 0 {
-            return Vec::new();
-        }
-        let next = AtomicUsize::new(0);
-        let workers = self.threads().min(count);
-        let claim = (count / (workers * 8)).clamp(1, 4);
-        let parts = self.map(workers, |worker| {
-            let mut state = init(worker);
-            let mut local = Vec::with_capacity(count / workers);
-            loop {
-                let first = next.fetch_add(claim, Ordering::Relaxed);
-                if first >= count {
-                    break;
-                }
-                for i in first..count.min(first + claim) {
-                    local.push((i, f(&mut state, i)));
-                }
-            }
-            local
-        });
-        let mut slots: Vec<_> = (0..count).map(|_| None).collect();
-        for (index, value) in parts.into_iter().flatten() {
-            assert!(slots[index].is_none());
-            slots[index] = Some(value);
-        }
-        slots
-            .into_iter()
-            .map(|value| value.expect("one result per task"))
-            .collect()
+        map_with_init(self.threads(), count, init, f)
     }
 
     /// Maps independent tasks, returning results in input-index order.
@@ -125,6 +98,87 @@ impl Execution {
             None => (0..count).map(f).collect(),
         }
     }
+}
+
+/// Runs `count` tasks on `workers` dedicated scoped threads (the caller's
+/// thread when `workers` is 1), with private state created on each thread
+/// and reused for the tasks it claims. Results are in task order.
+///
+/// The threads are plain OS threads, not Rayon workers. A Rayon worker that
+/// waits for another pool keeps busy with its own pool's pending jobs, so
+/// with outer tasks on a pool, a task whose inner parallel kernel waits could
+/// start another task on the same stack and freeze the first solve until the
+/// second finishes. A plain thread blocks instead, so each task runs to the
+/// end on its own thread, whatever inner pools it uses.
+///
+/// `workers` must lie in `1..=8`; a panic in a task is resumed on the caller
+/// after every thread has stopped.
+pub fn map_with_init<S, T, I, F>(workers: usize, count: usize, init: I, f: F) -> Vec<T>
+where
+    T: Send,
+    I: Fn(usize) -> S + Send + Sync,
+    F: Fn(&mut S, usize) -> T + Send + Sync,
+{
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    assert!((1..=8).contains(&workers), "workers must lie in 1..=8");
+    if count == 0 {
+        return Vec::new();
+    }
+    let workers = workers.min(count);
+    let next = AtomicUsize::new(0);
+    let claim = (count / (workers * 8)).clamp(1, 4);
+    let run = |worker: usize| {
+        let mut state = init(worker);
+        let mut local = Vec::with_capacity(count / workers + claim);
+        loop {
+            let first = next.fetch_add(claim, Ordering::Relaxed);
+            if first >= count {
+                break;
+            }
+            for i in first..count.min(first + claim) {
+                local.push((i, f(&mut state, i)));
+            }
+        }
+        local
+    };
+    let parts: Vec<Vec<(usize, T)>> = if workers == 1 {
+        vec![run(0)]
+    } else {
+        std::thread::scope(|scope| {
+            let run = &run;
+            let handles: Vec<_> = (0..workers)
+                .map(|worker| {
+                    std::thread::Builder::new()
+                        .name(format!("sqp-batch-{worker}"))
+                        .spawn_scoped(scope, move || run(worker))
+                        .expect("batch worker thread")
+                })
+                .collect();
+            let mut parts = Vec::with_capacity(workers);
+            let mut panic = None;
+            for handle in handles {
+                match handle.join() {
+                    Ok(part) => parts.push(part),
+                    Err(payload) => {
+                        panic.get_or_insert(payload);
+                    }
+                }
+            }
+            if let Some(payload) = panic {
+                std::panic::resume_unwind(payload);
+            }
+            parts
+        })
+    };
+    let mut slots: Vec<_> = (0..count).map(|_| None).collect();
+    for (index, value) in parts.into_iter().flatten() {
+        assert!(slots[index].is_none());
+        slots[index] = Some(value);
+    }
+    slots
+        .into_iter()
+        .map(|value| value.expect("one result per task"))
+        .collect()
 }
 
 #[cfg(test)]

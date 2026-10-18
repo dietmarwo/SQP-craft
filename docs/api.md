@@ -601,6 +601,9 @@ small NLPs. Compatible resource owners share a private pool per width, so
 nested configurations do not multiply pools. Simultaneous independent callers
 must budget their own total work. No global Rayon pool is configured.
 
+The outer workers are dedicated threads, not pool workers: a solve whose inner
+kernels wait for a pool blocks, and never starts another start on its stack.
+
 Cancellation preserves completed indexed results and skips later factories.
 Malformed starts retain input-error precedence. Running callbacks/factories
 remain cooperative; per-solve time limits are not a global batch deadline.

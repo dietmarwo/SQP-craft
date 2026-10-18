@@ -46,7 +46,10 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
         .enumerate()
         .all(|(k, col)| col[k + 1..].iter().all(|&v| v == 0.0))
     {
+        // The general recurrence below gives −0.0 above the diagonal
+        // (−dot/l with dot = +0.0 and l > 0); keep those bits.
         for k in 0..n {
+            j[k * n..k * n + k].fill(-0.0);
             j[k * n + k] = 1.0 / l[k * n + k];
         }
         return;
@@ -322,14 +325,13 @@ fn diagonal_inverse_is_exact_and_tiny_coupling_keeps_the_general_path() {
         inverse_transpose(&l, &mut j, n);
         for col in 0..n {
             for row in 0..n {
-                assert_eq!(
-                    j[col * n + row],
-                    if row == col {
-                        1.0 / (2.0 + col as f64)
-                    } else {
-                        0.0
-                    }
-                );
+                // As the general recurrence: −0.0 above the diagonal.
+                let expected = match row.cmp(&col) {
+                    std::cmp::Ordering::Less => -0.0,
+                    std::cmp::Ordering::Equal => 1.0 / (2.0 + col as f64),
+                    std::cmp::Ordering::Greater => 0.0,
+                };
+                assert_eq!(j[col * n + row].to_bits(), f64::to_bits(expected));
             }
         }
     }

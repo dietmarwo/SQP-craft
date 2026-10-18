@@ -1,7 +1,7 @@
 //! Ordered independent solves with explicit outer/inner worker budgets.
 use crate::{NativeSqp, SqpOptions};
 use sqp_craft::{qp::QpBackend, *};
-use sqp_craft_parallel::Execution;
+use sqp_craft_parallel::map_with_init;
 
 /// Convenience batch API for an infallible worker-local model factory.
 /// See [`try_solve_many`] for fallible construction and budget/error semantics.
@@ -65,8 +65,10 @@ where
             .map(|x| spec.check_point(x, "start point").map(|_| not_started()))
             .collect());
     }
-    let execution = Execution::new(workers).map_err(Error::Unsupported)?;
-    Ok(execution.map_with_init(
+    // Dedicated threads, not a pool: a solve's inner kernels then block
+    // instead of starting another task on the same stack.
+    Ok(map_with_init(
+        workers,
         starts.len(),
         |_| NativeSqp {
             qp: B::default(),

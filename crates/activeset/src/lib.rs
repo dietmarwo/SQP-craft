@@ -521,7 +521,8 @@ impl Sources<'_> {
         if indices.len() == 1 {
             let (i, a) = (indices[0], values[0]);
             for (k, dk) in d.iter_mut().enumerate() {
-                *dk = sigma * (0.0 + a * j[k * n + i]);
+                // The general path's sum starts from −0.0: −0.0 + v = v.
+                *dk = sigma * (a * j[k * n + i]);
             }
             return;
         }
