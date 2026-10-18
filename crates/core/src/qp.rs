@@ -7,9 +7,7 @@
 //! backend-specific warm-start state are still to come.
 
 use crate::error::{Error, Result, ensure, first_non_finite};
-use crate::kkt::{
-    KktPoint, KktResiduals, elastic_residuals_with_hard_rows, residuals_with_workspace,
-};
+use crate::kkt::{KktPoint, KktResiduals, elastic_residuals_with_hard_rows, residuals_validated};
 use crate::solver::{CancellationToken, Multipliers};
 use crate::spec::{Bounds, CsrMatrix};
 
@@ -231,7 +229,31 @@ impl QpModel {
             jacobian_values: &self.matrix.values,
         };
         let Some((weight, slack, hard)) = elastic else {
-            return residuals_with_workspace(&point, &solution.multipliers, transpose);
+            for (what, values, expected) in [
+                (
+                    "variable multipliers",
+                    solution.multipliers.variables.as_slice(),
+                    self.n(),
+                ),
+                (
+                    "row multipliers",
+                    solution.multipliers.constraints.as_slice(),
+                    self.m(),
+                ),
+            ] {
+                ensure(values.len() == expected, || {
+                    format!(
+                        "KKT input: {what} has length {}, expected {expected}",
+                        values.len()
+                    )
+                })?;
+                if let Some((i, v)) = first_non_finite(values) {
+                    return Err(Error::InvalidInput(format!(
+                        "KKT input: {what} entry {i} is {v}"
+                    )));
+                }
+            }
+            return residuals_validated(&point, &solution.multipliers, transpose);
         };
         let mut relaxed = Bounds::new(std::mem::take(relaxed_lower), std::mem::take(relaxed_upper));
         let result = elastic_residuals_with_hard_rows(

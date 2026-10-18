@@ -108,6 +108,16 @@ pub fn residuals_with_workspace(
         }
     }
 
+    residuals_validated(point, multipliers, jt_lambda)
+}
+
+/// Internal path after complete shape, bounds, pattern and finite-data validation.
+pub(crate) fn residuals_validated(
+    point: &KktPoint<'_>,
+    multipliers: &Multipliers,
+    jt_lambda: &mut Vec<f64>,
+) -> Result<KktResiduals> {
+    let n = point.x.len();
     let primal = point
         .variable_bounds
         .violation_with_valid_bounds(point.x)?
