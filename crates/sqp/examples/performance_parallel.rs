@@ -3,6 +3,8 @@
 //!     performance_parallel FAMILY SIZE MODE BLOCK BACKEND INNER_THREADS WORKERS JOBS
 #[path = "support/orbit.rs"]
 mod orbit;
+#[path = "support/propagation.rs"]
+mod propagation;
 use sqp_craft::*;
 use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
@@ -74,39 +76,49 @@ fn run_case(args: &[String], state: &mut WorkerState) -> String {
     let reuse = args.get(3).is_none_or(|s| s != "cold");
     let block = args.get(4).map(|s| s.parse().unwrap()).unwrap_or(0);
     let backend = args.get(5).map(String::as_str).unwrap_or("clarabel");
-    let (spec, mut model, x): (ProblemSpec, Box<dyn NlpProblem>, Vec<f64>) = if family == "orbit" {
-        let (s, m, x) = orbit::OrbitTransfer::new(size);
-        (s, Box::new(m), x)
-    } else {
-        let restoration = family == "restoration";
-        assert!(restoration || family == "separable");
-        let n = size;
-        let m = if restoration { n } else { n / 2 };
-        let (indptr, indices) = if restoration {
-            ((0..=n).collect(), (0..n).collect())
+    let (spec, mut model, x): (ProblemSpec, Box<dyn NlpProblem>, Vec<f64>) =
+        if family == "propagation" {
+            let model = propagation::Propagation::new(size, 4096);
+            let spec = ProblemSpec::new(
+                Bounds::new(vec![0.05; size], vec![2.; size]),
+                Bounds::free(0),
+                CsrPattern::dense(0, size),
+            )
+            .unwrap();
+            (spec, Box::new(model), vec![0.1; size])
+        } else if family == "orbit" {
+            let (s, m, x) = orbit::OrbitTransfer::new(size);
+            (s, Box::new(m), x)
         } else {
-            ((0..=m).map(|i| 2 * i).collect(), (0..n).collect())
+            let restoration = family == "restoration";
+            assert!(restoration || family == "separable");
+            let n = size;
+            let m = if restoration { n } else { n / 2 };
+            let (indptr, indices) = if restoration {
+                ((0..=n).collect(), (0..n).collect())
+            } else {
+                ((0..=m).map(|i| 2 * i).collect(), (0..n).collect())
+            };
+            let rows = if restoration {
+                vec![1.; m]
+            } else {
+                (0..m)
+                    .map(|i| 2. + ((2 * i) % 3 + (2 * i + 1) % 3) as f64 * 0.1)
+                    .collect()
+            };
+            let s = ProblemSpec::new(
+                Bounds::new(vec![0.05; n], vec![2.; n]),
+                Bounds::fixed(rows),
+                CsrPattern {
+                    rows: m,
+                    cols: n,
+                    indptr,
+                    indices,
+                },
+            )
+            .unwrap();
+            (s, Box::new(Separable { restoration }), vec![0.1; n])
         };
-        let rows = if restoration {
-            vec![1.; m]
-        } else {
-            (0..m)
-                .map(|i| 2. + ((2 * i) % 3 + (2 * i + 1) % 3) as f64 * 0.1)
-                .collect()
-        };
-        let s = ProblemSpec::new(
-            Bounds::new(vec![0.05; n], vec![2.; n]),
-            Bounds::fixed(rows),
-            CsrPattern {
-                rows: m,
-                cols: n,
-                indptr,
-                indices,
-            },
-        )
-        .unwrap();
-        (s, Box::new(Separable { restoration }), vec![0.1; n])
-    };
     let settings = SqpOptions {
         max_iterations: 350,
         hessian_block_size: block,
@@ -153,6 +165,16 @@ fn run_case(args: &[String], state: &mut WorkerState) -> String {
     if family == "orbit" && (size == 20 || size == 40) {
         let reference = if size == 20 { 1.52206 } else { 1.52449 };
         assert!((e.objective + reference).abs() < 5e-5);
+    }
+    if family == "propagation" {
+        assert!(
+            r.candidate
+                .as_ref()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .all(|(i, &v)| (v - propagation::control(i)).abs() < 1e-4)
+        );
     }
     if family != "orbit" {
         assert!(e.objective < 1e-9);
