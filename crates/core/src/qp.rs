@@ -113,15 +113,18 @@ impl QpModel {
         out.fill(0.0);
         for i in 0..self.n() {
             let range = h.pattern.indptr[i]..h.pattern.indptr[i + 1];
+            let pi = p[i];
+            let mut value = out[i];
             for (&j, &v) in h.pattern.indices[range.clone()]
                 .iter()
                 .zip(&h.values[range])
             {
-                out[i] += v * p[j];
+                value += v * p[j];
                 if j != i {
-                    out[j] += v * p[i];
+                    out[j] += v * pi;
                 }
             }
+            out[i] = value;
         }
     }
 
