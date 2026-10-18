@@ -844,6 +844,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 self.settings.dense_size_limit
             )));
         }
+        model.set_threads(options.threads)?;
         let settings = &self.settings;
         let qp_acceptance = options
             .feasibility_tolerance
