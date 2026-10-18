@@ -45,6 +45,7 @@ fn main() {
     let _resources = sqp_craft_parallel::Execution::new(threads).unwrap();
     backend.set_threads(threads).unwrap();
     let resource_setup = setup.elapsed().as_secs_f64();
+    let mut residuals = [0.0_f64; 4];
     let mut seconds = 0.0;
     let mut iterations = 0;
     let mut objective = 0.0;
@@ -63,7 +64,16 @@ fn main() {
         let QpOutcome::Optimal(solution) = result else {
             panic!("{result:?}")
         };
-        assert!(model.accepts(&solution, 1e-8).unwrap().accepted);
+        let check = model.accepts(&solution, 1e-8).unwrap();
+        assert!(check.accepted);
+        for (out, value) in residuals.iter_mut().zip([
+            check.residuals.primal,
+            check.residuals.stationarity,
+            check.residuals.complementarity,
+            check.residuals.dual_sign,
+        ]) {
+            *out = out.max(value);
+        }
         assert!(
             solution
                 .step
@@ -75,8 +85,9 @@ fn main() {
         iterations += solution.iterations;
         objective = model.objective(&solution.step);
     }
+    let [primal, stationarity, complementarity, dual_sign] = residuals;
     println!(
-        "{{\"family\":\"qp\",\"size\":{n},\"threads\":{threads},\"seconds\":{seconds},\"resource_setup_seconds\":{resource_setup},\"objective\":{objective},\"iterations\":{iterations},\"fresh_hessian_calls\":3}}"
+        "{{\"family\":\"qp\",\"size\":{n},\"threads\":{threads},\"seconds\":{seconds},\"resource_setup_seconds\":{resource_setup},\"objective\":{objective},\"iterations\":{iterations},\"fresh_hessian_calls\":3,\"primal\":{primal},\"stationarity\":{stationarity},\"complementarity\":{complementarity},\"dual_sign\":{dual_sign}}}"
     );
     println!("{{\"kind\":\"batch\",\"jobs\":1,\"seconds\":{seconds}}}");
 }

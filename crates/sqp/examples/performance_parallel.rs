@@ -180,7 +180,7 @@ fn run_case(args: &[String], state: &mut WorkerState) -> String {
         assert!(e.objective < 1e-9);
     }
     format!(
-        "{{\"family\":\"{family}\",\"backend\":\"{backend}\",\"size\":{size},\"reuse\":{reuse},\"hessian_block_size\":{block},\"seconds\":{seconds},\"objective\":{},\"iterations\":{},\"qp_calls\":{},\"qp_iterations\":{},\"bfgs_seconds\":{},\"conversion_seconds\":{},\"engine_seconds\":{},\"setup_seconds\":{},\"check_seconds\":{},\"qp_seconds\":{},\"block_hessian_fallbacks\":{},\"setups\":{},\"updates\":{},\"primal\":{},\"stationarity\":{}}}",
+        "{{\"family\":\"{family}\",\"backend\":\"{backend}\",\"size\":{size},\"reuse\":{reuse},\"hessian_block_size\":{block},\"seconds\":{seconds},\"objective\":{},\"iterations\":{},\"qp_calls\":{},\"qp_iterations\":{},\"bfgs_seconds\":{},\"conversion_seconds\":{},\"engine_seconds\":{},\"setup_seconds\":{},\"check_seconds\":{},\"qp_seconds\":{},\"block_hessian_fallbacks\":{},\"setups\":{},\"updates\":{},\"primal\":{},\"stationarity\":{},\"complementarity\":{},\"dual_sign\":{}}}",
         e.objective,
         r.iterations,
         r.report.qp_solves,
@@ -195,7 +195,9 @@ fn run_case(args: &[String], state: &mut WorkerState) -> String {
         r.report.qp_setups,
         r.report.qp_updates,
         k.primal,
-        k.stationarity
+        k.stationarity,
+        k.complementarity,
+        k.dual_sign
     )
 }
 
