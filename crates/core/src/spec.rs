@@ -213,11 +213,16 @@ impl CsrPattern {
         assert_eq!(y.len(), self.rows, "y length");
         for (r, out) in y.iter_mut().enumerate() {
             let range = self.indptr[r]..self.indptr[r + 1];
-            *out = self.indices[range.clone()]
-                .iter()
-                .zip(&values[range])
-                .map(|(&j, &a)| a * x[j])
-                .sum();
+            *out = if range.len() == self.cols {
+                // A full, valid, strictly sorted row has columns 0..cols.
+                values[range].iter().zip(x).map(|(&a, &v)| a * v).sum()
+            } else {
+                self.indices[range.clone()]
+                    .iter()
+                    .zip(&values[range])
+                    .map(|(&j, &a)| a * x[j])
+                    .sum()
+            };
         }
     }
 
