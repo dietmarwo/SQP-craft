@@ -115,6 +115,16 @@ impl QpModel {
             let range = h.pattern.indptr[i]..h.pattern.indptr[i + 1];
             let pi = p[i];
             let mut value = out[i];
+            if range.len() == i + 1 {
+                // In a valid lower-only sorted row, full length proves 0..=i.
+                let values = &h.values[range];
+                for ((&v, &pj), outj) in values[..i].iter().zip(&p[..i]).zip(&mut out[..i]) {
+                    value += v * pj;
+                    *outj += v * pi;
+                }
+                out[i] = value + values[i] * pi;
+                continue;
+            }
             for (&j, &v) in h.pattern.indices[range.clone()]
                 .iter()
                 .zip(&h.values[range])
