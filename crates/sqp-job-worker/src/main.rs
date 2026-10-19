@@ -153,6 +153,21 @@ struct Recomputed {
     /// Largest violation of the variable and constraint bounds.
     primal: f64,
 }
+/// Objective, constraint values and the largest bound violation at `x`, or
+/// why they are not finite.
+fn values(model: &Model, spec: &ProblemSpec, x: &[f64]) -> Result<(f64, Vec<f64>, f64)> {
+    let mut fresh = model.clone();
+    let mut rows = vec![0.0; spec.m()];
+    let objective = fresh.functions(x, &mut rows)?;
+    if !objective.is_finite() || rows.iter().any(|v| !v.is_finite()) {
+        return Err("the objective or a constraint value is not finite".into());
+    }
+    let primal = spec
+        .variables()
+        .checked_violation(x)?
+        .max(spec.constraints().checked_violation(&rows)?);
+    Ok((objective, rows, primal))
+}
 fn recompute(model: &Model, spec: &ProblemSpec, x: &[f64]) -> Result<Recomputed> {
     let mut fresh = model.clone();
     let mut rows = vec![0.0; spec.m()];
@@ -202,7 +217,7 @@ impl Worker for Adapter {
         d["kkt_acceptance"] = json!({"primal":"feasibility_tolerance","stationarity":"stationarity_tolerance",
             "complementarity":COMPLEMENTARITY,"dual_sign":DUAL_SIGN});
         d["evaluation"] = json!({"profile":EVALUATE_PROFILE,"inner_threads":1,
-            "points":"1..1000000 finite points of the problem's dimension, also outside the bounds; one task per point",
+            "points":"1 or more finite points of the problem's dimension, also outside the bounds (inline: the resolved job, points included, must stay below the runner's 4 MiB validation output); one task per point; a point whose values overflow is reported with claim none",
             "result":"claim feasible within feasibility_tolerance, else none; objective, constraint values and violation"});
         d
     }
@@ -289,7 +304,7 @@ impl Run {
         let mut residuals = Value::Null;
         let mut kkt_checked = false;
         let mut accepted = false;
-        let mut why = String::from("no multipliers were returned");
+        let mut why = String::new();
         if let Some(x) = &r.candidate {
             self.spec.check_point(x, "returned candidate")?;
             let p = recompute(&self.model, &self.spec, x)?;
@@ -328,17 +343,28 @@ impl Run {
         if kkt_checked {
             checks.push("kkt");
         }
-        let point: &[&str] = if recomputed.is_some() { &checks } else { &[] };
+        let point: &[&str] = if recomputed.is_some() {
+            &POINT_CHECKS
+        } else {
+            &[]
+        };
+        let mut note = None;
         let (claim, evidence) = match r.status {
             Status::Converged if accepted => ("first_order", Evidence::rechecked(&checks)),
-            Status::Converged if feasible == Some(true) => (
-                "feasible",
-                Evidence::rechecked(&checks).refuting("first_order", "false_optimality", why),
-            ),
-            Status::Converged if recomputed.is_some() => (
+            Status::Converged if feasible == Some(false) => (
                 "none",
                 Evidence::rechecked(&checks).refuting("first_order", "infeasible_point", why),
             ),
+            Status::Converged if kkt_checked => (
+                "feasible",
+                Evidence::rechecked(&checks).refuting("first_order", "false_optimality", why),
+            ),
+            // Converged, but nothing to check the first-order conditions
+            // with: not confirmed, and not refuted either.
+            Status::Converged if feasible == Some(true) => {
+                note = Some("converged without multipliers: first-order conditions not checked");
+                ("feasible", Evidence::rechecked(&POINT_CHECKS))
+            }
             Status::LocallyInfeasible | Status::LinearInfeasible if feasible == Some(true) => {
                 let refuted = if r.status == Status::LocallyInfeasible {
                     "locally_infeasible"
@@ -347,24 +373,25 @@ impl Run {
                 };
                 (
                     "feasible",
-                    Evidence::rechecked(&checks).refuting(
+                    Evidence::rechecked(&POINT_CHECKS).refuting(
                         refuted,
                         "false_infeasibility",
                         "the returned point satisfies every bound and constraint within the tolerance",
                     ),
                 )
             }
-            // The point's infeasibility is rechecked; its stationarity for
-            // the violation measure is the solver's.
-            Status::LocallyInfeasible if recomputed.is_some() => {
-                ("locally_infeasible", Evidence::rechecked(&checks))
-            }
-            Status::LocallyInfeasible => ("locally_infeasible", Evidence::claimed(&[])),
+            // The point was recomputed and is infeasible, but the claim, a
+            // stationary point of the violation, is the solver's.
+            Status::LocallyInfeasible => ("locally_infeasible", Evidence::claimed(point)),
             Status::LinearInfeasible => ("infeasible", Evidence::claimed(point)),
-            _ if feasible == Some(true) => ("feasible", Evidence::rechecked(&checks)),
+            _ if feasible == Some(true) => ("feasible", Evidence::rechecked(&POINT_CHECKS)),
             _ => ("none", Evidence::claimed(point)),
         };
         let validation_calls = if recomputed.is_some() { 2 } else { 0 };
+        let mut details = json!({"kkt":residuals,"primal_violation":recomputed.as_ref().map(|p| p.primal),"qp_backend":r.report.qp_backend,"qp_status":r.report.qp_status,"message":r.message,"global_optimum_certified":false,"acceptance":{"primal":tolerance,"stationarity":self.payload.stationarity_tolerance,"complementarity":COMPLEMENTARITY,"dual_sign":DUAL_SIGN}});
+        if let Some(note) = note {
+            details["note"] = json!(note);
+        }
         Ok(TaskResult {
             outcome: Outcome {
                 termination: r.status.as_str().into(),
@@ -372,7 +399,7 @@ impl Run {
                 feasible,
                 objective: recomputed.as_ref().map(|p| p.objective),
                 x: r.candidate,
-                details: json!({"kkt":residuals,"primal_violation":recomputed.as_ref().map(|p| p.primal),"qp_backend":r.report.qp_backend,"qp_status":r.report.qp_status,"message":r.message,"global_optimum_certified":false,"acceptance":{"primal":tolerance,"stationarity":self.payload.stationarity_tolerance,"complementarity":COMPLEMENTARITY,"dual_sign":DUAL_SIGN}}),
+                details,
                 evidence: Some(evidence),
                 ..Outcome::default()
             },
@@ -440,19 +467,33 @@ impl Prepared for Evaluate {
     fn cancel(&self) {} // One evaluation per task; tasks stop between points.
     fn solve(&self, task: usize, _: f64) -> Result<TaskResult> {
         let x = &self.payload.points[task];
-        let p = recompute(&self.model, &self.spec, x)?;
-        let feasible = p.primal <= self.payload.feasibility_tolerance;
+        let outcome = match values(&self.model, &self.spec, x) {
+            Ok((objective, rows, primal)) => {
+                let feasible = primal <= self.payload.feasibility_tolerance;
+                Outcome {
+                    claim: if feasible { "feasible" } else { "none" }.into(),
+                    feasible: Some(feasible),
+                    objective: Some(objective),
+                    details: json!({"problem":self.payload.problem,"constraints":rows,
+                        "primal_violation":primal,"feasibility_tolerance":self.payload.feasibility_tolerance}),
+                    evidence: Some(Evidence::rechecked(&POINT_CHECKS)),
+                    ..Outcome::default()
+                }
+            }
+            // A finite point whose values overflow has no usable value; it
+            // is an answer for this point, not a job failure.
+            Err(error) => Outcome {
+                claim: "none".into(),
+                details: json!({"problem":self.payload.problem,"message":error.to_string()}),
+                evidence: Some(Evidence::claimed(&[])),
+                ..Outcome::default()
+            },
+        };
         Ok(TaskResult {
             outcome: Outcome {
                 termination: "evaluated".into(),
-                claim: if feasible { "feasible" } else { "none" }.into(),
-                feasible: Some(feasible),
-                objective: Some(p.objective),
                 x: Some(x.clone()),
-                details: json!({"problem":self.payload.problem,"constraints":p.rows,
-                    "primal_violation":p.primal,"feasibility_tolerance":self.payload.feasibility_tolerance}),
-                evidence: Some(Evidence::rechecked(&POINT_CHECKS)),
-                ..Outcome::default()
+                ..outcome
             },
             work: [("evaluations".into(), 1)].into(),
         })
@@ -578,10 +619,33 @@ mod tests {
             (o.claim.as_str(), o.feasible),
             ("locally_infeasible", Some(false))
         );
-        assert_eq!(o.evidence.as_ref().unwrap().level, "rechecked");
+        // The point's infeasibility is recomputed; the claim stays the solver's.
+        let e = o.evidence.as_ref().unwrap();
+        assert_eq!((e.level.as_str(), e.checks.len()), ("claimed", 3));
         let o = judged(&simplex, native(Status::LinearInfeasible, None, None));
         assert_eq!(o.claim, "infeasible");
         assert_eq!(o.evidence.as_ref().unwrap().level, "claimed");
+        let o = judged(
+            &simplex,
+            native(Status::LinearInfeasible, Some(vec![0.5, 0.5]), None),
+        );
+        assert_eq!(
+            refuted(&o),
+            ("feasible", "infeasible", "false_infeasibility")
+        );
+        // Converged without multipliers: neither confirmed nor refuted.
+        let o = judged(
+            &simplex,
+            native(Status::Converged, Some(vec![0.5, 0.5]), None),
+        );
+        assert_eq!(o.claim, "feasible");
+        assert!(o.evidence.as_ref().unwrap().refuted.is_none());
+        assert!(o.details["note"].is_string());
+        let o = judged(
+            &simplex,
+            native(Status::Converged, Some(vec![0.2, 0.2]), None),
+        );
+        assert_eq!(refuted(&o), ("none", "first_order", "infeasible_point"));
         let o = judged(
             &simplex,
             native(Status::IterationLimit, Some(vec![0.6, 0.4]), None),
@@ -596,20 +660,23 @@ mod tests {
     fn evaluate_checks_points_inside_and_outside_the_bounds() {
         let mut s: JobSpec = serde_json::from_value(json!({"schema_version":"optimization.job/0.1",
             "request_key":"test","worker":"sqp","payload_schema":EVALUATE_PROFILE,
-            "payload":{"problem":"benchmark.simplex","dimension":2,"points":[[0.25,0.75],[0.5,0.25],[2.0,-1.0]],
+            "payload":{"problem":"benchmark.simplex","dimension":2,"points":[[0.25,0.75],[0.5,0.25],[2.0,-1.0],[1e200,0.0]],
                 "feasibility_tolerance":1e-7},
             "resources":{"cpu_slots":1,"outer_workers":1,"inner_threads":1},
             "limits":{"wall_time_seconds":10.0,"grace_seconds":1.0},"inputs":[]}))
         .unwrap();
         let p = Adapter.prepare(&mut s, Path::new(".")).unwrap();
-        let outcomes: Vec<Outcome> = (0..3).map(|t| p.solve(t, 1.0).unwrap().outcome).collect();
+        let outcomes: Vec<Outcome> = (0..4).map(|t| p.solve(t, 1.0).unwrap().outcome).collect();
         assert_eq!(
             outcomes
                 .iter()
                 .map(|o| o.claim.as_str())
                 .collect::<Vec<_>>(),
-            ["feasible", "none", "none"]
+            ["feasible", "none", "none", "none"]
         );
+        // The objective overflows: no value, an answer for this point only.
+        assert!(outcomes[3].objective.is_none() && outcomes[3].feasible.is_none());
+        assert_eq!(outcomes[3].evidence.as_ref().unwrap().level, "claimed");
         assert_eq!(outcomes[0].objective, Some(0.625));
         assert_eq!(outcomes[1].details["primal_violation"], 0.25);
         // Outside the variable bounds: evaluated, and infeasible by 1.

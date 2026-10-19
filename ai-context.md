@@ -427,7 +427,7 @@ Then read each outcome with `optimization-run result JOB_DIRECTORY`
 |---|---|
 | `termination` | The native status |
 | `claim` | `first_order` (native `converged` plus the worker's own KKT recheck), `feasible` (primal feasible, no first-order claim), `locally_infeasible`, `infeasible`, or `none` |
-| `evidence` | `rechecked` with `checks` `objective`, `bounds`, `constraints` and, with multipliers, `kkt`; `refuted` when the recheck rejected the native status |
+| `evidence` | `rechecked` with `checks` `objective`, `bounds`, `constraints` and, with multipliers, `kkt`; `claimed` for `locally_infeasible`, `infeasible` and `none` (their `checks` list what was still recomputed); `refuted` when the recheck rejected the native status |
 | `x`, `feasible`, `objective` | `x` is the solver's candidate; `feasible` and `objective` come from a fresh model evaluation at it |
 | `details` | `kkt` residuals, `primal_violation`, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, and the `acceptance` thresholds |
 
@@ -435,11 +435,14 @@ The recheck uses `feasibility_tolerance`, `stationarity_tolerance`,
 complementarity ≤ 1e-6 and dual sign ≤ 1e-8. A native `converged` that fails
 it is not reported as `first_order`: `evidence.refuted` names `first_order`
 with verdict `false_optimality` (the point is feasible; claim `feasible`) or
-`infeasible_point` (claim `none`). `locally_infeasible` (elastic mode at a
-stationary point of the violation) and `infeasible` (linear rows and bounds
-without a common point, as the QP solver judged) map the native statuses; the
-point's infeasibility is rechecked, and a point that turns out feasible
-refutes the claim (`false_infeasibility`). `sqp.solve/1` keeps elastic mode
+`infeasible_point` (claim `none`). A `converged` without multipliers is
+neither confirmed nor refuted: claim `feasible` or `none` from the point, and
+`details.note` says the first-order conditions were not checked.
+`locally_infeasible` (elastic mode at a stationary point of the violation) and
+`infeasible` (linear rows and bounds without a common point, as the QP solver
+judged) map the native statuses with `claimed` evidence: the point's
+infeasibility is recomputed, its stationarity is not. A point that turns out
+feasible refutes the claim (`false_infeasibility`). `sqp.solve/1` keeps elastic mode
 off and its registered models are feasible, so neither occurs with it today.
 Treat any refutation as a defect report. Work counters are `functions`,
 `derivatives`, `iterations`, `qp_iterations` and `validation_calls`; never add
@@ -451,12 +454,15 @@ is no BFGS or solver checkpoint resume.
 
 `sqp.evaluate/1` evaluates points against a registered model without solving,
 for example an agent's candidates or another solver's answer. Payload:
-`problem`, `dimension`, `points` (1 to 1,000,000 finite vectors of that
-dimension, one task each; they may lie outside the bounds) and
-`feasibility_tolerance`; use `inner_threads` 1. Each outcome has
-`termination: "evaluated"`, claim `feasible` within the tolerance or `none`,
-the objective, the constraint values and `primal_violation` in details, and
-`rechecked` evidence. The work counter is `evaluations`. See
+`problem`, `dimension`, `points` (finite vectors of that dimension, one task
+each; they may lie outside the bounds) and `feasibility_tolerance`; use
+`inner_threads` 1. Points are inline: the resolved job must stay below the
+runner's 4 MiB validation output. Each outcome has `termination:
+"evaluated"`, claim `feasible` within the tolerance or `none`, the objective,
+the constraint values and `primal_violation` in details, and `rechecked`
+evidence. Only function values are computed. A point whose values overflow
+gets claim `none`, no objective, unknown feasibility, `claimed` evidence and
+the reason in `details.message`. The work counter is `evaluations`. See
 `tutorials/job-api/simplex-evaluate.json`.
 
 ### Shared copies

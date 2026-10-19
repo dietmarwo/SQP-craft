@@ -76,9 +76,11 @@ Each outcome's `evidence` says what was verified: `rechecked` with `checks`
 the recheck rejects a native `converged`, the claim is not reported:
 `evidence.refuted` names `first_order` with verdict `false_optimality` (claim
 `feasible`) or `infeasible_point` (claim `none`). Report such a refutation as a
-defect. `locally_infeasible` and `infeasible` map the native statuses of
-elastic mode and of infeasible linear rows; this profile keeps elastic mode
-off, so they do not occur with the registered models.
+defect. A `converged` without multipliers is neither confirmed nor refuted;
+`details.note` says so. `locally_infeasible` and `infeasible` map the native
+statuses of elastic mode and of infeasible linear rows, with `claimed`
+evidence; this profile keeps elastic mode off, so they do not occur with the
+registered models.
 
 A limited task may retain a feasible point with claim `feasible`. If a process
 is killed, uncommitted active work is unknown and the common result has
@@ -99,7 +101,9 @@ points against the simplex model without solving:
 Each point is one task with `termination: "evaluated"`: the first two satisfy
 `sum(x) = 1` and are `feasible` (objectives 0.25 and 0.3), the third is `none`
 with `primal_violation` 1. Points may lie outside the bounds; they are then
-infeasible. Use `inner_threads` 1.
+infeasible. A point whose values overflow is `none` without an objective, with
+the reason in `details.message`. Points are inline: keep the job well below
+the runner's 4 MiB validation output. Use `inner_threads` 1.
 
 ## Eight-slot layouts and custom native models
 
