@@ -2,8 +2,10 @@
 > protocol/runner and a native solver worker. See the [API guide](docs/job-api.md),
 > [runnable tutorial](tutorials/job-api/README.md) and
 > [validation report](docs/job-api/VALIDATION.md) and [review](docs/job-api/REVIEW.md).
-> The shared crates (0.1.1) are identical in fcmaes-rust, LP-IP-craft and SQP-craft.
-> Existing solver APIs remain available.
+> The shared crates (0.2.0) are identical in fcmaes-rust, LP-IP-craft and SQP-craft;
+> 0.2 adds result claims with evidence (`locally_infeasible`, refutations of
+> unconfirmed convergence), point evaluation (`sqp.evaluate/1`), coded errors and
+> JSON Schemas. Existing solver APIs remain available.
 
 # SQP-craft
 

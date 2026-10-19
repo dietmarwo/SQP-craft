@@ -1,4 +1,4 @@
-# Job API 0.1 validation
+# Job API validation
 
 > This is the delivery's validation. The review before the merge corrected
 > three bugs and several robustness problems; see [REVIEW.md](REVIEW.md) for
@@ -119,3 +119,39 @@ On Linux x86_64 with Rust 1.97:
 | `tutorials/job-api/run.py` | 3 examples × 8 tasks passed |
 | `sha256sum -c docs/job-api/SHARED-SOURCES.sha256` | 20 files OK |
 | Mixed node: `test_integration.py` with all three workers, under each repository's runner build | 12 passed, none skipped, three times |
+
+
+## Result contract 0.2 (19 October 2026)
+
+The shared crates moved to 0.2.0 with the result contract 0.2: five new
+claims, evidence (levels, checks, refutations, certificate slot), objective
+bounds, worker protocol 0.2 with 0.1 still accepted, coded runner errors,
+`already_terminal` on cancelling a finished job, and JSON Schemas for the job
+envelope and the result manifest. The shared set grew to 23 files with the
+two schemas and `scripts/job-api/outcome_cases.json`. CI installs `jsonschema`
+and sets `JOB_API_REQUIRE_SCHEMA=1`, so the schema checks cannot be skipped
+there.
+
+An independent review before the merge reported 13 defects; all were fixed
+and are covered by tests (see the [plan](PLAN.md#6-result-contract-02-october-2026)).
+After the fixes, 1.2 million generated outcomes found no disagreement between
+the JSON Schema and `Outcome::check`, and every case of `outcome_cases.json`
+behaves the same as a journal record through the runner.
+
+In this repository the SQP worker records a `converged` status that fails the
+recomputed KKT acceptance as a refutation instead of failing the job, maps
+`locally_infeasible` and `linear_infeasible` to claims with `claimed`
+evidence, adds `sqp.evaluate/1`, and reports the workspace version as its
+engine version instead of a hard-coded string. Checked with Rust 1.97 on
+Linux x86_64:
+
+| Gate | Observed result |
+| --- | --- |
+| `cargo fmt --check`, Clippy `-D warnings` for the workspace | Passed |
+| Workspace tests (`cargo test --workspace --locked`) | 228 passed, including 26 shared (5 legacy spec, 13 contracts, 8 durability) and 4 SQP adapter tests |
+| `scripts/job-api/test_integration.py` with the SQP worker | 13 passed, 3 skipped (fcmaes and LP cases) |
+| `scripts/job-api/test_review.py` (`JOB_API_REQUIRE_SCHEMA=1`) | 15 passed |
+| `tutorials/job-api/run.py` | 4 examples; jobs and results validated against the schemas |
+| Mixed node with all three workers, under each repository's runner build | 13 passed, none skipped, three times |
+| `sha256sum -c docs/job-api/SHARED-SOURCES.sha256` | 23 files OK |
+| Solver crates | Unchanged |

@@ -4,6 +4,7 @@ This tutorial runs three registered smooth models: a simplex-constrained
 quadratic, Rosenbrock, and an unconstrained shifted quadratic using Clarabel.
 Each job has eight independent initial points and an eight-slot CPU budget.
 Models and QP state are private to each task; no Python callback is serialized.
+A fourth example evaluates given points without solving.
 
 ## Build and execute
 
@@ -15,9 +16,13 @@ python3 tutorials/job-api/run.py --root /tmp/sqp-job-tutorial
 ```
 
 The script initializes a node, registers the worker, validates the examples and
-runs them. It independently asserts the expected objective and `first_order`
-claim, prints attempt directories, and saves `tutorial-report.json` under the
-node. The simplex example reaches `x=[0.25,0.25,0.25,0.25]`, objective 0.25.
+runs them. It independently asserts the expected objective, the `first_order`
+claim and its evidence, and the evaluated points, prints attempt directories,
+and saves `tutorial-report.json` under the node. If the `jsonschema` package is
+installed, it also validates every job and result against the published
+[job](../../docs/job-api/schemas/optimization.job-0.1.schema.json) and
+[result](../../docs/job-api/schemas/optimization.result-0.2.schema.json) schemas. The simplex example reaches
+`x=[0.25,0.25,0.25,0.25]`, objective 0.25.
 Rosenbrock and the shifted quadratic approach objective zero.
 
 ## One job, step by step
@@ -68,10 +73,39 @@ objective, gradient, constraint/Jacobian values and KKT residuals. It is neither
 a global optimum certificate nor a second-order sufficiency claim. Local
 restoration failure or `locally_infeasible` is not a global infeasibility proof.
 
+Each outcome's `evidence` says what was verified: `rechecked` with `checks`
+`objective`, `bounds`, `constraints` and `kkt` for a `first_order` claim. If
+the recheck rejects a native `converged`, the claim is not reported:
+`evidence.refuted` names `first_order` with verdict `false_optimality` (claim
+`feasible`) or `infeasible_point` (claim `none`). Report such a refutation as a
+defect. A `converged` without multipliers is neither confirmed nor refuted;
+`details.note` says so. `locally_infeasible` and `infeasible` map the native
+statuses of elastic mode and of infeasible linear rows, with `claimed`
+evidence; this profile keeps elastic mode off, so they do not occur with the
+registered models.
+
 A limited task may retain a feasible point with claim `feasible`. If a process
 is killed, uncommitted active work is unknown and the common result has
 `work:null`; completed task records survive. There is no BFGS, active-set or
 solver checkpoint resume in this job protocol.
+
+## Evaluate given points
+
+`simplex-evaluate.json` uses `payload_schema: "sqp.evaluate/1"` to check three
+points against the simplex model without solving:
+
+```json
+"payload": {"problem": "benchmark.simplex", "dimension": 4,
+            "points": [[0.25, 0.25, 0.25, 0.25], [0.1, 0.2, 0.3, 0.4], [0.5, 0.5, 0.5, 0.5]],
+            "feasibility_tolerance": 1e-07}
+```
+
+Each point is one task with `termination: "evaluated"`: the first two satisfy
+`sum(x) = 1` and are `feasible` (objectives 0.25 and 0.3), the third is `none`
+with `primal_violation` 1. Points may lie outside the bounds; they are then
+infeasible. A point whose values overflow is `none` without an objective, with
+the reason in `details.message`. Points are inline: keep the job well below
+the runner's 4 MiB validation output. Use `inner_threads` 1.
 
 ## Eight-slot layouts and custom native models
 
