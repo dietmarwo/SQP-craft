@@ -167,6 +167,7 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | [docs/iteration-2-results.md](docs/iteration-2-results.md) | Feasibility restoration and subsequent review fixes |
 | [docs/iteration-1-results.md](docs/iteration-1-results.md) | What iteration 1 delivers, review findings, SLSQP comparison, limits |
 | [docs/validation.md](docs/validation.md) | Checks run for this version |
+| [ai-context.md](ai-context.md) | Operational context for AI agents: formulation, options, results, multistart, job API |
 
 ## Build and test
 
