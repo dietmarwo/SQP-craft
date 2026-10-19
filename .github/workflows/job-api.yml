@@ -14,6 +14,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # The shared review tests and the tutorial validate against the JSON Schemas.
+  JOB_API_REQUIRE_SCHEMA: "1"
 
 jobs:
   native-jobs:
@@ -25,6 +27,11 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: JSON Schema validator for the schema checks
+        run: python3 -m pip install "jsonschema>=4.18,<5"
       - name: Format and lint job layer
         run: |
           cargo fmt -p optimization-job-api -p optimization-runner -p sqp-job-worker -- --check

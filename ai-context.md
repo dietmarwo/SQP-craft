@@ -1,8 +1,10 @@
 # AI context for solving smooth constrained problems with SQP-craft
 
-Last reviewed 2026-10-19 against `main` at `d814aec` (workspace 0.16.0,
-including the shared agent job API 0.1, #12), plus the 0.1.1 synchronization
-of the shared job crates. In another checkout, check
+Last reviewed 2026-10-19 against `main` at `7e07364` (workspace 0.16.0,
+including the shared agent job API 0.1, #12, and the 0.1.1 synchronization of
+the shared job crates, #14), plus the result contract 0.2 of the shared job
+crates (claims with evidence, `sqp.evaluate/1`, error codes, JSON Schemas).
+In another checkout, check
 `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's discovery output
 and the linked guides before using a command or claiming a capability.
 
@@ -33,13 +35,14 @@ Rust dependencies.
 | `sqp-craft-parallel` | `crates/parallel` | Explicit bounded execution resources (Rayon pools) for kernels and native models |
 | `sqp-craft-python` / `sqp-craft` | `crates/python`, `python/sqp_craft` | `import sqp_craft`: PyO3 package |
 | `optimization-job-api`, `optimization-runner` | `crates/` | Shared job protocol and the `optimization-run` runner |
-| `sqp-job-worker` | `crates/sqp-job-worker` | Job worker for profile `sqp.solve/1` |
+| `sqp-job-worker` | `crates/sqp-job-worker` | Job worker for profiles `sqp.solve/1` and `sqp.evaluate/1` |
 
 Nothing is published. The workspace sets `publish = false`, and neither
 crates.io nor PyPI has an `sqp-craft` package at this review. Use a checkout
 of https://github.com/dietmarwo/SQP-craft. The workspace version is 0.16.0;
-the shared job crates are 0.1.1 (the worker crate is 0.1.0). `sqp.solve/1` is a protocol identifier, independent
-of both. The "Version 0.4.0" line at the top of `docs/api.md` is stale; go by
+the shared job crates are 0.2.0, and the worker crate shares the workspace
+version, which it reports as its engine version. `sqp.solve/1` is a protocol
+identifier, independent of both. The "Version 0.4.0" line at the top of `docs/api.md` is stale; go by
 `Cargo.toml`.
 
 Toolchains:
@@ -388,8 +391,7 @@ model: extend `Model` and `registered` in `crates/sqp-job-worker/src/main.rs`
 `ProblemSpec`, analytic derivatives and a finite-difference test like
 `registered_derivatives_match_finite_differences`. Data files need hashed
 inputs and a new profile version, because `sqp.solve/1` rejects inputs. Never
-deserialize executable callbacks. The worker reports the engine version as the
-literal `"0.16.0"`; update it with the workspace version.
+deserialize executable callbacks.
 
 ### Job specification
 
@@ -418,22 +420,44 @@ envelope allows.
 ### Job results
 
 Inspect the job `state` first: `completed` only means every task returned.
-Then read each outcome with `optimization-run result JOB_DIRECTORY`:
+Then read each outcome with `optimization-run result JOB_DIRECTORY`
+(schema `optimization.result/0.2`):
 
 | Outcome field | SQP meaning |
 |---|---|
 | `termination` | The native status |
-| `claim` | `first_order` (native `converged` plus the worker's own KKT recheck), `feasible` (primal feasible, no first-order claim), or `none` |
+| `claim` | `first_order` (native `converged` plus the worker's own KKT recheck), `feasible` (primal feasible, no first-order claim), `locally_infeasible`, `infeasible`, or `none` |
+| `evidence` | `rechecked` with `checks` `objective`, `bounds`, `constraints` and, with multipliers, `kkt`; `refuted` when the recheck rejected the native status |
 | `x`, `feasible`, `objective` | `x` is the solver's candidate; `feasible` and `objective` come from a fresh model evaluation at it |
-| `details` | `kkt` residuals, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, and the `acceptance` thresholds |
+| `details` | `kkt` residuals, `primal_violation`, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, and the `acceptance` thresholds |
 
 The recheck uses `feasibility_tolerance`, `stationarity_tolerance`,
 complementarity ≤ 1e-6 and dual sign ≤ 1e-8. A native `converged` that fails
-it fails the job instead of being reported. Work counters are `functions`,
+it is not reported as `first_order`: `evidence.refuted` names `first_order`
+with verdict `false_optimality` (the point is feasible; claim `feasible`) or
+`infeasible_point` (claim `none`). `locally_infeasible` (elastic mode at a
+stationary point of the violation) and `infeasible` (linear rows and bounds
+without a common point, as the QP solver judged) map the native statuses; the
+point's infeasibility is rechecked, and a point that turns out feasible
+refutes the claim (`false_infeasibility`). `sqp.solve/1` keeps elastic mode
+off and its registered models are feasible, so neither occurs with it today.
+Treat any refutation as a defect report. Work counters are `functions`,
 `derivatives`, `iterations`, `qp_iterations` and `validation_calls`; never add
 them to another profile's counters. Graceful cancellation sets the native
 token. Killed workers leave `work` null and only committed tasks count; there
 is no BFGS or solver checkpoint resume.
+
+### Evaluate given points
+
+`sqp.evaluate/1` evaluates points against a registered model without solving,
+for example an agent's candidates or another solver's answer. Payload:
+`problem`, `dimension`, `points` (1 to 1,000,000 finite vectors of that
+dimension, one task each; they may lie outside the bounds) and
+`feasibility_tolerance`; use `inner_threads` 1. Each outcome has
+`termination: "evaluated"`, claim `feasible` within the tolerance or `none`,
+the objective, the constraint values and `primal_violation` in details, and
+`rechecked` evidence. The work counter is `evaluations`. See
+`tutorials/job-api/simplex-evaluate.json`.
 
 ### Shared copies
 
@@ -459,10 +483,15 @@ after the 0.1.0 delivery. It carries this repository's review fixes
 - The result contract also knows the fcmaes `non_dominated_set` and
   `elite_archive` claims; SQP results never use them.
 
-The job envelope, worker protocol and result schema identifiers are unchanged,
-so the three runner builds and workers interoperate; `describe` reports the
-shared version as `build.job_api_version`. Run a node root through one runner
-build. The raw validation logs of the 0.1.0 delivery are under
+Version 0.2.0 adds the result contract `optimization.result/0.2` and worker
+protocol `optimization.worker/0.2`: the claims `infeasible`, `unbounded`,
+`infeasible_or_unbounded`, `locally_infeasible` and `certified_optimum`;
+`evidence` with checks, refutations and a certificate slot;
+`objective_bounds`; coded runner errors; and JSON Schemas in
+`docs/job-api/schemas/`. The job envelope stays `optimization.job/0.1`. A 0.2
+runner still accepts 0.1 workers, and a 0.1 runner rejects 0.2 workers at
+registration. `describe` reports the shared version as
+`build.job_api_version`. Run a node root through one runner build. The raw validation logs of the 0.1.0 delivery are under
 `validation/job-api/`.
 
 ## Validation and reporting checklist
@@ -541,5 +570,5 @@ CUTEst subset, and a build without the native solver. Pass `--fcmaes` and
   [docs/job-api/REVIEW.md](docs/job-api/REVIEW.md): shared job API and this worker
 - [docs/target-card.md](docs/target-card.md): the open application contract
 - `crates/core/src/kkt.rs`, `crates/core/src/derivative_check.rs`: independent checks
-- `crates/sqp-job-worker/src/main.rs`: the `sqp.solve/1` adapter and registered models
+- `crates/sqp-job-worker/src/main.rs`: the `sqp.solve/1` and `sqp.evaluate/1` adapter and registered models
 - `python/sqp_craft/__init__.py`: Python API and defaults
