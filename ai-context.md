@@ -46,9 +46,10 @@ Toolchains:
 - The solver crates need Rust 1.85 or newer; CI checks them with 1.85. The job
   crates need Rust 1.88, and CI checks them with 1.88.
 - The Python package needs CPython 3.10 or newer and a C linker, and builds
-  from source with Rust: `python -m pip install ".[test]"`. It is an abi3
-  wheel; `--no-default-features` builds one without the native solver. CI tests
-  3.10 and 3.14 on Linux, macOS and Windows.
+  from source with Rust: `python -m pip install ".[test]"`. The wheel is abi3.
+  `python -m maturin build --release --no-default-features` (or
+  `MATURIN_PEP517_ARGS=--no-default-features` with pip) builds one without the
+  native solver. CI tests 3.10 and 3.14 on Linux, macOS and Windows.
 - The job layer is Linux only.
 
 The [application target card](docs/target-card.md) is intentionally
@@ -70,7 +71,7 @@ would change the solution.
 | Are analytic or automatic derivatives available, and what is the Jacobian sparsity? | The model must supply the gradient and the Jacobian values for a fixed CSR pattern. |
 | Which rows are linear? | A start that violates declared linear rows is projected onto them; later iterates stay on them, and they leave the merit function. |
 | Where is the model undefined (failed propagation, negative mass)? | The model must signal it; the solver then shortens the trial step. |
-| What start is available, and is it inside the bounds? | Starts are never projected; a start outside the box is rejected. |
+| What start is available, and is it inside the bounds? | Starts are never projected into the box; a start outside it is rejected. Only declared linear rows can move a start. |
 | What are the units and scales of variables, objective and rows? | Tolerances are absolute and unscaled; very large gradients break the first step. |
 | Which feasibility and stationarity tolerances does the application accept? | Defaults are 1e-7 (primal) and 1e-6 (stationarity, complementarity). |
 | Is one local solution enough, or are several starts needed? | SQP is local; multistart is the way to explore. |
@@ -268,9 +269,11 @@ in any configuration. It was measured with 0.14; the 0.16 review reran it
 (Clarabel and elastic mode unchanged, active-set 801). The results recommend
 active-set with elastic mode, but the defaults are unchanged until that is
 decided. For a new problem, try both backends and report which one ran. On
-the benchmark fixtures, the 164-variable orbit transfer among them, the
-active-set backend takes the same steps as Clarabel and makes the whole solve
-5.4–6.4× faster.
+the four performance fixtures of [docs/active-set-qp.md](docs/active-set-qp.md)
+(orbit transfers with 84 and 164 variables, a separable and a restoration
+case), the active-set backend takes the same steps as Clarabel and makes the
+whole solve 5.4–6.4× faster; across CUTEst it is about 4.5% faster in time and
+2% cheaper in callbacks.
 
 ## Interpret results
 
@@ -320,7 +323,8 @@ unchanged.
 stationarity, complementarity and dual-sign residuals in unscaled units,
 calling no model code. For an independent check, evaluate the returned
 candidate with a fresh model instance, build the `Evaluation` from those
-values, and pass the solver's multipliers; this is what the job worker does.
+values, and pass the solver's multipliers. The job worker does the
+equivalent with `kkt::residuals` on a `KktPoint`.
 
 ## Parallelism, cancellation and observers
 
@@ -419,7 +423,7 @@ Then read each outcome with `optimization-run result JOB_DIRECTORY`:
 |---|---|
 | `termination` | The native status |
 | `claim` | `first_order` (native `converged` plus the worker's own KKT recheck), `feasible` (primal feasible, no first-order claim), or `none` |
-| `feasible`, `objective`, `x` | From a fresh model evaluation at the candidate |
+| `x`, `feasible`, `objective` | `x` is the solver's candidate; `feasible` and `objective` come from a fresh model evaluation at it |
 | `details` | `kkt` residuals, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, and the `acceptance` thresholds |
 
 The recheck uses `feasibility_tolerance`, `stationarity_tolerance`,
@@ -488,8 +492,8 @@ the delivery are under `validation/job-api/`.
 
 ## Test commands
 
-The CI set, from the repository root (`scripts/check.sh` runs the main Rust
-and Python checks together):
+The main CI commands, from the repository root (`scripts/check.sh` runs the
+main Rust and Python checks together):
 
 ```sh
 cargo fmt --all --check
@@ -503,10 +507,14 @@ python3 scripts/job-api/test_integration.py
 python3 scripts/job-api/test_review.py
 python3 tutorials/job-api/run.py --root /tmp/job-api-tutorial
 python -m pip install ".[test]" && python -m pytest -q
+python examples/demo.py
 python examples/solve_sqp.py
+python examples/restore_hs071.py
+python examples/orbit_transfer.py 20
 ```
 
-CI also runs the SLSQP comparison and the random, complementarity and SNOPT
+CI also checks the solver crates with Rust 1.85 (excluding the job crates) and
+the job crates with Rust 1.88, and runs the SLSQP comparison and the random, complementarity and SNOPT
 stress families, which fail on any false convergence claim, a 20-problem
 CUTEst subset, and a build without the native solver. Pass `--fcmaes` and
 `--lp-ip` executables to `test_integration.py` to test a mixed node.
