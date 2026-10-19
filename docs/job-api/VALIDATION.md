@@ -93,3 +93,29 @@ files across the three archives; in this repository it lists the reviewed
 shared files, which differ from the delivered ones (see [REVIEW.md](REVIEW.md)).
 The delivery archive's `MANIFEST.sha256` covers every delivered file except
 itself and can be checked with `sha256sum -c MANIFEST.sha256` after unzip.
+
+## Synchronization as 0.1.1 (19 October 2026)
+
+The shared files were replaced by the 0.1.1 set that fcmaes-rust, LP-IP-craft
+and SQP-craft now share byte for byte (20 files, `SHARED-SOURCES.sha256`).
+It keeps this repository's review fixes. Two changes come from the other repositories:
+the repair of a queued job whose launcher died now also records zero work with
+complete accounting (fcmaes-rust's fix, limited by this repository's rule that
+detached attempts with a unit stay unknown), and the result contract knows the
+fcmaes set and archive claims. `scripts/job-api/test_review.py` and
+`fake_worker.py` are now shared; the reboot test uses whichever worker the
+repository builds, and the queued-launcher test also checks the zero-work
+accounting. CI also checks the manifest. The SQP worker, the solver crates and
+`sqp.solve/1` are unchanged.
+
+On Linux x86_64 with Rust 1.97:
+
+| Gate | Observed result |
+| --- | --- |
+| `cargo fmt --check`, Clippy `-D warnings` for the job crates | Passed |
+| Job crates, release | 21 passed: 20 shared (5 legacy spec, 7 contracts, 8 durability), 1 SQP adapter |
+| `scripts/job-api/test_integration.py` with the SQP worker | 9 passed; the fcmaes and LP cases skipped |
+| `scripts/job-api/test_review.py` with the SQP worker | 7 passed |
+| `tutorials/job-api/run.py` | 3 examples × 8 tasks passed |
+| `sha256sum -c docs/job-api/SHARED-SOURCES.sha256` | 20 files OK |
+| Mixed node: `test_integration.py` with all three workers, under each repository's runner build | 12 passed, none skipped, three times |

@@ -3,7 +3,7 @@
 The three projects share `crates/optimization-job-api` and
 `crates/optimization-runner`. Each project builds its own native worker. One
 runner can register all three executables and schedule them against one CPU
-budget. Each source archive also builds independently; no sibling checkout or
+budget. Each repository also builds independently; no sibling checkout or
 Python extension is needed.
 
 Start with the [runnable tutorial](../tutorials/job-api/README.md). The
@@ -16,12 +16,14 @@ record the implementation and its acceptance gates.
 | --- | --- |
 | `optimization-job-api` | Strict versioned envelope, resources, input hashes, checked journals, result contract and worker SDK |
 | `optimization-runner` / `optimization-run` | Worker discovery, staging, idempotency, admission, process supervision, cancellation, deadlines and journal recovery |
-| `fcmaes-job-worker` | `fcmaes.retry/1`: registered objectives, BiteOpt/DE, deterministic retry seeds and evaluation budgets |
+| `fcmaes-job-worker` | `fcmaes.retry/1` (BiteOpt, DE or CMA-ES retries on registered scalar objectives), `fcmaes.mode/1` (MODE Pareto fronts) and `fcmaes.map-elites/1` (MAP-Elites archives): deterministic task seeds and exact or declared evaluation budgets |
 | `lp-ip-job-worker` | `lp-ip.solve/1`: sparse LP/MIP artifacts, candidate starts, node/pivot budgets and numerical checks |
 | `sqp-job-worker` | `sqp.solve/1`: registered smooth Rust models, initial points, active-set/Clarabel backends and independent KKT checks |
 
 The shared crates and this guide are identical in the three repositories.
-They are source packages, version 0.1.0, with publishing disabled. A future
+They are source packages, version 0.1.1, with publishing disabled; 0.1.1 is
+the 0.1.0 delivery with the review fixes of all three repositories and the
+fcmaes set and archive claims. A future
 shared repository or published crate can replace these synchronized copies
 without changing the job protocol. Solver dependencies remain in the individual
 worker crates; the runner never links all three engines.
@@ -111,10 +113,11 @@ The runner requires:
 outer_workers * inner_threads <= cpu_slots <= 1024
 ```
 
-For eight independent solves or fcmaes retries, use `8 / 8 / 1`. For one LP or
+For eight independent solves or fcmaes runs, use `8 / 8 / 1`. For one LP or
 SQP solve with up to eight numerical workers, use `8 / 1 / 8`. `8 / 2 / 4` is
 also valid. `8 / 8 / 8` is rejected. fcmaes currently requires
-`inner_threads=1`. LP-IP and SQP support 1–8 inner workers.
+`inner_threads=1` in all three profiles. LP-IP and SQP support 1–8 inner
+workers.
 
 Admission reserves `cpu_slots` for the whole attempt, not just the currently
 busy tasks. Concurrent jobs on the same root cannot reserve more than the node
@@ -157,7 +160,10 @@ Lifecycle states are `submitted`, `starting` (detached only), `waiting`,
 `running`, then `completed`, `cancelled`, `timed_out`, `failed` or `interrupted`.
 The wall clock starts after CPU admission; queue time is separate. LP and SQP
 also receive the remaining cooperative time limit. A graceful stop sets a
-shared cancellation token in LP/SQP; fcmaes finishes active retries. `--now`
+shared cancellation token in LP/SQP; fcmaes finishes active retries, while its
+MODE and MAP-Elites runs stop after the current generation and return their
+front or archive. Workers stopped at the wall deadline may report
+`termination: "cancelled"`; the job state says `timed_out`. `--now`
 allows at most one further second before process-group termination. The wall
 limit plus its declared grace always bounds process supervision.
 
@@ -186,14 +192,21 @@ added as if they measured the same work.
 | `none` | No accepted candidate claim; inspect termination/details |
 | `feasible` | Independently checked candidate within declared tolerances |
 | `best_found` | fcmaes candidate checked for objective/bounds; no global certificate |
+| `non_dominated_set` | fcmaes MODE: `details.front` is re-evaluated, feasible and mutually non-dominated; no single `x` or `objective`; no Pareto-optimality certificate |
+| `elite_archive` | fcmaes MAP-Elites: every elite in `details.elites` is re-evaluated and maps to its niche; `x`/`objective` are the best elite; no per-niche optimality certificate |
 | `numerical_optimum` | LP/MIP native optimal status with independent candidate checks; numerical, not an exact certificate |
 | `first_order` | SQP convergence plus independently recomputed original-unit KKT residuals; no global/second-order certificate |
 
 LP details preserve objective sense, incumbent, best bound, gaps, warm-start
 status and available LP residuals. Infinite gap values are explicit strings
 `+infinity` / `-infinity`, not silently converted to JSON null. SQP details keep
-KKT acceptance tolerances, QP backend and raw status. Native validation work is
-counted separately from solver evaluations/iterations.
+KKT acceptance tolerances, QP backend and raw status. fcmaes MODE details carry
+the front and its exact hypervolume for a declared reference point; MAP-Elites
+details carry the elites, coverage and QD score. Native validation work is
+counted separately from solver evaluations/iterations. A non-dominated set is
+the only claim without a single point: its outcome has `feasible: true` and no
+`x` or `objective`. Runners built before these two claims existed reject them
+when replaying a journal; use one runner build per node.
 
 If a worker is killed, active work is unknown. `work` is null,
 `runner.accounting_complete` is false, and `known_work_lower_bound` covers only
@@ -206,19 +219,23 @@ optimization-run --root NODE jobs repair JOB_ID
 ```
 
 Reconciliation only releases slots when process termination is established.
-Repair refuses a live worker or unknown liveness; an attempt whose launcher died
-while it was queued never started a worker and can be repaired. Repair tolerates
-a torn final journal fragment, preserves a consistent final worker manifest if
-available, and otherwise seals the attempt as interrupted. A journal with
-earlier corruption or duplicate task IDs is never trusted: such an attempt, and
-any attempt whose worker wrote one, is sealed `failed` with no results, `work`
-null and `runner.journal_error`. `jobs get` then reports the journal error, and
-`jobs list` shows it for that job only. Appends end a torn final fragment first
-(a valid record gets its newline, anything else is dropped), so a later record
-never joins it. After launcher loss, elapsed time may be unknown. Repair never
-resumes solver state. Use a new request key for a fresh solve. If the launcher
-dies between process creation and durable process-group recording, reservations
-are conservatively retained; reboot reconciliation can clear the old boot.
+Repair refuses a live worker or unknown liveness. A launcher that dies while its
+job is still queued never started a worker: repair then seals the attempt as
+interrupted with zero work and complete accounting, without a liveness proof.
+Detached `submitted`/`starting` attempts may still be started by their unit and
+stay unknown. Repair tolerates a torn final journal fragment, preserves a
+consistent final worker manifest if available, and otherwise seals the attempt
+as interrupted. A journal with earlier corruption or duplicate task IDs is never
+trusted: such an attempt, and any attempt whose worker wrote one, is sealed
+`failed` with no results, `work` null and `runner.journal_error`. `jobs get` then
+reports the journal error, and `jobs list` shows it for that job only. Appends
+end a torn final fragment first (a valid record gets its newline, anything else
+is dropped), so a later record never joins it. After launcher loss, elapsed time
+may be unknown. Repair never resumes solver state. Use a new request key for a
+fresh solve. If the launcher dies between process creation and durable
+process-group recording, reservations are conservatively retained; reboot
+reconciliation can clear the old boot. Only unfinished jobs are flagged after a
+reboot.
 
 `compare` supports the legacy fcmaes behavior. Common results require identical
 resolved experiment digests and payload profiles and never select a winner
@@ -230,8 +247,8 @@ changing algorithms or resource widths.
 `submit` uses a real Linux systemd user manager with `KillMode=control-group`
 and `Restart=no`, in unit `optimization-job-ID.service` (`fcmaes-ID.service` for
 legacy fcmaes jobs); run `node doctor` first. Logout survival requires host-specific
-user-manager lingering. This delivery tests foreground execution and refusal
-when systemd is unavailable; it does not certify detached execution on a real
+user-manager lingering. Foreground execution and the refusal without a systemd
+user manager are tested; detached execution has not yet been accepted on a real
 service host. There is no simulated background-success fallback.
 
 This release has no HTTP/MCP server, remote simulator plugins, arbitrary Python
@@ -253,6 +270,7 @@ runner. Bump a profile version when changing mathematical input/result meaning.
 ```sh
 cargo test --release --locked -p optimization-job-api -p optimization-runner
 python3 scripts/job-api/test_integration.py
+python3 scripts/job-api/test_review.py
 # Add independently built workers to test a mixed node:
 python3 scripts/job-api/test_integration.py \
   --fcmaes /path/to/fcmaes-job-worker \
@@ -260,5 +278,10 @@ python3 scripts/job-api/test_integration.py \
 ```
 
 The harness auto-detects the local worker and skips unavailable solver-specific
-cases. The mixed acceptance run supplied all three. Raw logs and the tested
-source identities are in `validation/job-api/`.
+cases. `test_review.py` holds the runner regression tests of the 0.1.1 review; it
+drives a protocol fixture (`fake_worker.py`) and the repository's own worker.
+The 0.1 acceptance run supplied all three workers; see the
+[validation report](job-api/VALIDATION.md). `job-api/SHARED-SOURCES.sha256`
+records the content of the files shared by the three repositories, and each
+repository's CI checks it. Change a shared file in all three repositories
+together.

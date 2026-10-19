@@ -2,6 +2,7 @@
 > protocol/runner and a native solver worker. See the [API guide](docs/job-api.md),
 > [runnable tutorial](tutorials/job-api/README.md) and
 > [validation report](docs/job-api/VALIDATION.md) and [review](docs/job-api/REVIEW.md).
+> The shared crates (0.1.1) are identical in fcmaes-rust, LP-IP-craft and SQP-craft.
 > Existing solver APIs remain available.
 
 # SQP-craft

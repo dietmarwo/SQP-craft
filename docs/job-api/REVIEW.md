@@ -111,6 +111,10 @@ The other two repositories need the same files when their job-API deliveries
 are merged. `scripts/job-api/test_review.py` and `fake_worker.py` work for any
 worker and can go with them.
 
+All three repositories received these files, with fcmaes-rust's own review
+fixes and the fcmaes claims, in the 0.1.1 synchronization; see
+[VALIDATION.md](VALIDATION.md#synchronization-as-011-19-october-2026).
+
 ## Checked and left as delivered
 
 An independent agent tested the delivery against its documentation and found

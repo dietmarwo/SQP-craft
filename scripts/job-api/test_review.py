@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Regression tests for the review of the job API 0.1.0 (docs/job-api/REVIEW.md).
+"""Runner regression tests from the review of the job API 0.1.0, shared by
+fcmaes-rust, LP-IP-craft and SQP-craft (see docs/job-api.md).
 
 Each test failed on the delivered runner and passes now. It runs the release
-runner against `fake_worker.py`, a protocol fixture, and against the real SQP
-worker where a solver result is needed. Build first:
+runner against `fake_worker.py`, a protocol fixture, and against the
+repository's own worker where a solver result is needed. Build first, with the
+worker package of this repository:
 
-    cargo build --release --locked -p optimization-runner -p sqp-job-worker
+    cargo build --release --locked -p optimization-runner -p WORKER_PACKAGE
     python3 scripts/job-api/test_review.py
 """
 import copy
@@ -21,9 +23,31 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 RUN = REPO / "target/release/optimization-run"
-SQP = REPO / "target/release/sqp-job-worker"
 FAKE = Path(__file__).resolve().parent / "fake_worker.py"
 TERMINAL = {"completed", "failed", "cancelled", "timed_out", "interrupted"}
+# One small, quickly completed job per real worker: (binary, profile, payload).
+LP_MODEL = json.dumps({
+    "schema_version": "lp-ip.model/1", "sense": "minimize", "objective": [2.0, 3.0],
+    "objective_offset": 5.0, "variable_lower": [0.0, 0.0], "variable_upper": [1.0, 1.0],
+    "kinds": ["binary", "binary"], "matrix": {"indptr": [0, 2], "indices": [0, 1], "values": [1.0, 1.0]},
+    "row_lower": [1.0], "row_upper": [1.0],
+}).encode()
+REAL = {
+    "sqp": ("sqp-job-worker", "sqp.solve/1", {
+        "problem": "benchmark.simplex", "dimension": 4, "starts": [[0.1, 0.2, 0.3, 0.4]],
+        "backend": "active_set", "max_iterations": 100, "max_callback_calls": 2000,
+        "feasibility_tolerance": 1e-7, "stationarity_tolerance": 1e-6}),
+    "lp-ip": ("lp-ip-job-worker", "lp-ip.solve/1", {
+        "model_input": "model", "starts": [None], "node_limit": 1000, "iteration_limit": 10000,
+        "feasibility_tolerance": 1e-7, "integrality_tolerance": 1e-7, "presolve": True}),
+    "fcmaes": ("fcmaes-job-worker", "fcmaes.retry/1", {
+        "problem": {"id": "benchmark.sphere", "version": "1", "config": {"dimension": 2},
+                    "bounds": {"lower": [-5.0], "upper": [5.0], "broadcast": True}},
+        "optimizer": {"kind": "biteopt", "parameters": {"population": None}},
+        "seed": 1, "retries": 1, "evaluations_per_retry": 100, "evaluation_limit_mode": "hard"}),
+}
+WORKER = next((name for name, (binary, _, _) in REAL.items()
+               if (REPO / "target/release" / binary).exists()), None)
 
 
 def envelope(worker, payload, wall=30.0, grace=0.2):
@@ -31,24 +55,11 @@ def envelope(worker, payload, wall=30.0, grace=0.2):
         "schema_version": "optimization.job/0.1",
         "request_key": "k",
         "worker": worker,
-        "payload_schema": "sqp.solve/1" if worker == "sqp" else "test.fake/1",
+        "payload_schema": REAL[worker][1] if worker in REAL else "test.fake/1",
         "payload": payload,
         "resources": {"cpu_slots": 8, "outer_workers": 8, "inner_threads": 1},
         "limits": {"wall_time_seconds": wall, "grace_seconds": grace},
         "inputs": [],
-    }
-
-
-def simplex():
-    return {
-        "problem": "benchmark.simplex",
-        "dimension": 4,
-        "starts": [[0.1, 0.2, 0.3, 0.4]],
-        "backend": "active_set",
-        "max_iterations": 100,
-        "max_callback_calls": 2000,
-        "feasibility_tolerance": 1e-7,
-        "stationarity_tolerance": 1e-6,
     }
 
 
@@ -67,8 +78,9 @@ class Review(unittest.TestCase):
         self.addCleanup(self.stop_processes)
         self.call("node", "init", "--capacity", 8)
         self.call("workers", "add", "--id", "fake", "--executable", FAKE)
-        if SQP.exists():
-            self.call("workers", "add", "--id", "sqp", "--executable", SQP)
+        if WORKER:
+            binary = REPO / "target/release" / REAL[WORKER][0]
+            self.call("workers", "add", "--id", WORKER, "--executable", binary)
 
     def stop_processes(self):
         for process, directory in self.processes:
@@ -92,6 +104,15 @@ class Review(unittest.TestCase):
         result = self.raw(*args, **kw)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
+
+    def real_job(self):
+        """A small job of this repository's worker that completes quickly."""
+        spec = envelope(WORKER, copy.deepcopy(REAL[WORKER][2]))
+        if WORKER == "lp-ip":
+            (self.base / "model.json").write_bytes(LP_MODEL)
+            spec["inputs"] = [{"name": "model", "file": "model.json",
+                               "sha256": hashlib.sha256(LP_MODEL).hexdigest()}]
+        return spec
 
     def write(self, spec):
         self.specs += 1
@@ -160,11 +181,15 @@ class Review(unittest.TestCase):
         self.assertFalse((queued_dir / "worker-process.json").exists())
         repaired = self.call("jobs", "repair", queued_id)
         self.assertEqual(repaired["state"], "interrupted")
+        # No worker ever ran: zero work with complete accounting.
+        run = json.loads((queued_dir / "run.json").read_text())
+        self.assertEqual(run["work"], {})
+        self.assertTrue(run["runner"]["accounting_complete"])
         self.assertEqual(json.loads((self.root / "slots.json").read_text()), {})
 
-    @unittest.skipUnless(SQP.exists(), "SQP worker not built")
+    @unittest.skipUnless(WORKER, "no solver worker built")
     def test_finished_job_is_not_interrupted_by_a_later_reboot(self):
-        path, key = self.write(envelope("sqp", simplex()))
+        path, key = self.write(self.real_job())
         job = self.call("run", "--spec", path)
         self.assertEqual(job["state"], "completed")
         record = Path(job["directory"]) / "job.json"

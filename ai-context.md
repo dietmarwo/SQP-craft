@@ -1,7 +1,8 @@
 # AI context for solving smooth constrained problems with SQP-craft
 
-Last reviewed 2026-10-19 against `main` at `2578c11` (workspace 0.16.0,
-including the shared agent job API 0.1, #12). In another checkout, check
+Last reviewed 2026-10-19 against `main` at `d814aec` (workspace 0.16.0,
+including the shared agent job API 0.1, #12), plus the 0.1.1 synchronization
+of the shared job crates. In another checkout, check
 `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's discovery output
 and the linked guides before using a command or claiming a capability.
 
@@ -37,7 +38,7 @@ Rust dependencies.
 Nothing is published. The workspace sets `publish = false`, and neither
 crates.io nor PyPI has an `sqp-craft` package at this review. Use a checkout
 of https://github.com/dietmarwo/SQP-craft. The workspace version is 0.16.0;
-the job crates are 0.1.0. `sqp.solve/1` is a protocol identifier, independent
+the shared job crates are 0.1.1 (the worker crate is 0.1.0). `sqp.solve/1` is a protocol identifier, independent
 of both. The "Version 0.4.0" line at the top of `docs/api.md` is stale; go by
 `Cargo.toml`.
 
@@ -436,27 +437,33 @@ is no BFGS or solver checkpoint resume.
 
 ### Shared copies
 
-The shared crates and `docs/job-api.md` were delivered as identical copies in
-fcmaes-rust, LP-IP-craft and SQP-craft. They now differ, and this repository
-has the most runner fixes. Its review ([docs/job-api/REVIEW.md](docs/job-api/REVIEW.md))
-changed nine shared files: an unreadable journal seals the job `failed` with
-`runner.journal_error` instead of breaking `jobs list`; a job whose launcher
-died while queued can be repaired; finished jobs are no longer flagged after
-a reboot; staging uses a `.staging-*` directory under the node root, so
-`TMPDIR` may be `noexec` but the root must allow execution; a signal during
-validation stops the validator; an append after a torn journal tail no longer
-destroys earlier records; `./model.json` is a valid input path; and detached
-units are named `optimization-job-ID.service`. Of these, fcmaes-rust
-(`bf68a16`) fixed only the queued-launcher repair, in a different way;
-LP-IP-craft has the delivered code.
+The shared crates, `docs/job-api.md`, the integration harness and the runner
+regression tests (`scripts/job-api/test_review.py` with `fake_worker.py`) are
+byte-identical in fcmaes-rust, LP-IP-craft and SQP-craft.
+`docs/job-api/SHARED-SOURCES.sha256` records them, and CI checks the manifest
+in every repository. Version 0.1.1 synchronized the copies, which had drifted
+after the 0.1.0 delivery. It carries this repository's review fixes
+([docs/job-api/REVIEW.md](docs/job-api/REVIEW.md)) to the other two:
 
-The worker protocol is unchanged across the copies. This runner drove the
-LP-IP-craft and fcmaes-rust tutorial jobs, and the SQP worker ran under the
-fcmaes-rust runner, each on one node with all three workers (checked
-2026-10-19). Run a node root through one runner build; mixing builds
-concurrently is untested. `sha256sum -c docs/job-api/SHARED-SOURCES.sha256`
-checks this repository's copies, not the siblings'. The raw validation logs of
-the delivery are under `validation/job-api/`.
+- An unreadable journal seals the job `failed` with `runner.journal_error`
+  instead of breaking `jobs list`, and appends end a torn journal tail first.
+- A job whose launcher died while it was queued is repaired as `interrupted`,
+  with zero work and complete accounting (fcmaes-rust's accounting combined
+  with this repository's rule that detached attempts with a unit stay
+  unknown).
+- Staging uses a `.staging-*` directory under the node root, so `TMPDIR` may be
+  `noexec` but the root must allow execution; a signal during validation stops
+  the validator.
+- Finished jobs are not flagged after a reboot, `./model.json` is a valid
+  input path, and detached units are named `optimization-job-ID.service`.
+- The result contract also knows the fcmaes `non_dominated_set` and
+  `elite_archive` claims; SQP results never use them.
+
+The job envelope, worker protocol and result schema identifiers are unchanged,
+so the three runner builds and workers interoperate; `describe` reports the
+shared version as `build.job_api_version`. Run a node root through one runner
+build. The raw validation logs of the 0.1.0 delivery are under
+`validation/job-api/`.
 
 ## Validation and reporting checklist
 
@@ -505,6 +512,7 @@ cargo test --release --locked -p optimization-job-api -p optimization-runner -p 
 cargo build --release --locked -p optimization-runner -p sqp-job-worker
 python3 scripts/job-api/test_integration.py
 python3 scripts/job-api/test_review.py
+sha256sum -c docs/job-api/SHARED-SOURCES.sha256
 python3 tutorials/job-api/run.py --root /tmp/job-api-tutorial
 python -m pip install ".[test]" && python -m pytest -q
 python examples/demo.py
