@@ -299,17 +299,32 @@ fn attempt_processes_gone(dir: &Path) -> bool {
             .and_then(|n| u32::try_from(n).ok())
             .is_some_and(|pid| group_stopped(pid).unwrap_or(false));
     }
-    // Without a recorded process group, a worker can exist only if the attempt
-    // reached `running`, which is recorded before the worker is spawned. A
-    // queued attempt (or a foreground one not yet launched) whose launcher is
-    // gone therefore has no worker. Detached `submitted`/`starting` attempts
-    // may still be started by their unit, so they stay unknown.
-    read(&dir.join("job.json")).is_ok_and(|s| {
-        terminal(&s["state"])
-            || s["state"] == "waiting"
-            || (matches!(s["state"].as_str(), Some("submitted" | "starting"))
-                && s["unit"].is_null())
-    })
+    read(&dir.join("job.json")).is_ok_and(|s| terminal(&s["state"]) || never_started(&s))
+}
+/// Without a recorded process group, a worker can exist only if the attempt
+/// reached `running`, which is recorded before the worker is spawned. A
+/// queued attempt (or a foreground one not yet launched) whose launcher is
+/// gone therefore has no worker. Detached `submitted`/`starting` attempts may
+/// still be started by their unit, so they do not count.
+fn never_started(job: &Value) -> bool {
+    job["state"] == "waiting"
+        || (matches!(job["state"].as_str(), Some("submitted" | "starting"))
+            && job["unit"].is_null())
+}
+/// True when an attempt's launcher died before admission: it never started a
+/// worker, holds no lock, has no process record and no slot reservation. Such
+/// an attempt did provably zero work and can be sealed with complete
+/// (empty) accounting.
+fn never_admitted(root: &Path, id: &str, dir: &Path) -> Result<bool> {
+    if dir.join("worker-process.json").exists()
+        || !never_started(&read(&dir.join("job.json"))?)
+        || !matches!(lock_is_free(&dir.join("job.lock")), Ok(true))
+        || !matches!(lock_is_free(&dir.join("worker.lock")), Ok(true))
+    {
+        return Ok(false);
+    }
+    let _g = lock(&root.join("slots.lock"))?;
+    Ok(optional(&root.join("slots.json"))?[id].is_null())
 }
 fn capacity(root: &Path) -> Result<u64> {
     read(&root.join("node.json"))?["capacity"]
@@ -1000,6 +1015,8 @@ fn main_result() -> Result<()> {
             }
             Jobs::Repair { id } => {
                 let dir = directory(&root, &id)?;
+                // Decided before the reservation is touched below.
+                let unadmitted = never_admitted(&root, &id, &dir)?;
                 if !attempt_processes_gone(&dir) {
                     if matches!(lock_is_free(&dir.join("worker.lock")), Ok(false)) {
                         return Err("worker still owns this attempt".into());
@@ -1052,7 +1069,10 @@ fn main_result() -> Result<()> {
                 let replayable = result::repair(&dir, &s).is_ok();
                 // An orphaned worker may have finished on its own after the
                 // launcher died; keep its exact result.
-                if let Some((status, elapsed)) = replayable
+                if unadmitted {
+                    // No worker ever ran: the attempt did provably zero work.
+                    finish(&dir, &s, "interrupted", true, 0.0)?;
+                } else if let Some((status, elapsed)) = replayable
                     .then(|| worker_outcome(&dir, &s))
                     .transpose()?
                     .flatten()
