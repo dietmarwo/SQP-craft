@@ -19,8 +19,10 @@ The script initializes a node, registers the worker, validates the examples and
 runs them. It independently asserts the expected objective, the `first_order`
 claim and its evidence, and the evaluated points, prints attempt directories,
 and saves `tutorial-report.json` under the node. If the `jsonschema` package is
-installed, it also validates every job and result against the
-[published schemas](../../docs/job-api/schemas/). The simplex example reaches `x=[0.25,0.25,0.25,0.25]`, objective 0.25.
+installed, it also validates every job and result against the published
+[job](../../docs/job-api/schemas/optimization.job-0.1.schema.json) and
+[result](../../docs/job-api/schemas/optimization.result-0.2.schema.json) schemas. The simplex example reaches
+`x=[0.25,0.25,0.25,0.25]`, objective 0.25.
 Rosenbrock and the shifted quadratic approach objective zero.
 
 ## One job, step by step
