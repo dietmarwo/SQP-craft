@@ -26,14 +26,21 @@ def conforms(schema,value):
     if jsonschema is not None:
         jsonschema.validate(value,json.loads((SCHEMAS/schema).read_text()),cls=jsonschema.Draft202012Validator)
 
-p=argparse.ArgumentParser();p.add_argument('--root',type=Path);args=p.parse_args()
+p=argparse.ArgumentParser(description=__doc__)
+p.add_argument('--root',type=Path,help='node directory (default: a new temporary directory)')
+p.add_argument('--bin-dir',type=Path,default=Path(os.environ.get('CARGO_TARGET_DIR',REPO/'target'))/'release',
+               help='directory with optimization-run and '+BINARY+' (default: $CARGO_TARGET_DIR/release or target/release)')
+args=p.parse_args()
 root=(args.root or Path(tempfile.mkdtemp(prefix=WORKER+'-jobs-'))).resolve()
-runner=REPO/'target/release/optimization-run'
+bin_dir=args.bin_dir.resolve()
+runner,worker=bin_dir/'optimization-run',bin_dir/BINARY
+for binary in [runner,worker]:
+    if not binary.is_file():p.error(f'{binary} not found; build the release binaries first')
 def call(*args):
     run=subprocess.run([str(runner),'--root',str(root),*map(str,args)],capture_output=True,text=True,check=True)
     return json.loads(run.stdout)
 if not (root/'node.json').exists():call('node','init','--capacity',8)
-call('workers','add','--id',WORKER,'--executable',REPO/'target/release'/BINARY)
+call('workers','add','--id',WORKER,'--executable',worker)
 report=[]
 for example in EXAMPLES:
     spec=HERE/(example+'.json');payload=json.loads(spec.read_text())['payload']

@@ -168,12 +168,16 @@ fn values(model: &Model, spec: &ProblemSpec, x: &[f64]) -> Result<(f64, Vec<f64>
         .max(spec.constraints().checked_violation(&rows)?);
     Ok((objective, rows, primal))
 }
-fn recompute(model: &Model, spec: &ProblemSpec, x: &[f64]) -> Result<Recomputed> {
+/// Recomputes the model at `x` (inside the variable bounds); `calls` counts
+/// the model calls made, also when they fail.
+fn recompute(model: &Model, spec: &ProblemSpec, x: &[f64], calls: &mut u64) -> Result<Recomputed> {
     let mut fresh = model.clone();
     let mut rows = vec![0.0; spec.m()];
+    *calls += 1;
     let objective = fresh.functions(x, &mut rows)?;
     let mut gradient = vec![0.0; spec.n()];
     let mut jacobian = vec![0.0; spec.nnz()];
+    *calls += 1;
     fresh.derivatives(x, &mut gradient, &mut jacobian)?;
     if !objective.is_finite()
         || rows
@@ -295,9 +299,13 @@ fn prepare_evaluate(s: &mut JobSpec) -> Result<Box<dyn Prepared>> {
 impl Run {
     /// Judges a native result. A claim whose independent check fails is
     /// refuted, never reported: converged without passing the recomputed
-    /// KKT acceptance (`false_optimality`, or `infeasible_point` for an
-    /// infeasible point), or an infeasibility claim at a feasible point
-    /// (`false_infeasibility`).
+    /// KKT acceptance, also when the residuals overflow (`false_optimality`),
+    /// at a point outside the variable bounds or otherwise infeasible
+    /// (`infeasible_point`), or at a point without finite model values
+    /// (`objective_mismatch`); or an infeasibility claim at a feasible point
+    /// (`false_infeasibility`). A candidate or multipliers of the wrong
+    /// length or with non-finite entries are solver defects and fail the
+    /// task, as the contract states.
     fn judge(&self, r: SolveResult) -> Result<TaskResult> {
         let tolerance = self.options.feasibility_tolerance;
         let mut recomputed = None;
@@ -305,40 +313,90 @@ impl Run {
         let mut kkt_checked = false;
         let mut accepted = false;
         let mut why = String::new();
+        let mut validation_calls = 0;
+        // Why the candidate has no recomputed values: it lies outside the
+        // box, where the model is never evaluated, or its values overflow.
+        let mut outside = None;
+        let mut unusable = None;
         if let Some(x) = &r.candidate {
-            self.spec.check_point(x, "returned candidate")?;
-            let p = recompute(&self.model, &self.spec, x)?;
-            if let Some(multipliers) = &r.multipliers {
-                let k = kkt::residuals(
-                    &KktPoint {
-                        x,
-                        variable_bounds: self.spec.variables(),
-                        rows: &p.rows,
-                        row_bounds: self.spec.constraints(),
-                        gradient: &p.gradient,
-                        jacobian: self.spec.jacobian(),
-                        jacobian_values: &p.jacobian,
-                    },
-                    multipliers,
-                )?;
-                kkt_checked = true;
-                accepted = p.primal <= tolerance
-                    && k.stationarity <= self.payload.stationarity_tolerance
-                    && k.complementarity <= COMPLEMENTARITY
-                    && k.dual_sign <= DUAL_SIGN;
-                why = format!(
-                    "primal {} (tolerance {tolerance}), stationarity {} ({}), complementarity {} ({COMPLEMENTARITY}), dual_sign {} ({DUAL_SIGN})",
-                    p.primal,
-                    k.stationarity,
-                    self.payload.stationarity_tolerance,
-                    k.complementarity,
-                    k.dual_sign
-                );
-                residuals = json!({"primal":k.primal,"stationarity":k.stationarity,"complementarity":k.complementarity,"dual_sign":k.dual_sign});
+            if x.len() != self.spec.n() || x.iter().any(|v| !v.is_finite()) {
+                return Err(format!(
+                    "returned candidate: expected {} finite entries, got {:?}",
+                    self.spec.n(),
+                    x
+                )
+                .into());
             }
-            recomputed = Some(p);
+            if let Some(i) = self.spec.variables().first_outside(x) {
+                outside = Some((
+                    self.spec.variables().checked_violation(x)?,
+                    format!(
+                        "entry {i} = {} lies outside the variable bounds [{}, {}]",
+                        x[i],
+                        self.spec.variables().lower[i],
+                        self.spec.variables().upper[i]
+                    ),
+                ));
+            } else {
+                match recompute(&self.model, &self.spec, x, &mut validation_calls) {
+                    Ok(p) => recomputed = Some(p),
+                    Err(e) => unusable = Some(e.to_string()),
+                }
+            }
         }
-        let feasible = recomputed.as_ref().map(|p| p.primal <= tolerance);
+        if let (Some(x), Some(p), Some(multipliers)) = (&r.candidate, &recomputed, &r.multipliers) {
+            let (n, m) = (self.spec.n(), self.spec.m());
+            if multipliers.variables.len() != n
+                || multipliers.constraints.len() != m
+                || multipliers
+                    .variables
+                    .iter()
+                    .chain(&multipliers.constraints)
+                    .any(|v| !v.is_finite())
+            {
+                return Err(format!(
+                    "returned multipliers: expected {n} variable and {m} row multipliers, all finite"
+                )
+                .into());
+            }
+            kkt_checked = true;
+            match kkt::residuals(
+                &KktPoint {
+                    x,
+                    variable_bounds: self.spec.variables(),
+                    rows: &p.rows,
+                    row_bounds: self.spec.constraints(),
+                    gradient: &p.gradient,
+                    jacobian: self.spec.jacobian(),
+                    jacobian_values: &p.jacobian,
+                },
+                multipliers,
+            ) {
+                Ok(k) => {
+                    accepted = p.primal <= tolerance
+                        && k.stationarity <= self.payload.stationarity_tolerance
+                        && k.complementarity <= COMPLEMENTARITY
+                        && k.dual_sign <= DUAL_SIGN;
+                    why = format!(
+                        "primal {} (tolerance {tolerance}), stationarity {} ({}), complementarity {} ({COMPLEMENTARITY}), dual_sign {} ({DUAL_SIGN})",
+                        p.primal,
+                        k.stationarity,
+                        self.payload.stationarity_tolerance,
+                        k.complementarity,
+                        k.dual_sign
+                    );
+                    residuals = json!({"primal":k.primal,"stationarity":k.stationarity,"complementarity":k.complementarity,"dual_sign":k.dual_sign});
+                }
+                // Shapes and finiteness were checked above: what fails here
+                // is arithmetic that overflows, which confirms nothing.
+                Err(e) => why = format!("the KKT residuals cannot be computed: {e}"),
+            }
+        }
+        let feasible = if outside.is_some() {
+            Some(false)
+        } else {
+            recomputed.as_ref().map(|p| p.primal <= tolerance)
+        };
         let mut checks = POINT_CHECKS.to_vec();
         if kkt_checked {
             checks.push("kkt");
@@ -350,6 +408,35 @@ impl Run {
         };
         let mut note = None;
         let (claim, evidence) = match r.status {
+            // Outside the box: infeasible without evaluating the model.
+            Status::Converged if outside.is_some() => (
+                "none",
+                Evidence::rechecked(&["bounds"]).refuting(
+                    "first_order",
+                    "infeasible_point",
+                    outside.as_ref().expect("guarded").1.clone(),
+                ),
+            ),
+            Status::Converged if unusable.is_some() => (
+                "none",
+                Evidence::rechecked(&["objective", "bounds"]).refuting(
+                    "first_order",
+                    "objective_mismatch",
+                    format!(
+                        "the returned point has no finite model values: {}",
+                        unusable.as_ref().expect("guarded")
+                    ),
+                ),
+            ),
+            Status::LocallyInfeasible if outside.is_some() || unusable.is_some() => {
+                ("locally_infeasible", Evidence::claimed(&["bounds"]))
+            }
+            Status::LinearInfeasible if outside.is_some() || unusable.is_some() => {
+                ("infeasible", Evidence::claimed(&["bounds"]))
+            }
+            _ if outside.is_some() || unusable.is_some() => {
+                ("none", Evidence::claimed(&["bounds"]))
+            }
             Status::Converged if accepted => ("first_order", Evidence::rechecked(&checks)),
             Status::Converged if feasible == Some(false) => (
                 "none",
@@ -387,10 +474,16 @@ impl Run {
             _ if feasible == Some(true) => ("feasible", Evidence::rechecked(&POINT_CHECKS)),
             _ => ("none", Evidence::claimed(point)),
         };
-        let validation_calls = if recomputed.is_some() { 2 } else { 0 };
         let mut details = json!({"kkt":residuals,"primal_violation":recomputed.as_ref().map(|p| p.primal),"qp_backend":r.report.qp_backend,"qp_status":r.report.qp_status,"message":r.message,"global_optimum_certified":false,"acceptance":{"primal":tolerance,"stationarity":self.payload.stationarity_tolerance,"complementarity":COMPLEMENTARITY,"dual_sign":DUAL_SIGN}});
         if let Some(note) = note {
             details["note"] = json!(note);
+        }
+        if let Some((violation, message)) = &outside {
+            details["primal_violation"] = json!(violation);
+            details["message"] = json!(format!("{}; {message}", r.message));
+        }
+        if let Some(message) = &unusable {
+            details["message"] = json!(format!("{}; {message}", r.message));
         }
         Ok(TaskResult {
             outcome: Outcome {
@@ -654,6 +747,107 @@ mod tests {
             (o.termination.as_str(), o.claim.as_str()),
             ("iteration_limit", "feasible")
         );
+    }
+
+    #[test]
+    fn failed_checks_are_task_outcomes_and_solver_defects_task_errors() {
+        // Review SQP-01: these two results used to abort the whole job.
+        let simplex = run("benchmark.simplex", 2);
+        // Finite multipliers whose residuals overflow confirm nothing.
+        let huge = Multipliers {
+            constraints: vec![f64::MAX],
+            variables: vec![f64::MAX, f64::MAX],
+        };
+        let r = simplex
+            .judge(native(Status::Converged, Some(vec![0.5, 0.5]), Some(huge)))
+            .unwrap();
+        r.outcome.check().unwrap();
+        assert_eq!(
+            refuted(&r.outcome),
+            ("feasible", "first_order", "false_optimality")
+        );
+        assert_eq!(r.outcome.objective, Some(0.5));
+        assert!(
+            r.outcome
+                .evidence
+                .as_ref()
+                .unwrap()
+                .refuted
+                .as_ref()
+                .unwrap()
+                .message
+                .contains("cannot be computed")
+        );
+        assert_eq!(r.work["validation_calls"], 2);
+        // A finite candidate outside the box is infeasible; the model is not
+        // evaluated there.
+        let r = simplex
+            .judge(native(Status::Converged, Some(vec![0.5, 1.1]), None))
+            .unwrap();
+        r.outcome.check().unwrap();
+        assert_eq!(
+            refuted(&r.outcome),
+            ("none", "first_order", "infeasible_point")
+        );
+        assert_eq!(
+            (r.outcome.feasible, r.outcome.objective),
+            (Some(false), None)
+        );
+        assert!((r.outcome.details["primal_violation"].as_f64().unwrap() - 0.1).abs() < 1e-12);
+        assert_eq!(r.work["validation_calls"], 0);
+        let e = r.outcome.evidence.as_ref().unwrap();
+        assert_eq!(e.checks, vec!["bounds".to_string()]);
+        // The same point under other statuses keeps the solver's claim or none.
+        let o = judged(
+            &simplex,
+            native(Status::LocallyInfeasible, Some(vec![-0.5, 0.5]), None),
+        );
+        assert_eq!(
+            (o.claim.as_str(), o.feasible),
+            ("locally_infeasible", Some(false))
+        );
+        let o = judged(
+            &simplex,
+            native(Status::IterationLimit, Some(vec![-0.5, 0.5]), None),
+        );
+        assert_eq!((o.claim.as_str(), o.feasible), ("none", Some(false)));
+        // Wrong lengths and non-finite values are solver defects: the task
+        // fails, as the contract states.
+        let right = || Multipliers {
+            constraints: vec![1.0],
+            variables: vec![0.0, 0.0],
+        };
+        for (x, multipliers) in [
+            (vec![0.5], Some(right())),
+            (vec![0.5, f64::NAN], Some(right())),
+            (
+                vec![0.5, 0.5],
+                Some(Multipliers {
+                    constraints: vec![f64::INFINITY],
+                    variables: vec![0.0, 0.0],
+                }),
+            ),
+            (
+                vec![0.5, 0.5],
+                Some(Multipliers {
+                    constraints: vec![1.0, 0.0],
+                    variables: vec![0.0, 0.0],
+                }),
+            ),
+        ] {
+            assert!(
+                simplex
+                    .judge(native(Status::Converged, Some(x.clone()), multipliers))
+                    .is_err(),
+                "{x:?}"
+            );
+        }
+        // A genuine optimum is still confirmed.
+        let o = judged(
+            &simplex,
+            native(Status::Converged, Some(vec![0.5, 0.5]), Some(right())),
+        );
+        assert_eq!(o.claim, "first_order");
     }
 
     #[test]

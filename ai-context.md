@@ -434,8 +434,13 @@ Then read each outcome with `optimization-run result JOB_DIRECTORY`
 The recheck uses `feasibility_tolerance`, `stationarity_tolerance`,
 complementarity ≤ 1e-6 and dual sign ≤ 1e-8. A native `converged` that fails
 it is not reported as `first_order`: `evidence.refuted` names `first_order`
-with verdict `false_optimality` (the point is feasible; claim `feasible`) or
-`infeasible_point` (claim `none`). A `converged` without multipliers is
+with verdict `false_optimality` (the point is feasible, but the residuals fail
+the acceptance or overflow; claim `feasible`), `infeasible_point` (claim
+`none`; a point outside the variable bounds is judged so without evaluating
+the model there, with `checks: ["bounds"]`) or `objective_mismatch` (the
+model has no finite values at the point; claim `none`). A candidate or
+multipliers of the wrong length or with non-finite entries are solver
+defects and fail the task, as the shared contract states. A `converged` without multipliers is
 neither confirmed nor refuted: claim `feasible` or `none` from the point, and
 `details.note` says the first-order conditions were not checked.
 `locally_infeasible` (elastic mode at a stationary point of the violation) and

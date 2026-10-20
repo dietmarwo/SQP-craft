@@ -199,3 +199,33 @@ Nothing in this repository's code changed. On Linux x86_64 with Rust 1.97:
 | Shared review tests (`JOB_API_REQUIRE_SCHEMA=1`) | 15 passed |
 | `test_mcp.py` with this repository's binaries | 25 passed, including the real-worker test (`sqp.solve/1`, claims and evidence) |
 | `tutorials/job-api/run.py` | 4 examples; jobs and results validated against the schemas of the checkout |
+
+## Review fixes (20 October 2026)
+
+The review of 20 October 2026 found that two injected `converged` results
+aborted the whole multistart job instead of being refuted (SQP-01): finite
+multipliers whose KKT residuals overflow, and a finite candidate outside the
+variable bounds. Both are now task outcomes, as the shared contract
+describes: overflowing residuals refute `first_order` with
+`false_optimality`; a candidate outside the box is judged infeasible
+(`infeasible_point`, `checks: ["bounds"]`) without evaluating the model there;
+a point without finite model values refutes it with `objective_mismatch`.
+Candidates or multipliers of the wrong length or with non-finite entries
+remain solver defects that fail the task. `validation_calls` counts the model
+calls actually made. `tutorials/job-api/run.py` takes `--bin-dir` and honors
+`CARGO_TARGET_DIR` (SQP-04).
+
+This repository moved to optimization-jobs revision
+[`eb1c9de`](https://github.com/dietmarwo/optimization-jobs/commit/eb1c9de66e677097a7ea22d9a4b2f6357c18751d)
+(cancellation race, bound consistency in `Outcome::check`, MCP request
+limits, the shared SDK tested inside this worker before a repin). On Linux
+x86_64 with Rust 1.97:
+
+| Check | Observed result |
+| --- | --- |
+| `cargo fmt --check`, Clippy `-D warnings` for the worker | Passed |
+| Workspace tests (`cargo test --workspace --locked`) | 203 passed |
+| Shared harness from Cargo's checkout | 14 run: 10 passed, 4 skipped (fcmaes and LP cases) |
+| Shared review tests (`JOB_API_REQUIRE_SCHEMA=1`) | 17 passed |
+| `test_mcp.py` with this repository's binaries | 28 passed, including the real-worker test |
+| `tutorials/job-api/run.py` | 4 examples, also with `--bin-dir`; jobs and results validated against the schemas of the checkout |

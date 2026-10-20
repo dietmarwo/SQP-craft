@@ -15,7 +15,9 @@ cargo build --release --locked -p optimization-runner -p sqp-job-worker
 python3 tutorials/job-api/run.py --root /tmp/sqp-job-tutorial
 ```
 
-The script initializes a node, registers the worker, validates the examples and
+The script takes the binaries from `target/release`, or from
+`$CARGO_TARGET_DIR/release` when that is set; `--bin-dir` overrides both. It
+initializes a node, registers the worker, validates the examples and
 runs them. It independently asserts the expected objective, the `first_order`
 claim and its evidence, and the evaluated points, prints attempt directories,
 and saves `tutorial-report.json` under the node. If the `jsonschema` package is
@@ -96,8 +98,10 @@ Each outcome's `evidence` says what was verified: `rechecked` with `checks`
 `objective`, `bounds`, `constraints` and `kkt` for a `first_order` claim. If
 the recheck rejects a native `converged`, the claim is not reported:
 `evidence.refuted` names `first_order` with verdict `false_optimality` (claim
-`feasible`) or `infeasible_point` (claim `none`). Report such a refutation as a
-defect. A `converged` without multipliers is neither confirmed nor refuted;
+`feasible`; also when the residuals overflow), `infeasible_point` (claim
+`none`; a point outside the variable bounds is not evaluated) or
+`objective_mismatch` (no finite model values at the point; claim `none`).
+Report such a refutation as a defect. A `converged` without multipliers is neither confirmed nor refuted;
 `details.note` says so. `locally_infeasible` and `infeasible` map the native
 statuses of elastic mode and of infeasible linear rows, with `claimed`
 evidence; this profile keeps elastic mode off, so they do not occur with the
