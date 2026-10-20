@@ -203,8 +203,17 @@ cargo build --release --locked -p optimization-runner -p sqp-job-worker
 ```
 
 The library crates and the Python package depend on crates.io crates only.
-To use the Rust crates from another project before a crates.io release:
-`sqp-craft-solver = { git = "https://github.com/dietmarwo/SQP-craft" }`.
+To use the Rust crates from another project before a crates.io release,
+depend on the core (`ProblemSpec`, `NlpProblem`, results), the solver and at
+least one QP backend:
+
+```toml
+[dependencies]
+sqp-craft = { git = "https://github.com/dietmarwo/SQP-craft" }
+sqp-craft-solver = { git = "https://github.com/dietmarwo/SQP-craft" }
+sqp-craft-clarabel = { git = "https://github.com/dietmarwo/SQP-craft" }    # ClarabelQp, the default
+sqp-craft-activeset = { git = "https://github.com/dietmarwo/SQP-craft" }   # ActiveSetQp, optional
+```
 
 ## Build and test
 
