@@ -3,7 +3,9 @@
 Version 0.14.0, 16 October 2026. Item 1 of the [order of work](gaps.md#order-of-work):
 a dense, warm-startable dual active-set QP solver for the step QPs, in the new
 crate `crates/activeset` (`sqp-craft-activeset`). It has no dependencies
-beyond the core crate. Clarabel stays the default backend.
+beyond the core crate; since 0.16 it also uses `sqp-craft-parallel` for the
+bounded Rayon execution of its large kernels. Clarabel stays the default
+backend.
 
 ```python
 result = solve(spec, model, x0, method="sqp",

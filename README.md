@@ -154,7 +154,9 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | `crates/core` (`sqp-craft`) | Dependency-free contracts: problem spec, callbacks, solver traits, results, KKT residuals, QP seam, derivative checker, dummy method |
 | `crates/sqp` (`sqp-craft-solver`) | The native SQP driver and damped BFGS |
 | `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter (default backend) |
-| `crates/activeset` (`sqp-craft-activeset`) | Dense dual active-set (Goldfarb–Idnani) QP backend, no dependencies |
+| `crates/activeset` (`sqp-craft-activeset`) | Dense dual active-set (Goldfarb–Idnani) QP backend; depends only on the core crate and `sqp-craft-parallel` |
+| `crates/parallel` (`sqp-craft-parallel`) | Explicit bounded execution resources (Rayon pools) for the large QP kernels and native models |
+| `crates/sqp-job-worker` | Job worker for the profiles `sqp.solve/1` and `sqp.evaluate/1` of the shared job API |
 | [docs/gaps.md](docs/gaps.md) | Weaknesses compared with mature SQP codes, and the order of work |
 | `bench/` | CUTEst benchmark harness: S2MPJ access, adapter, solvers, independent check, isolated workers, report |
 | [docs/benchmark-results.md](docs/benchmark-results.md) | CUTEst results: the open defaults, the comparators, the failure classes |
