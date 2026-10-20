@@ -1,17 +1,18 @@
 # AI context for solving smooth constrained problems with SQP-craft
 
 Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0). That
-state includes the result contract 0.2 (claims with evidence, `sqp.evaluate/1`,
-error codes, JSON Schemas, #15); the shared job crates taken from
-[optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
+state includes the result contract 0.2 (claims with evidence,
+`sqp.evaluate/1`, error codes, JSON Schemas, #15); the shared job crates taken
+from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
 `eb1c9de` instead of in-repo copies (#16, #17); the MCP server
-`optimization-mcp` (#18); and refutation of failed rechecks instead of a failed
-job, plus the tutorial's `--bin-dir` (#19). #20 moves the pin to `6a42472`,
-which adds worker-declared artifacts and paged artifact reads
-(`get_artifact` with `offset` and `limit` also pages through the `results`
-journal of a running job). In another checkout, check
-`Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's discovery output
-and the linked guides before using a command or claiming a capability.
+`optimization-mcp` (#18); and refutation of failed rechecks instead of a
+failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
+`6a42472` and the release preparation to `423cd87`, which add worker-declared
+artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
+also pages through the `results` journal of a running job). In another
+checkout, check `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's
+discovery output and the linked guides before using a command or claiming a
+capability.
 
 This file is operational context for an AI that must solve a user's smooth
 nonlinear program with this repository, or decide that another tool fits
