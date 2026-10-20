@@ -1,12 +1,12 @@
-> **Shared agent job API 0.1:** this source tree includes the common Rust job
-> protocol/runner and a native solver worker. See the [API guide](docs/job-api.md),
-> [runnable tutorial](tutorials/job-api/README.md) and
-> [validation report](docs/job-api/VALIDATION.md) and [review](docs/job-api/REVIEW.md).
-> The shared crates (0.2.0) come from
+> **Shared agent job API:** this repository builds `sqp-job-worker`, a native
+> solver worker for the job API of
 > [optimization-jobs](https://github.com/dietmarwo/optimization-jobs), at the
-> revision `Cargo.toml` pins; 0.2 adds result claims with evidence (`locally_infeasible`, refutations of
-> unconfirmed convergence), point evaluation (`sqp.evaluate/1`), coded errors and
-> JSON Schemas. Existing solver APIs remain available.
+> revision that `Cargo.toml` pins. The same build makes the runner `optimization-run`
+> and `optimization-mcp`, an MCP server through which agents submit, follow
+> and cancel solves. See the [API guide](docs/job-api.md), the
+> [runnable tutorial](tutorials/job-api/README.md), the
+> [validation report](docs/job-api/VALIDATION.md) and the
+> [review](docs/job-api/REVIEW.md). Existing solver APIs remain available.
 
 # SQP-craft
 
