@@ -6,7 +6,10 @@ error codes, JSON Schemas, #15); the shared job crates taken from
 [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
 `eb1c9de` instead of in-repo copies (#16, #17); the MCP server
 `optimization-mcp` (#18); and refutation of failed rechecks instead of a failed
-job, plus the tutorial's `--bin-dir` (#19). In another checkout, check
+job, plus the tutorial's `--bin-dir` (#19). #20 moves the pin to `6a42472`,
+which adds worker-declared artifacts and paged artifact reads
+(`get_artifact` with `offset` and `limit` also pages through the `results`
+journal of a running job). In another checkout, check
 `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's discovery output
 and the linked guides before using a command or claiming a capability.
 
