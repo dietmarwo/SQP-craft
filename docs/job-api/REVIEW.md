@@ -14,8 +14,9 @@ and corrected before it was merged into `main`.
   points.
 
 This page records what the review found and changed. The delivered
-[PLAN.md](PLAN.md) stays as delivered. [VALIDATION.md](VALIDATION.md) and the
-[guide](../job-api.md) are corrected as listed here.
+[PLAN.md](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api/PLAN.md) (now in optimization-jobs) stays as
+delivered. [VALIDATION.md](VALIDATION.md) and the
+[guide](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md) are corrected as listed here.
 
 ## Corrections
 
@@ -106,7 +107,8 @@ following shared files:
 - `crates/optimization-runner/src/lib.rs`;
 - `docs/job-api.md`.
 
-[SHARED-SOURCES.sha256](SHARED-SOURCES.sha256) now lists the reviewed hashes.
+`SHARED-SOURCES.sha256` listed the reviewed hashes until the move to
+optimization-jobs retired it.
 The other two repositories need the same files when their job-API deliveries
 are merged. `scripts/job-api/test_review.py` and `fake_worker.py` work for any
 worker and can go with them.
