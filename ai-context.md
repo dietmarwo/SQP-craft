@@ -465,6 +465,15 @@ gets claim `none`, no objective, unknown feasibility, `claimed` evidence and
 the reason in `details.message`. The work counter is `evaluations`. See
 `tutorials/job-api/simplex-evaluate.json`.
 
+Agents can drive the same jobs through `optimization-mcp`, the MCP server
+that the runner's build also makes: thirteen tools (describe, validate,
+submit, wait, result summaries, cancel, kill, repair) over `optimization-run`
+and, with the MCP Tasks extension, a task per submitted job that completes
+with its result. Connect it with
+`claude mcp add sqp-jobs -- "$PWD/target/release/optimization-mcp" --root /abs/node`
+([Agents and MCP](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md#agents-and-mcp)). The server registers
+no workers and never changes the node.
+
 ### Shared crates
 
 The shared crates, the shared guide, the JSON Schemas, the integration
@@ -472,7 +481,8 @@ harness and the runner regression tests (`scripts/job-api/test_review.py`
 with `fake_worker.py`) live in
 [optimization-jobs](https://github.com/dietmarwo/optimization-jobs). This
 repository depends on them at the git revision its root `Cargo.toml` pins;
-`cargo build -p optimization-runner` still builds `optimization-run` here,
+`cargo build -p optimization-runner` still builds `optimization-run` and
+`optimization-mcp` here,
 and `scripts/job-api/shared_root.py` prints the path of Cargo's checkout, from
 which CI runs the harness. Until October 2026 the three repositories carried
 byte-identical copies. Version 0.1.1 synchronized them, after they had
@@ -553,6 +563,7 @@ SHARED=$(python3 scripts/job-api/shared_root.py)
 export JOB_API_TARGET="$PWD/target/release" JOB_API_TUTORIALS="$PWD/tutorials/job-api"
 python3 "$SHARED/scripts/job-api/test_integration.py"
 python3 "$SHARED/scripts/job-api/test_review.py"
+python3 "$SHARED/scripts/job-api/test_mcp.py"
 python3 tutorials/job-api/run.py --root /tmp/job-api-tutorial
 python -m pip install ".[test]" && python -m pytest -q
 python examples/demo.py

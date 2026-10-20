@@ -43,6 +43,24 @@ Read `run.json` from the returned directory, or use `optimization-run result
 JOB_DIRECTORY`. `work` separates function calls, derivative calls, accepted
 iterations, QP iterations and independent validation calls.
 
+## Through an agent (MCP)
+
+The runner's build also makes `optimization-mcp`, an MCP server over the same
+node. With the node of the previous section, connect an MCP client, for
+example Claude Code:
+
+```sh
+claude mcp add sqp-jobs -- "$PWD/target/release/optimization-mcp" --root /tmp/sqp-manual
+```
+
+The agent sees the worker with `describe_worker` (worker `sqp`), can pass
+any job of this directory to `submit_job` as `spec_path` (its input files are
+read next to it), follows it with `wait_job` and reads each task's claim and
+evidence with `get_result` (the KKT residuals are in the complete records that
+`get_result` returns for `tasks`); `cancel_job` stops it gracefully. With
+the MCP Tasks extension, `submit_job` returns a task that completes with the
+job's result. See [Agents and MCP](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md#agents-and-mcp).
+
 ## Registered problems and options
 
 | Problem ID | Model | Bounds and dimensions |

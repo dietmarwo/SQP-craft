@@ -38,4 +38,8 @@ For durable native jobs with an explicit CPU budget, use the
 [shared protocol and runner](job-api.md) and the
 [solver-specific tutorial](../tutorials/job-api/README.md).
 The job profile is a deliberately smaller, versioned surface than the full
-in-process solver API. Unknown profile options are rejected.
+in-process solver API. Unknown profile options are rejected. The job crates
+come from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs)
+through git, at the revision `Cargo.toml` pins; their build also makes
+`optimization-mcp`, through which agents submit and follow these jobs
+([Agents and MCP](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md#agents-and-mcp)).
