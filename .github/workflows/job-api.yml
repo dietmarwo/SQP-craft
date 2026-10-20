@@ -32,28 +32,30 @@ jobs:
           python-version: "3.12"
       - name: JSON Schema validator for the schema checks
         run: python3 -m pip install "jsonschema>=4.18,<5"
-      - name: Format and lint job layer
+      - name: Format and lint the worker
         run: |
-          cargo fmt -p optimization-job-api -p optimization-runner -p sqp-job-worker -- --check
-          cargo clippy --locked -p optimization-job-api -p optimization-runner -p sqp-job-worker --all-targets -- -D warnings
-      - name: Contract tests and native build
+          cargo fmt -p sqp-job-worker -- --check
+          cargo clippy --locked -p sqp-job-worker --all-targets -- -D warnings
+      - name: Worker tests and native build
+        # The runner and the shared crates come from optimization-jobs at the
+        # revision Cargo.toml pins; their own tests run there.
         run: |
-          cargo test --release --locked -p optimization-job-api -p optimization-runner -p sqp-job-worker
+          cargo test --release --locked -p sqp-job-worker
           cargo build --release --locked -p optimization-runner -p sqp-job-worker
-      - name: Lifecycle and numerical integration
-        run: python3 scripts/job-api/test_integration.py
-      - name: Shared runner regressions
-        run: python3 scripts/job-api/test_review.py
-      - name: Shared job API files match their manifest
-        # Shared with fcmaes-rust and LP-IP-craft; change all three together.
-        run: sha256sum -c docs/job-api/SHARED-SOURCES.sha256
+      - name: Shared harness against this worker
+        # The scripts come from Cargo's checkout of optimization-jobs.
+        run: |
+          SHARED=$(python3 scripts/job-api/shared_root.py)
+          export JOB_API_TARGET="$PWD/target/release" JOB_API_TUTORIALS="$PWD/tutorials/job-api"
+          python3 "$SHARED/scripts/job-api/test_integration.py"
+          python3 "$SHARED/scripts/job-api/test_review.py"
       - name: Runnable tutorial
         run: python3 tutorials/job-api/run.py --root "$RUNNER_TEMP/job-api-tutorial"
   msrv:
-    name: Rust 1.88 (job layer rust-version)
+    name: Rust 1.88 (job worker rust-version)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --locked --all-targets -p optimization-job-api -p optimization-runner -p sqp-job-worker
+      - run: cargo check --locked --all-targets -p sqp-job-worker

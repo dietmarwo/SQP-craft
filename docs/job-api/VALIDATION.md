@@ -7,7 +7,7 @@
 Tested on Linux x86_64 with Rust 1.99.1 (2026-10-13). The API layer declares
 Rust 1.88 as its minimum; that exact toolchain was not separately tested.
 All commands use the delivered lockfiles. Solver cores are unchanged from the
-base commits listed in [PLAN.md](PLAN.md) (`SOURCE-REVISION` in the delivery
+base commits listed in [PLAN.md](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api/PLAN.md) (`SOURCE-REVISION` in the delivery
 archive); for SQP-craft that is the 0.16 delivery head `7bc997f`.
 
 | Gate | Observed result |
@@ -73,7 +73,7 @@ mixed test, build each repository's worker and pass all three absolute paths to
 ```sh
 # fcmaes-rust
 cargo test --release --locked -p optimization-job-api -p optimization-runner \
-  -p fcmaes-job-api -p fcmaes-job-worker -p fcmaes-native-worker
+  -p fcmaes-job-worker -p fcmaes-native-worker
 cargo test --locked -p fcmaes-runner -p fcmaes-native-worker
 python3 scripts/runner/test_integration.py
 
@@ -133,7 +133,7 @@ and sets `JOB_API_REQUIRE_SCHEMA=1`, so the schema checks cannot be skipped
 there.
 
 An independent review before the merge reported 13 defects; all were fixed
-and are covered by tests (see the [plan](PLAN.md#6-result-contract-02-october-2026)).
+and are covered by tests (see the [plan](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api/PLAN.md#6-result-contract-02-october-2026)).
 After the fixes, 1.2 million generated outcomes found no disagreement between
 the JSON Schema and `Outcome::check`, and every case of `outcome_cases.json`
 behaves the same as a journal record through the runner.
@@ -155,3 +155,27 @@ Linux x86_64:
 | Mixed node with all three workers, under each repository's runner build | 13 passed, none skipped, three times |
 | `sha256sum -c docs/job-api/SHARED-SOURCES.sha256` | 23 files OK |
 | Solver crates | Unchanged |
+
+## The shared crates move to optimization-jobs (19 October 2026)
+
+`optimization-job-api`, `optimization-runner`, the shared guide, plan,
+schemas and scripts moved to
+[optimization-jobs](https://github.com/dietmarwo/optimization-jobs)
+([plan](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api/PLAN.md#8-one-shared-repository-october-2026)).
+This repository depends on the crates at a pinned git revision; the copies and
+their checksum manifest are gone, and `docs/job-api.md` points to the shared
+guide. The 26 tests of the shared crates now run there. The worker keeps the
+runner as a dependency, so `cargo build -p optimization-runner` still builds
+`optimization-run` here. On the git dependency:
+
+| Gate | Observed result |
+| --- | --- |
+| `cargo fmt --check`, Clippy `-D warnings` for the worker | Passed |
+| Workspace tests (`cargo test --workspace --locked`) | 202 passed (228 before, less the 26 shared tests) |
+| Shared harness from Cargo's checkout, with the SQP worker | 14 run: 10 passed, 4 skipped (fcmaes and LP cases) |
+| Shared review tests (`JOB_API_REQUIRE_SCHEMA=1`) | 15 passed |
+| `tutorials/job-api/run.py` | 4 examples; jobs and results validated against the schemas of the checkout |
+| Solver crates | Unchanged |
+
+Earlier sections mention `docs/job-api.md` as the full guide, and
+`scripts/job-api/` and the checksum manifest, as they were at the time.

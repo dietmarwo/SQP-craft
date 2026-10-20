@@ -20,8 +20,9 @@ runs them. It independently asserts the expected objective, the `first_order`
 claim and its evidence, and the evaluated points, prints attempt directories,
 and saves `tutorial-report.json` under the node. If the `jsonschema` package is
 installed, it also validates every job and result against the published
-[job](../../docs/job-api/schemas/optimization.job-0.1.schema.json) and
-[result](../../docs/job-api/schemas/optimization.result-0.2.schema.json) schemas. The simplex example reaches
+[job](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api/schemas/optimization.job-0.1.schema.json) and
+[result](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api/schemas/optimization.result-0.2.schema.json)
+schemas, from Cargo's checkout of optimization-jobs at the pinned revision. The simplex example reaches
 `x=[0.25,0.25,0.25,0.25]`, objective 0.25.
 Rosenbrock and the shifted quadratic approach objective zero.
 
@@ -128,8 +129,9 @@ creating another independent full-size pool. Run derivative finite-difference
 checks and known numerical acceptance tests before advertising the model.
 
 The three model derivatives already have such a test in this worker crate.
-Run `cargo test --release --locked -p sqp-job-worker` and
-`python3 scripts/job-api/test_integration.py` for its acceptance tests.
-See the [shared API guide](../../docs/job-api.md) for cancellation, lifecycle,
-mixed-worker nodes and recovery; see [native API](../../docs/api.md) for the
-larger in-process solver surface.
+Run `cargo test --release --locked -p sqp-job-worker` and the shared
+acceptance harness ([shared job API](../../docs/job-api.md#running-the-shared-tests-here))
+for its acceptance tests. See the
+[shared API guide](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md)
+for cancellation, lifecycle, mixed-worker nodes and recovery; see
+[native API](../../docs/api.md) for the larger in-process solver surface.
