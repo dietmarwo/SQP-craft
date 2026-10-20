@@ -21,6 +21,12 @@ first-order (KKT) point under declared tolerances: it is neither a global
 optimum nor a second-order certificate, and a failure is not a proof of
 infeasibility. Report results that way.
 
+If the solver is not chosen yet, start with the
+[entry point](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md)
+in optimization-jobs. It routes between fast-cma-es, fcmaes-rust,
+LP-IP-craft and SQP-craft and covers installation, the job API and the MCP
+server.
+
 ## What the repository is
 
 SQP-craft is a sequential quadratic programming solver in Rust with Python
@@ -43,8 +49,10 @@ Rust dependencies.
 | `optimization-job-api`, `optimization-runner` | git dependency on [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) | Shared job protocol and the `optimization-run` runner |
 | `sqp-job-worker` | `crates/sqp-job-worker` | Job worker for profiles `sqp.solve/1` and `sqp.evaluate/1` |
 
-Nothing is published. The workspace sets `publish = false`, and neither
-crates.io nor PyPI has an `sqp-craft` package at this review. Use a checkout
+Nothing is published yet: neither crates.io nor PyPI has an `sqp-craft`
+package at this review. The five library crates and the Python package are
+prepared for both registries ([RELEASING.md](RELEASING.md)); the worker and
+the benchmarks stay source-only. Use a checkout
 of https://github.com/dietmarwo/SQP-craft. The workspace version is 0.16.0;
 the shared job crates are 0.2.0, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol

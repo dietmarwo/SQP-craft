@@ -64,9 +64,12 @@ publishing metadata.
   license in each crate, and versions on their path dependencies. The
   Python package, the worker and the benchmarks stay unpublished crates.
 - README section "Install from source": requirements (Rust 1.85, 1.88 for
-  the job layer, no C/C++ toolchain or BLAS), the Python build, the job
-  worker with its git dependency on optimization-jobs, and the crates as
-  git dependencies.
+  the job layer, a C linker but no external optimizer, BLAS or CMake), the
+  Python build, the job worker with its git dependency on optimization-jobs,
+  and the crates as git dependencies.
+- `ai-context.md` points to the AI entry point of optimization-jobs, which
+  chooses between the four solver repositories, and says what the release
+  workflows will publish.
 
 ### Changed
 
