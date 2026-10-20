@@ -6,6 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/sqp-craft-parallel"
+homepage = "https://github.com/dietmarwo/SQP-craft"
+keywords = ["optimization", "parallel", "rayon", "solver"]
+categories = ["concurrency", "science"]
+publish = ["crates-io"]
 [dependencies]
 rayon = "=1.12.0"

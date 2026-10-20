@@ -176,6 +176,45 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | [docs/validation.md](docs/validation.md) | Checks run for this version |
 | [ai-context.md](ai-context.md) | Operational context for AI agents: formulation, options, results, multistart, job API |
 
+## Install from source
+
+Nothing has been published to PyPI or crates.io yet ([RELEASING.md](RELEASING.md)
+describes the release workflows); build from source. Requirements: git, Rust
+1.85 or newer (`rustup` from https://rustup.rs; 1.88 for the job worker and the
+runner), CPython 3.10 or newer, and a C linker (the platform's default one).
+The QP backends are Rust code; no external optimizer, BLAS or CMake is needed.
+
+```sh
+git clone https://github.com/dietmarwo/SQP-craft
+cd SQP-craft
+python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m pip install .                        # Python package sqp_craft; pip fetches maturin
+cargo test -p sqp-craft -p sqp-craft-solver --locked
+```
+
+Our own dependency: the job worker `sqp-job-worker` depends on the shared job
+API of [optimization-jobs](https://github.com/dietmarwo/optimization-jobs)
+through git at the revision pinned in `Cargo.toml`. Cargo fetches it on the
+first build (network access to GitHub needed; `cargo fetch --locked`
+prepares an offline build), so no second checkout is needed:
+
+```sh
+cargo build --release --locked -p optimization-runner -p sqp-job-worker
+```
+
+The library crates and the Python package depend on crates.io crates only.
+To use the Rust crates from another project before a crates.io release,
+depend on the core (`ProblemSpec`, `NlpProblem`, results), the solver and at
+least one QP backend:
+
+```toml
+[dependencies]
+sqp-craft = { git = "https://github.com/dietmarwo/SQP-craft" }
+sqp-craft-solver = { git = "https://github.com/dietmarwo/SQP-craft" }
+sqp-craft-clarabel = { git = "https://github.com/dietmarwo/SQP-craft" }    # ClarabelQp, the default
+sqp-craft-activeset = { git = "https://github.com/dietmarwo/SQP-craft" }   # ActiveSetQp, optional
+```
+
 ## Build and test
 
 Requirements: Rust 1.85 or newer, CPython 3.10 or newer, a C linker. The QP

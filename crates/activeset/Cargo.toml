@@ -6,11 +6,16 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-publish.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/sqp-craft-activeset"
+homepage = "https://github.com/dietmarwo/SQP-craft"
+keywords = ["optimization", "qp", "active-set", "sqp", "solver"]
+categories = ["mathematics", "science"]
+publish = ["crates-io"]
 
 [dependencies]
-sqp-craft-parallel = { path = "../parallel" }
-sqp-craft = { path = "../core" }
+sqp-craft-parallel = { path = "../parallel", version = "0.16.0" }
+sqp-craft = { path = "../core", version = "0.16.0" }
 
 [dev-dependencies]
 sqp-craft-clarabel = { path = "../clarabel" }
