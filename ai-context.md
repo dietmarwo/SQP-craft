@@ -1,10 +1,12 @@
 # AI context for solving smooth constrained problems with SQP-craft
 
-Last reviewed 2026-10-19 against `main` at `7e07364` (workspace 0.16.0,
-including the shared agent job API 0.1, #12, and the 0.1.1 synchronization of
-the shared job crates, #14), plus the result contract 0.2 of the shared job
-crates (claims with evidence, `sqp.evaluate/1`, error codes, JSON Schemas).
-In another checkout, check
+Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0). That
+state includes the result contract 0.2 (claims with evidence, `sqp.evaluate/1`,
+error codes, JSON Schemas, #15); the shared job crates taken from
+[optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
+`eb1c9de` instead of in-repo copies (#16, #17); the MCP server
+`optimization-mcp` (#18); and refutation of failed rechecks instead of a failed
+job, plus the tutorial's `--bin-dir` (#19). In another checkout, check
 `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's discovery output
 and the linked guides before using a command or claiming a capability.
 
@@ -48,7 +50,8 @@ identifier, independent of both. The "Version 0.4.0" line at the top of `docs/ap
 Toolchains:
 
 - The solver crates need Rust 1.85 or newer; CI checks them with 1.85. The job
-  crates need Rust 1.88, and CI checks them with 1.88.
+  worker and the shared job crates need Rust 1.88; CI checks the worker with
+  1.88.
 - The Python package needs CPython 3.10 or newer and a C linker, and builds
   from source with Rust: `python -m pip install ".[test]"`. The wheel is abi3.
   `python -m maturin build --release --no-default-features` (or
@@ -95,19 +98,44 @@ is valuable, and when a local first-order solution is the goal.
 
 Prefer another tool when:
 
-- the problem is linear or mixed-integer linear: use
-  [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft);
+- the problem is an LP or a mixed-integer linear program: use
+  [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft) (job profile
+  `lp-ip.solve/1`);
 - the objective is a black box, nonsmooth, noisy or strongly multimodal, or
   gradients are unavailable: use
-  [fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust), possibly as an
-  outer global layer around local SQP refinement;
+  [fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust) (`fcmaes.retry/1`:
+  BiteOpt, DE, CMA-ES, CR-FM-NES or PGPE retries);
+- several objectives need a Pareto front, or the user wants good solutions
+  across behaviour niches: fcmaes-rust's `fcmaes.mode/1` or
+  `fcmaes.map-elites/1`;
+- each evaluation is an expensive deterministic simulation without
+  derivatives, with box bounds only, 1–32 variables and at most 256
+  evaluations: the experimental `fcmaes.surrogate/1` (exact-GP Bayesian
+  optimization; confirm it in the fcmaes worker's `describe` output);
 - there are more than 256 variables, or exact sparse second derivatives are
   available and matter: a sparse interior-point or exact-Hessian SQP code
   (the IPOPT, WORHP, KNITRO family) fits better; SQP-craft has no
-  exact-Hessian option;
+  exact-Hessian option. On CUTEst, exact Hessians raised Uno's filterSQP from
+  760 to 845 solved problems ([benchmark](docs/benchmark-results.md));
 - the application needs a global optimum, a second-order certificate or a
   certificate of infeasibility: none is provided;
-- the variables are integer: there is no integer support.
+- the variables are integer: there is no integer support (LP-IP-craft for
+  linear MIPs; fcmaes-rust decodes integer variables in black-box search).
+
+Their workers can be registered on the same `optimization-run` node and
+reached through the same `optimization-mcp` server
+([Agents over MCP](#agents-over-mcp)).
+
+For a smooth but multimodal problem, start with SQP multistart
+(`batch::solve_many`, or several `starts` in one job). fcmaes-rust
+documents a global layer around a local solver: its retries find promising
+basins whose points become SQP starts, or an external solver runs inside the
+closure of its `retry`
+([interoperation pattern](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/optimizer-boundary.md#supported-interoperation-pattern)).
+Its docs advise adding local refinement only after a paired comparison shows
+it beats spending the same budget on the global method. The job layer has no
+cross-solver pipeline: the agent passes points between jobs itself, which
+needs the same model registered in both workers.
 
 ## Choose the integration surface
 
@@ -117,7 +145,7 @@ Prefer another tool when:
 | Python model | `sqp_craft.solve(..., method="sqp")` | Same solver; callbacks run on the calling thread |
 | Many starts, Rust model | `sqp_craft_solver::batch::solve_many` / `try_solve_many` | Ordered results, worker-local models and backends |
 | Many starts, Python model | Separate processes (the spec is picklable) | Python callbacks cannot run on solver threads |
-| Durable, CPU-budgeted agent experiments | `optimization-run` + `sqp-job-worker` | Registered native models only; see below |
+| Durable, CPU-budgeted agent experiments | `optimization-run` or `optimization-mcp` + `sqp-job-worker` | Registered native models only; see below |
 | Check derivatives or a KKT point | `check_derivatives`, `kkt_residuals` | Independent of any solver |
 
 Python's `solve` defaults to `method="dummy"`, which only evaluates the start
@@ -355,7 +383,9 @@ equivalent with `kkt::residuals` on a `KktPoint`.
 
 ## Shared agent job API
 
-Start with [the shared guide](docs/job-api.md) (a pointer to optimization-jobs) and
+Start with the shared guide in
+[optimization-jobs](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md)
+([docs/job-api.md](docs/job-api.md) maps its sections) and
 [the SQP tutorial](tutorials/job-api/README.md). The job layer gives an agent
 durable, validated, CPU-admitted multistart solves with journals,
 cancellation and result manifests. Its profile is deliberately smaller than
@@ -371,8 +401,9 @@ python3 tutorials/job-api/run.py --root /tmp/sqp-job-tutorial
 The tutorial creates an eight-slot node, registers the worker as `sqp`, and
 runs the simplex-constrained quadratic (objective 0.25 at `x = 0.25`) and
 Rosenbrock with the active-set backend and a shifted quadratic with Clarabel,
-eight starts each. Commands
-for a single job are in the guide.
+eight starts each, then evaluates three points with `sqp.evaluate/1`. It takes
+the binaries from `target/release` (or `$CARGO_TARGET_DIR/release`;
+`--bin-dir` overrides both). Commands for a single job are in the tutorial.
 
 ### Registered models only
 
@@ -386,8 +417,9 @@ models compiled into the worker, and `inputs` must be empty:
 | `benchmark.rosenbrock` | Adjacent-pair Rosenbrock | `[-5,5]`, 2–256 variables |
 
 A user's model therefore needs either the in-process API or a new worker
-model: extend `Model` and `registered` in `crates/sqp-job-worker/src/main.rs`
-(or write a separate worker with the shared SDK), with a validated
+model: extend `Model`, `registered` and the problem list of `describe` in
+`crates/sqp-job-worker/src/main.rs` (or write a separate worker with the
+shared SDK), with a validated
 `ProblemSpec`, analytic derivatives and a finite-difference test like
 `registered_derivatives_match_finite_differences`. Data files need hashed
 inputs and a new profile version, because `sqp.solve/1` rejects inputs. Never
@@ -427,7 +459,7 @@ Then read each outcome with `optimization-run result JOB_DIRECTORY`
 |---|---|
 | `termination` | The native status |
 | `claim` | `first_order` (native `converged` plus the worker's own KKT recheck), `feasible` (primal feasible, no first-order claim), `locally_infeasible`, `infeasible`, or `none` |
-| `evidence` | `rechecked` with `checks` `objective`, `bounds`, `constraints` and, with multipliers, `kkt`; `claimed` for `locally_infeasible`, `infeasible` and `none` (their `checks` list what was still recomputed); `refuted` when the recheck rejected the native status |
+| `evidence` | `level` `rechecked` with `checks` `objective`, `bounds`, `constraints` and, with multipliers, `kkt`; `level` `claimed` for `locally_infeasible`, `infeasible` and an unrefuted `none` (`checks` lists what was still recomputed); `refuted` (`claim`, `verdict`, `message`) when the recheck rejected the native claim |
 | `x`, `feasible`, `objective` | `x` is the solver's candidate; `feasible` and `objective` come from a fresh model evaluation at it |
 | `details` | `kkt` residuals, `primal_violation`, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, and the `acceptance` thresholds |
 
@@ -460,8 +492,8 @@ is no BFGS or solver checkpoint resume.
 `sqp.evaluate/1` evaluates points against a registered model without solving,
 for example an agent's candidates or another solver's answer. Payload:
 `problem`, `dimension`, `points` (finite vectors of that dimension, one task
-each; they may lie outside the bounds) and `feasibility_tolerance`; use
-`inner_threads` 1. Points are inline: the resolved job must stay below the
+each; they may lie outside the bounds) and `feasibility_tolerance`;
+`inner_threads` must be 1. Points are inline: the resolved job must stay below the
 runner's 4 MiB validation output. Each outcome has `termination:
 "evaluated"`, claim `feasible` within the tolerance or `none`, the objective,
 the constraint values and `primal_violation` in details, and `rechecked`
@@ -470,14 +502,30 @@ gets claim `none`, no objective, unknown feasibility, `claimed` evidence and
 the reason in `details.message`. The work counter is `evaluations`. See
 `tutorials/job-api/simplex-evaluate.json`.
 
+### Agents over MCP
+
 Agents can drive the same jobs through `optimization-mcp`, the MCP server
-that the runner's build also makes: thirteen tools (describe, validate,
-submit, wait, result summaries, cancel, kill, repair) over `optimization-run`
-and, with the MCP Tasks extension, a task per submitted job that completes
-with its result. Connect it with
-`claude mcp add sqp-jobs -- "$PWD/target/release/optimization-mcp" --root /abs/node`
-([Agents and MCP](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md#agents-and-mcp)). The server registers
-no workers and never changes the node.
+(stdio, one node) that the runner's build also makes: thirteen tools
+(describe, validate, submit, wait, result summaries, cancel, kill, repair)
+over `optimization-run` and, with the MCP Tasks extension, a task per
+submitted job that completes with its result. The node's owner initializes
+it and registers the workers with the CLI first; then connect with absolute
+paths:
+
+```sh
+claude mcp add sqp-jobs -- "$PWD/target/release/optimization-mcp" --root /abs/node
+```
+
+The tools, options and error codes are in
+[Agents and MCP](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md#agents-and-mcp).
+The server registers no workers and never changes the node. `get_result`
+returns a summary per task (claim, termination, objective, evidence level,
+refutation); the points and `details`, with the KKT residuals, are in the
+complete records it returns with `tasks`. `fcmaes-job-worker` and
+`lp-ip-job-worker`, built in their own repositories, can be registered on the
+same node; one server then reaches all three, and `describe_node` lists them.
+Claims differ between workers (`first_order` here, `numerical_optimum` for
+LP/MIP): do not equate them.
 
 ### Shared crates
 
@@ -596,7 +644,13 @@ optimization-jobs' CI does that with all three workers.
 - [docs/performance-60/REPRODUCE.md](docs/performance-60/REPRODUCE.md): thread budgets and batches
 - [docs/job-api.md](docs/job-api.md) (where the shared guide lives),
   [tutorials/job-api](tutorials/job-api/README.md),
-  [docs/job-api/REVIEW.md](docs/job-api/REVIEW.md): shared job API and this worker
+  [docs/job-api/REVIEW.md](docs/job-api/REVIEW.md),
+  [docs/job-api/VALIDATION.md](docs/job-api/VALIDATION.md): shared job API and this worker
+- [optimization-jobs guide](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md):
+  envelope, runner, result contract, MCP server
+- `ai-context.md` of [fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust/blob/main/ai-context.md)
+  and [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft/blob/main/ai-context.md):
+  the sibling solvers
 - [docs/target-card.md](docs/target-card.md): the open application contract
 - `crates/core/src/kkt.rs`, `crates/core/src/derivative_check.rs`: independent checks
 - `crates/sqp-job-worker/src/main.rs`: the `sqp.solve/1` and `sqp.evaluate/1` adapter and registered models

@@ -7,6 +7,7 @@
 > [runnable tutorial](tutorials/job-api/README.md), the
 > [validation report](docs/job-api/VALIDATION.md) and the
 > [review](docs/job-api/REVIEW.md). Existing solver APIs remain available.
+> Sibling workers on the same node: [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft) for LP/MIP, [fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust) for black-box, multimodal and multi-objective search.
 
 # SQP-craft
 
