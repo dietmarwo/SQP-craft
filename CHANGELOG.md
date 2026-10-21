@@ -70,8 +70,54 @@ publishing metadata.
 - `ai-context.md` points to the AI entry point of optimization-jobs, which
   chooses between the four solver repositories, and says what the release
   workflows will publish.
+- Application models for the job worker (agent-discovery review F03):
+  `sqp-job-worker` is a library plus a thin binary. `sqp_job_worker::Registry`
+  takes models with an id, a version and a description (`ModelInfo`), a
+  typed `config` with its JSON Schema, declared data inputs (SHA-256 checked
+  by the runner and the worker) and a factory that builds the `ProblemSpec`
+  and a `Model`, which makes a fresh `NlpProblem` instance for every task
+  and every recheck. `Registry::check` and `Model::check_derivatives`
+  compare the derivatives with finite differences before a model is
+  advertised. The stock binary registers the three benchmarks through this
+  API. `examples/custom_worker.rs` is a standalone application worker with
+  `app.decay-fit`, a constrained least-squares fit to a CSV input; the
+  tutorial runs it (`decay-fit.json`, `decay.csv`) and rechecks the fit in
+  Python, and `tests/custom_worker.rs` drives it through `prepare` and
+  `solve`. Guide: `docs/job-api/models.md`.
+- Optional payload fields of `sqp.solve/1` and `sqp.evaluate/1`:
+  `problem_version` (must equal the registered version, the default) and
+  `config` (the model's parameters); the envelope's `inputs` are accepted
+  exactly when the model declares them. The benchmarks still reject inputs.
+- `elastic_mode` in `sqp.solve/1` (review F10): optional, default `false`,
+  needs `backend: "active_set"` and is rejected at validation with
+  Clarabel. Outcomes report the effective options in `details.options` and,
+  in elastic mode, the elastic counters in `details.elastic`.
+- Discovery (review F01): the worker's `describe` lists `payload_schemas`
+  (a strict JSON Schema per profile, with per-model rules for version,
+  dimensions and config) and `examples` (one job per registered model and
+  profile, in resolved form, inputs as `content_text`), built from the
+  registry, so an application worker advertises its own models. Model
+  entries add `version`, `description`, `profiles`, `config`, `inputs` and
+  `bounds`. `tests/discovery.rs` turns every example of the stock worker,
+  the custom worker and a worker without benchmarks into a job and runs it;
+  the tutorial checks every example and tutorial payload against the
+  schemas with `jsonschema>=4.18`.
+- `examples/multistart_processes.py`: many starts of a Python model in a
+  `ProcessPoolExecutor`, one native thread per process, the worker count
+  from `os.sched_getaffinity(0)`, and a `kkt_residuals` recheck of the best
+  result; CI and `scripts/check.sh` run it.
+- `AGENTS.md` for coding agents; `ai-context.md` gains a "Many cores"
+  section, the discovery keys, the application registry (replacing the
+  instruction to edit the worker's enum) and the MCP tool `put_input`.
 
 ### Changed
+
+- The resolved `sqp.solve/1` job records `problem_version` and
+  `elastic_mode`, and the effective `config` of a model with parameters;
+  the resolved `sqp.evaluate/1` job records `problem_version`. Every
+  existing tutorial and harness job validates and gives the same outcomes
+  and work counts; outcomes gain `details.options`.
+- CI builds the `custom_worker` example for the tutorial.
 
 - The job worker records a `converged` status that fails the recomputed
   KKT acceptance as a refutation instead of failing the job, maps

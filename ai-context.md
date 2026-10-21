@@ -14,6 +14,13 @@ checkout, check `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's
 discovery output and the linked guides before using a command or claiming a
 capability.
 
+Since that review: application models through the worker's public registry
+(`sqp_job_worker::Registry`, a standalone worker in
+`crates/sqp-job-worker/examples/custom_worker.rs`), the optional payload
+fields `problem_version`, `config` and `elastic_mode` with model data
+`inputs`, and the discovery keys `payload_schemas` and `examples` in the
+worker's `describe` output.
+
 This file is operational context for an AI that must solve a user's smooth
 nonlinear program with this repository, or decide that another tool fits
 better. It is not a performance claim. A `converged` result is a
@@ -47,7 +54,7 @@ Rust dependencies.
 | `sqp-craft-parallel` | `crates/parallel` | Explicit bounded execution resources (Rayon pools) for kernels and native models |
 | `sqp-craft-python` / `sqp-craft` | `crates/python`, `python/sqp_craft` | `import sqp_craft`: PyO3 package |
 | `optimization-job-api`, `optimization-runner` | git dependency on [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) | Shared job protocol and the `optimization-run` runner |
-| `sqp-job-worker` | `crates/sqp-job-worker` | Job worker for profiles `sqp.solve/1` and `sqp.evaluate/1` |
+| `sqp-job-worker` | `crates/sqp-job-worker` | Job worker library (`Registry`, `Adapter`) and the stock binary, profiles `sqp.solve/1` and `sqp.evaluate/1` |
 
 Nothing is published yet: neither crates.io nor PyPI has an `sqp-craft`
 package at this review. The five library crates and the Python package are
@@ -156,8 +163,8 @@ needs the same model registered in both workers.
 | Rust model | `NativeSqp<B>` with `ClarabelQp` or `ActiveSetQp` | Full option set, observer, cancellation |
 | Python model | `sqp_craft.solve(..., method="sqp")` | Same solver; callbacks run on the calling thread |
 | Many starts, Rust model | `sqp_craft_solver::batch::solve_many` / `try_solve_many` | Ordered results, worker-local models and backends |
-| Many starts, Python model | Separate processes (the spec is picklable) | Python callbacks cannot run on solver threads |
-| Durable, CPU-budgeted agent experiments | `optimization-run` or `optimization-mcp` + `sqp-job-worker` | Registered native models only; see below |
+| Many starts, Python model | Separate processes (the spec is picklable), `examples/multistart_processes.py` | Python callbacks cannot run on solver threads |
+| Durable, CPU-budgeted agent experiments | `optimization-run` or `optimization-mcp` + `sqp-job-worker` or an application worker | Registered native models: the benchmarks or your own; see below |
 | Check derivatives or a KKT point | `check_derivatives`, `kkt_residuals` | Independent of any solver |
 
 Python's `solve` defaults to `method="dummy"`, which only evaluates the start
@@ -385,6 +392,10 @@ equivalent with `kkt::residuals` on a `KktPoint`.
 - In Python, run independent solves in separate processes with their own
   model instances. The binding releases the interpreter for native work but
   calls every callback on the calling thread.
+  `examples/multistart_processes.py` runs distinct starts with a
+  `ProcessPoolExecutor`, one native thread per process, a worker count from
+  `os.sched_getaffinity(0)` where available, and rechecks the best result
+  with `kkt_residuals`.
 - Native models may implement `NlpProblem::set_threads` to split their own
   propagation with `sqp_craft_parallel::Execution` within the declared budget.
 - `CancellationToken` / `Cancellation` is checked before every model call and
@@ -392,6 +403,22 @@ equivalent with `kkt::residuals` on a `KktPoint`.
   Python solve with `KeyboardInterrupt`. An observer receives `Progress`
   (iteration, objective, primal violation) and can stop the solve, which ends
   `cancelled`.
+
+### Many cores
+
+- In process, `batch::solve_many` allows `workers * options.threads <= 8`
+  (outer times inner).
+- The job layer schedules more outer tasks: one job with N distinct starts
+  and `outer_workers = N`, `inner_threads = 1` (`cpu_slots = N`, up to the
+  node's capacity and 1024) runs N solves at once, each with its own model
+  instance and QP backend.
+- Inner threads rarely help: Clarabel's engine is serial, and the active-set
+  backend splits work only from 512 variables (its dense kernels; an NLP has
+  at most 256) or 32,768 Jacobian entries in bounded rows (row norms, with at
+  least 8 rows; `crates/activeset/src/lib.rs`).
+- So the first many-core experiment is many distinct starts with
+  `inner_threads = 1`; try `inner_threads > 1` only for a native model whose
+  own `set_threads` propagation is expensive.
 
 ## Shared agent job API
 
@@ -405,22 +432,46 @@ the in-process API.
 
 ```sh
 cargo build --release --locked -p optimization-runner -p sqp-job-worker
+cargo build --release --locked -p sqp-job-worker --example custom_worker
 python3 tutorials/job-api/run.py --root /tmp/sqp-job-tutorial
 ./target/release/optimization-run --root /tmp/sqp-job-tutorial \
   problems describe sqp
 ```
 
-The tutorial creates an eight-slot node, registers the worker as `sqp`, and
+The tutorial creates an eight-slot node, registers the stock worker as `sqp`
+and the application worker `examples/custom_worker` as `sqp-curve-fit`, and
 runs the simplex-constrained quadratic (objective 0.25 at `x = 0.25`) and
 Rosenbrock with the active-set backend and a shifted quadratic with Clarabel,
-eight starts each, then evaluates three points with `sqp.evaluate/1`. It takes
-the binaries from `target/release` (or `$CARGO_TARGET_DIR/release`;
-`--bin-dir` overrides both). Commands for a single job are in the tutorial.
+eight starts each, evaluates three points with `sqp.evaluate/1`, fits a decay
+curve to a hashed CSV in elastic mode and rechecks the fit in Python. Then it
+runs every example of both workers' `describe` and checks every payload
+against the `payload_schemas` (with `jsonschema`). It takes the binaries
+from `target/release` (or `$CARGO_TARGET_DIR/release`; `--bin-dir` overrides
+both). Commands for a single job are in the tutorial.
 
-### Registered models only
+### Discovery: schemas and examples
 
-Jobs cannot carry Python or other callbacks. `sqp.solve/1` accepts only the
-models compiled into the worker, and `inputs` must be empty:
+The worker's `describe` (`optimization-run problems describe ID`, MCP
+`describe_worker`) lists JSON Schemas of each payload (`payload_schemas`,
+draft 2020-12, strict, with per-model rules for version, dimensions and
+config; cross-field rules in `$comment`) and runnable examples (`examples`:
+one job per model and profile, on one CPU slot, in resolved form, with any
+input file as `content_text`). A client without a checkout builds a job from
+an example by adding `schema_version`, a `request_key`, the worker ID and
+`payload_schema` (= `profile`), and by writing the inputs and filling in
+their `sha256`. Each model entry of `problems` has `id`, `version`,
+`description`, `dimension`, `profiles`, `bounds`, and `config` (its JSON
+Schema) and `inputs` where it has them. optimization-jobs is adding the MCP
+tool `put_input`, a content-addressed input store on the node: an MCP-only
+client stages a file there, such as the CSV of an application model, and
+names it in a job's `inputs`. The revision this repository pins (`423cd87`)
+does not have it yet; the server's tool list shows whether a node has it.
+
+### Registered models and application workers
+
+Jobs cannot carry Python or other callbacks. A job names a model of the
+worker's registry; the stock `sqp-job-worker` registers three benchmarks,
+version 1 each, which read no inputs and have no config:
 
 | Problem ID | Model | Bounds and dimensions |
 |---|---|---|
@@ -428,19 +479,27 @@ models compiled into the worker, and `inputs` must be empty:
 | `benchmark.simplex` | Sum of `x[i]^2`, subject to `sum(x) = 1` | `[0,1]`, 1–256 variables |
 | `benchmark.rosenbrock` | Adjacent-pair Rosenbrock | `[-5,5]`, 2–256 variables |
 
-A user's model therefore needs either the in-process API or a new worker
-model: extend `Model`, `registered` and the problem list of `describe` in
-`crates/sqp-job-worker/src/main.rs` (or write a separate worker with the
-shared SDK), with a validated
-`ProblemSpec`, analytic derivatives and a finite-difference test like
-`registered_derivatives_match_finite_differences`. Data files need hashed
-inputs and a new profile version, because `sqp.solve/1` rejects inputs. Never
-deserialize executable callbacks.
+A user's model runs in an *application worker*: a small binary that depends
+on the `sqp-job-worker` library, registers models in a
+`sqp_job_worker::Registry` and runs `Adapter::new(registry)` with
+`optimization_job_api::worker::run` ([models guide](docs/job-api/models.md)).
+Each model has an id, a version and a description (`ModelInfo`), a typed
+`config` with a JSON Schema, declared data inputs, and a factory that builds
+the `ProblemSpec` and the `NlpProblem` for the job's dimension, config and
+input bytes (already SHA-256 checked). The factory returns a `Model`
+(`Model::new(spec, prototype)` clones the prototype; `Model::from_fn`), and
+every task and every recheck gets a fresh instance, so parallel tasks share
+no model state. `examples/custom_worker.rs` is a complete worker: a
+constrained least-squares fit to a CSV input, with analytic derivatives and
+`config.anchor_time`. Before advertising a model, call `registry.check()`
+in a test: it compares the gradient and the Jacobian with finite differences
+at the example start and the declared check points, so a wrong derivative
+fails before any job (`custom_worker check` runs it from the command line).
+Never deserialize executable callbacks.
 
 ### Job specification
 
-`payload_schema` is `sqp.solve/1`. All payload fields are required, and
-unknown fields are rejected:
+`payload_schema` is `sqp.solve/1`. Unknown fields are rejected. Required:
 
 | Payload field | Meaning |
 |---|---|
@@ -451,11 +510,24 @@ unknown fields are rejected:
 | `max_callback_calls` | Positive per-task function plus derivative calls |
 | `feasibility_tolerance`, `stationarity_tolerance` | Positive finite values |
 
-All other `SqpOptions` keep their defaults, so elastic mode is off even with
-`active_set`. The remaining wall time is each task's cooperative time limit,
-and `inner_threads` (1–8) maps to `Options::threads`. For the registered
-models `inner_threads` above 1 changes nothing; use `8 / 8 / 1`
-(`cpu_slots / outer_workers / inner_threads`) for multistart throughput.
+Optional:
+
+| Payload field | Meaning |
+|---|---|
+| `problem_version` | Must equal the registered version (default) |
+| `config` | The model's parameters (`problems[].config` schema); default: the model's defaults; `{}` for a model without parameters |
+| `elastic_mode` | `true`: ℓ1-elastic step QPs instead of restoration; needs `backend: "active_set"` (rejected at validation with Clarabel); default `false` |
+
+The envelope's `inputs` must be exactly the inputs the model declares
+(`problems[].inputs`), none for the benchmarks. The resolved job records
+`problem_version`, `elastic_mode` and, for a model with parameters, the
+effective `config`. The CUTEst results recommend `active_set` with
+`elastic_mode: true` ([Options](#options)). All other `SqpOptions` keep their
+defaults. The remaining wall time is each task's cooperative time limit,
+and `inner_threads` (1–8) maps to `Options::threads`. For the benchmarks
+`inner_threads` above 1 changes nothing; use `8 / 8 / 1`
+(`cpu_slots / outer_workers / inner_threads`) for multistart throughput
+([Many cores](#many-cores)).
 The runner requires `outer_workers * inner_threads <= cpu_slots <= 1024`.
 Validation echoes the specification and its output is capped at 4 MiB, so
 about 600,000 one-dimensional starts fit, not the 1,000,000 tasks the
@@ -473,7 +545,7 @@ Then read each outcome with `optimization-run result JOB_DIRECTORY`
 | `claim` | `first_order` (native `converged` plus the worker's own KKT recheck), `feasible` (primal feasible, no first-order claim), `locally_infeasible`, `infeasible`, or `none` |
 | `evidence` | `level` `rechecked` with `checks` `objective`, `bounds`, `constraints` and, with multipliers, `kkt`; `level` `claimed` for `locally_infeasible`, `infeasible` and an unrefuted `none` (`checks` lists what was still recomputed); `refuted` (`claim`, `verdict`, `message`) when the recheck rejected the native claim |
 | `x`, `feasible`, `objective` | `x` is the solver's candidate; `feasible` and `objective` come from a fresh model evaluation at it |
-| `details` | `kkt` residuals, `primal_violation`, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, and the `acceptance` thresholds |
+| `details` | `kkt` residuals, `primal_violation`, `qp_backend`, `qp_status`, `message`, `global_optimum_certified: false`, the `acceptance` thresholds, the effective `options` (`backend`, `elastic_mode`, budgets, `threads`) and, in elastic mode, `elastic` (steps, final weight, weight increases) |
 
 The recheck uses `feasibility_tolerance`, `stationarity_tolerance`,
 complementarity ≤ 1e-6 and dual sign ≤ 1e-8. A native `converged` that fails
@@ -491,8 +563,9 @@ neither confirmed nor refuted: claim `feasible` or `none` from the point, and
 `infeasible` (linear rows and bounds without a common point, as the QP solver
 judged) map the native statuses with `claimed` evidence: the point's
 infeasibility is recomputed, its stationarity is not. A point that turns out
-feasible refutes the claim (`false_infeasibility`). `sqp.solve/1` keeps elastic mode
-off and its registered models are feasible, so neither occurs with it today.
+feasible refutes the claim (`false_infeasibility`). `locally_infeasible`
+occurs only with `elastic_mode`; the benchmarks are feasible, so neither
+claim occurs with them.
 Treat any refutation as a defect report. Work counters are `functions`,
 `derivatives`, `iterations`, `qp_iterations` and `validation_calls`; never add
 them to another profile's counters. Graceful cancellation sets the native
@@ -504,7 +577,8 @@ is no BFGS or solver checkpoint resume.
 `sqp.evaluate/1` evaluates points against a registered model without solving,
 for example an agent's candidates or another solver's answer. Payload:
 `problem`, `dimension`, `points` (finite vectors of that dimension, one task
-each; they may lie outside the bounds) and `feasibility_tolerance`;
+each; they may lie outside the bounds) and `feasibility_tolerance`, and
+optionally `problem_version` and `config`; inputs as for `sqp.solve/1`;
 `inner_threads` must be 1. Points are inline: the resolved job must stay below the
 runner's 4 MiB validation output. Each outcome has `termination:
 "evaluated"`, claim `feasible` within the tolerance or `none`, the objective,
@@ -624,6 +698,7 @@ cargo run --locked -p sqp-craft --example toy
 cargo run --locked -p sqp-craft-solver --example solve
 cargo test --release --locked -p sqp-job-worker
 cargo build --release --locked -p optimization-runner -p sqp-job-worker
+cargo build --release --locked -p sqp-job-worker --example custom_worker
 SHARED=$(python3 scripts/job-api/shared_root.py)
 export JOB_API_TARGET="$PWD/target/release" JOB_API_TUTORIALS="$PWD/tutorials/job-api"
 python3 "$SHARED/scripts/job-api/test_integration.py"
@@ -635,6 +710,7 @@ python examples/demo.py
 python examples/solve_sqp.py
 python examples/restore_hs071.py
 python examples/orbit_transfer.py 20
+python examples/multistart_processes.py
 ```
 
 CI also checks the solver crates with Rust 1.85 (excluding the job worker) and
@@ -655,6 +731,7 @@ optimization-jobs' CI does that with all three workers.
   [docs/snopt-lessons.md](docs/snopt-lessons.md): the opt-in mechanisms
 - [docs/performance-60/REPRODUCE.md](docs/performance-60/REPRODUCE.md): thread budgets and batches
 - [docs/job-api.md](docs/job-api.md) (where the shared guide lives),
+  [docs/job-api/models.md](docs/job-api/models.md) (application models and workers),
   [tutorials/job-api](tutorials/job-api/README.md),
   [docs/job-api/REVIEW.md](docs/job-api/REVIEW.md),
   [docs/job-api/VALIDATION.md](docs/job-api/VALIDATION.md): shared job API and this worker
@@ -665,5 +742,8 @@ optimization-jobs' CI does that with all three workers.
   the sibling solvers
 - [docs/target-card.md](docs/target-card.md): the open application contract
 - `crates/core/src/kkt.rs`, `crates/core/src/derivative_check.rs`: independent checks
-- `crates/sqp-job-worker/src/main.rs`: the `sqp.solve/1` and `sqp.evaluate/1` adapter and registered models
+- `crates/sqp-job-worker/src/lib.rs` (adapter), `registry.rs` (`Registry`, `ModelInfo`, `Model`), `benchmarks.rs`,
+  `solve.rs` and `evaluate.rs` (the two profiles), `discovery.rs` (payload schemas and examples), and
+  `examples/custom_worker.rs` (an application worker)
+- [AGENTS.md](AGENTS.md): build, test and conventions for coding agents
 - `python/sqp_craft/__init__.py`: Python API and defaults
