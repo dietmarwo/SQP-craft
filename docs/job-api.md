@@ -26,10 +26,16 @@ pinned in the root `Cargo.toml`, and contributes `sqp-job-worker`.
 
 ## `sqp-job-worker`
 
-Profiles `sqp.solve/1` (registered smooth Rust models, initial points, active-set and Clarabel backends, independent KKT checks) and `sqp.evaluate/1` (given points); see the [tutorial](../tutorials/job-api/README.md) and
+Profiles `sqp.solve/1` (registered smooth Rust models, initial points, active-set and Clarabel backends, optional elastic mode, independent KKT checks) and `sqp.evaluate/1` (given points); see the [tutorial](../tutorials/job-api/README.md) and
 the [validation report](job-api/VALIDATION.md); the [review](job-api/REVIEW.md) records the corrections made before the 0.1 merge.
 `cargo build --release --locked -p optimization-runner -p sqp-job-worker` builds the
 runner, the MCP server and the worker; Cargo fetches the shared crates.
+The worker is a library plus a thin binary: an application registers its
+own models in a `Registry` and runs them in a worker of its own
+([application models](job-api/models.md),
+`crates/sqp-job-worker/examples/custom_worker.rs`). Its `describe` lists the
+JSON Schema of each payload (`payload_schemas`) and runnable examples
+(`examples`).
 
 ## Agents: the MCP server
 
