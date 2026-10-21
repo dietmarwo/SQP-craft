@@ -74,7 +74,8 @@ fn every_profile_has_a_payload_schema_and_an_example() {
         adapter.registry().check().unwrap();
         let d = adapter.describe();
         let bytes = serde_json::to_vec(&d).unwrap().len();
-        // optimization-run's `workers add` reads at most 64 KiB of describe.
+        // `workers add` reads at most 64 KiB of describe before
+        // optimization-jobs 069d87c (1 MiB since); stay below the old limit.
         assert!(bytes < 48 * 1024, "{name}: describe has {bytes} bytes");
         let profiles = d["profiles"].as_array().unwrap();
         assert_eq!(profiles.len(), 2);

@@ -119,7 +119,8 @@ call('workers','add','--id',APPLICATION[0],'--executable',application)
 descriptions={w:call('problems','describe',w) for w in (WORKER,APPLICATION[0])}
 for w,d in descriptions.items():
     # Discovery: a schema and an example for every profile, within the 64 KiB
-    # of describe output that `workers add` reads.
+    # of describe output that `workers add` read before optimization-jobs
+    # 069d87c (1 MiB since), so older runners can still register the worker.
     assert len(json.dumps(d,separators=(',',':')))<64*1024,w
     assert set(d['payload_schemas'])==set(d['profiles']),w
     assert {e['profile'] for e in d['examples']}==set(d['profiles']),w

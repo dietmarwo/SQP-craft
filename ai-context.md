@@ -9,7 +9,9 @@ from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
 failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
-also pages through the `results` journal of a running job). In another
+also pages through the `results` journal of a running job); the pin is now
+`069d87c`, which adds the MCP tools `put_input` and `get_guide` and a host
+report in `node doctor`. In another
 checkout, check `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's
 discovery output and the linked guides before using a command or claiming a
 capability.
@@ -461,11 +463,11 @@ an example by adding `schema_version`, a `request_key`, the worker ID and
 `payload_schema` (= `profile`), and by writing the inputs and filling in
 their `sha256`. Each model entry of `problems` has `id`, `version`,
 `description`, `dimension`, `profiles`, `bounds`, and `config` (its JSON
-Schema) and `inputs` where it has them. optimization-jobs is adding the MCP
-tool `put_input`, a content-addressed input store on the node: an MCP-only
-client stages a file there, such as the CSV of an application model, and
-names it in a job's `inputs`. The revision this repository pins (`423cd87`)
-does not have it yet; the server's tool list shows whether a node has it.
+Schema) and `inputs` where it has them. The MCP tool `put_input` stores a
+file in the node's content-addressed input store: an MCP-only client stages
+the CSV of an application model there, names the returned `file` and
+`sha256` in the job's `inputs`, and validates and submits the job with the
+returned `input_dir`.
 
 ### Registered models and application workers
 

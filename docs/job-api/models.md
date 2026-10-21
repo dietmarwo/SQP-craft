@@ -17,7 +17,7 @@ sqp-job-worker = { git = "https://github.com/dietmarwo/SQP-craft" }
 sqp-craft = { git = "https://github.com/dietmarwo/SQP-craft" }
 # The revision SQP-craft's root Cargo.toml pins; another one would be a
 # second, incompatible copy of the crate.
-optimization-job-api = { git = "https://github.com/dietmarwo/optimization-jobs", rev = "423cd87a01d8e3c73697ffca6224979efee46258" }
+optimization-job-api = { git = "https://github.com/dietmarwo/optimization-jobs", rev = "069d87c29170c8a5a1f4641028811df1a2de0585" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ```
@@ -143,7 +143,9 @@ parameters) and the `inputs`. The worker also lists `payload_schemas` (a
 JSON Schema per profile, with per-model rules for version, dimensions and
 config) and `examples` (one job per model and profile, in resolved form, with
 the example inputs as `content_text`). Keep the output small: the runner's
-`workers add` reads at most 64 KiB of `describe`.
+`workers add` reads at most 1 MiB of `describe` (64 KiB before
+optimization-jobs `069d87c`; stay under that to register with older
+runners).
 
 ## Rules for models
 
