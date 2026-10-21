@@ -10,6 +10,7 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
+keywords = ["optimization", "nonlinear programming", "sequential quadratic programming", "SQP", "Rust"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Science/Research",
@@ -23,6 +24,11 @@ test = ["pytest>=8,<10", "numpy>=1.24"]
 bench = ["numpy>=1.24", "scipy>=1.15,<2"]
 
 [project.urls]
+Documentation = "https://github.com/dietmarwo/SQP-craft/blob/main/ai-context.md"
+Issues = "https://github.com/dietmarwo/SQP-craft/issues"
+Changelog = "https://github.com/dietmarwo/SQP-craft/blob/main/CHANGELOG.md"
+"Optimization ecosystem" = "https://dietmarwo.github.io/optimization-jobs/"
+"AI agent guide" = "https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md"
 Repository = "https://github.com/dietmarwo/SQP-craft"
 
 [tool.maturin]

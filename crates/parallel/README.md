@@ -1,5 +1,8 @@
 # sqp-craft-parallel
 
+[Optimization ecosystem](https://dietmarwo.github.io/optimization-jobs/) ·
+[Shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md)
+
 Explicit, bounded native execution resources for SQP-craft: Rayon pools of a
 declared size for the large QP kernels and native models. No global Rayon
 pool is configured.

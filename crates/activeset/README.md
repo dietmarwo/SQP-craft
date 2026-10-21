@@ -1,5 +1,8 @@
 # sqp-craft-activeset
 
+[Optimization ecosystem](https://dietmarwo.github.io/optimization-jobs/) ·
+[Shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md)
+
 A dense, warm-startable dual active-set (Goldfarb–Idnani) QP backend for the
 SQP-craft QP seam, an alternative to the Clarabel backend of
 [`sqp-craft-solver`](https://crates.io/crates/sqp-craft-solver).

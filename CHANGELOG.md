@@ -119,6 +119,12 @@ publishing metadata.
 
 ### Changed
 
+- Discovery: the README opens with the title, a short description (dense
+  BFGS, at most 256 variables, derivatives needed) and links to the shared
+  solver-selection guide and the ecosystem overview; the five crate READMEs
+  link them too. `pyproject.toml` adds keywords and project URLs
+  (documentation, issues, changelog, ecosystem, agent guide). `RELEASING.md`
+  covers discovery after a release.
 - The resolved `sqp.solve/1` job records `problem_version` and
   `elastic_mode`, and the effective `config` of a model with parameters;
   the resolved `sqp.evaluate/1` job records `problem_version`. Every
