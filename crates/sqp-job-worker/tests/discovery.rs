@@ -99,12 +99,31 @@ fn every_profile_has_a_payload_schema_and_an_example() {
                     assert_eq!(def["additionalProperties"], false, "{name}");
                 }
             }
-            // Every model rule refers to a config schema in $defs.
+            // An explicit null of an optional field means "absent", as in
+            // the worker; every model rule refers to a config schema in
+            // $defs and also allows null.
+            let properties = &schema["properties"];
+            assert_eq!(
+                properties["problem_version"]["type"],
+                json!(["string", "null"])
+            );
+            assert_eq!(properties["config"]["type"], json!(["object", "null"]));
             for rule in schema["allOf"].as_array().unwrap() {
-                if let Some(r) = rule["then"]["properties"]["config"]["$ref"].as_str() {
-                    let name = r.strip_prefix("#/$defs/").unwrap().replace("~1", "/");
-                    assert!(defs.contains_key(&name.replace("~0", "~")), "{r}");
+                let then = &rule["then"]["properties"];
+                if then.get("config").is_none() {
+                    continue; // the elastic-mode rule
                 }
+                assert!(
+                    then["problem_version"]["enum"]
+                        .as_array()
+                        .unwrap()
+                        .contains(&Value::Null)
+                );
+                let config = then["config"]["anyOf"].as_array().unwrap();
+                assert_eq!(config[1], json!({"type":"null"}));
+                let r = config[0]["$ref"].as_str().unwrap();
+                let name = r.strip_prefix("#/$defs/").unwrap().replace("~1", "/");
+                assert!(defs.contains_key(&name.replace("~0", "~")), "{r}");
             }
             let examples = d["examples"]
                 .as_array()
@@ -212,6 +231,42 @@ fn every_example_is_a_job_that_validates_and_runs() {
             } else {
                 assert_eq!(outcome["termination"], "evaluated");
             }
+        }
+    }
+}
+
+/// `problem_version` and `config` may be absent or null (both mean the
+/// registered defaults) or valid; a wrong version or config is rejected. The
+/// tutorial checks the same cases against the payload schemas.
+#[test]
+fn optional_fields_absent_null_valid_and_invalid() {
+    for (name, adapter) in workers() {
+        let d = adapter.describe();
+        for example in d["examples"].as_array().unwrap() {
+            let dir = TempDir::new("optional");
+            let prepare = |payload: Value| {
+                let mut example = example.clone();
+                example["payload"] = payload;
+                let mut s = job(dir.path(), &example);
+                adapter.prepare(&mut s, dir.path()).map(|_| s.payload)
+            };
+            let valid = example["payload"].clone();
+            let resolved = prepare(valid.clone()).unwrap();
+            for field in ["problem_version", "config"] {
+                let mut absent = valid.clone();
+                absent.as_object_mut().unwrap().remove(field);
+                let mut null = valid.clone();
+                null[field] = Value::Null;
+                // Absent and null resolve to the same payload as the example.
+                assert_eq!(prepare(absent).unwrap(), resolved, "{name} {field} absent");
+                assert_eq!(prepare(null).unwrap(), resolved, "{name} {field} null");
+            }
+            let mut wrong_version = valid.clone();
+            wrong_version["problem_version"] = json!("9");
+            assert!(prepare(wrong_version).is_err(), "{name}");
+            let mut unknown = valid.clone();
+            unknown["config"] = json!({"no_such_parameter": 1});
+            assert!(prepare(unknown).is_err(), "{name}");
         }
     }
 }

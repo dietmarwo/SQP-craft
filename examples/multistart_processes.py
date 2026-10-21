@@ -4,7 +4,11 @@ Python callbacks run on the thread that calls ``solve``, so the native batch
 API cannot spread a Python model over threads. Distinct starts run in
 separate processes instead: the ``ProblemSpec`` is picklable, every process
 builds its own model, and each solve keeps one native thread
-(``Options(threads=1)``), so ``workers`` processes use ``workers`` CPUs.
+(``Options(threads=1)``). The thread pools a model's libraries may use (NumPy's
+BLAS, OpenMP) are set to ``--model-threads`` (default 1) in every process,
+overwriting inherited values, so ``workers`` processes use ``workers *
+model_threads`` CPUs. The default worker count keeps that within the CPUs this
+process may use: its affinity mask and its cgroup CPU quota.
 
 The problem is the six-hump camel function, smooth with six local minima,
 inside a disk that cuts off two of them:
@@ -19,10 +23,12 @@ disk. The best result is rechecked with ``kkt_residuals`` from a fresh model.
 """
 
 import argparse
+import math
 import multiprocessing
 import os
 import random
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 from sqp_craft import Evaluation, Options, ProblemSpec, SqpOptions, kkt_residuals, solve
 
@@ -46,13 +52,65 @@ def make_spec():
                        jacobian_indptr=[0, 2], jacobian_indices=[0, 1])
 
 
-def available_cpus():
-    """The CPUs this process may run on: the affinity mask where the OS has
-    one (Linux; it also reflects taskset and container CPU sets), else the
-    CPU count. Python 3.13 also offers os.process_cpu_count()."""
-    if hasattr(os, "sched_getaffinity"):
-        return len(os.sched_getaffinity(0))
-    return os.cpu_count() or 1
+THREAD_VARIABLES = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
+
+
+def available_cpus(cgroup_file=Path("/proc/self/cgroup"), mount=Path("/sys/fs/cgroup")):
+    """The CPUs this process may use: the affinity mask where the OS has one
+    (Linux; taskset and container CPU sets), else the CPU count, lowered to
+    the cgroup CPU quota (v2 ``cpu.max``, v1 ``cpu.cfs_quota_us``; the most
+    restrictive one on the cgroup path), as optimization-run's node doctor
+    counts them."""
+    cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count() or 1
+    quota = cgroup_cpu_quota(cgroup_file, mount)
+    return max(1, min(cpus, math.floor(quota)) if quota else cpus)
+
+
+def cgroup_cpu_quota(cgroup_file=Path("/proc/self/cgroup"), mount=Path("/sys/fs/cgroup")):
+    """The CPU quota of this process's cgroup in CPUs, or None."""
+    try:
+        lines = Path(cgroup_file).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    quotas = []
+    for line in lines:
+        hierarchy, _, rest = line.partition(":")
+        controllers, _, path = rest.partition(":")
+        if hierarchy == "0" and not controllers:
+            bases, read = [Path(mount)], _quota_v2
+        elif "cpu" in controllers.split(","):
+            bases, read = [Path(mount) / controllers, Path(mount) / "cpu"], _quota_v1
+        else:
+            continue
+        for base in bases:
+            directory = base / path.lstrip("/")
+            if not directory.exists():
+                directory = base  # a cgroup namespace: read the mount root
+            while True:
+                quota = read(directory)
+                if quota:
+                    quotas.append(quota)
+                if directory == base or directory.parent == directory:
+                    break
+                directory = directory.parent
+    return min(quotas) if quotas else None
+
+
+def _quota_v2(directory):
+    try:
+        quota, period = (directory / "cpu.max").read_text().split()
+        return None if quota == "max" else int(quota) / int(period)
+    except (OSError, ValueError):
+        return None
+
+
+def _quota_v1(directory):
+    try:
+        quota = int((directory / "cpu.cfs_quota_us").read_text())
+        period = int((directory / "cpu.cfs_period_us").read_text())
+        return quota / period if quota > 0 and period > 0 else None
+    except (OSError, ValueError):
+        return None
 
 
 def solve_one(spec, start):
@@ -76,15 +134,24 @@ def recheck(spec, x, multipliers, tolerance=1e-7):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--starts", type=int, default=32, help="number of distinct starts (default 32)")
-    parser.add_argument("--workers", type=int, help="worker processes (default: available CPUs, at most --starts)")
+    parser.add_argument("--workers", type=int,
+                        help="worker processes (default: usable CPUs / --model-threads, at most --starts)")
+    parser.add_argument("--model-threads", type=int, default=1,
+                        help="thread-pool size of the model's libraries in each process (default 1)")
     parser.add_argument("--seed", type=int, default=1)
     args = parser.parse_args()
     rng = random.Random(args.seed)
     starts = [[rng.uniform(lo, hi) for lo, hi in zip(LOWER, UPPER)] for _ in range(args.starts)]
-    workers = args.workers or min(available_cpus(), len(starts))
-    # One thread per process also for libraries a model may use (NumPy's BLAS).
-    for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
-        os.environ.setdefault(name, "1")
+    usable = available_cpus()
+    workers = args.workers or max(1, min(usable // args.model_threads, len(starts)))
+    # The model libraries' pools, overwriting inherited values: the spawned
+    # processes start fresh interpreters, so their libraries initialize with
+    # these settings.
+    for name in THREAD_VARIABLES:
+        os.environ[name] = str(args.model_threads)
+    needed = workers * args.model_threads
+    print(f"topology: {workers} processes x {args.model_threads} model threads = {needed} CPUs; "
+          f"{usable} usable" + (" (oversubscribed by explicit choice)" if needed > usable else ""))
     spec = make_spec()
     # "spawn" starts clean interpreters on every platform; the spec is pickled
     # to each process with every task.

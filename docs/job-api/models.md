@@ -152,7 +152,12 @@ runners).
 - **Smooth and deterministic.** SQP needs twice continuously differentiable
   functions inside the bounds, and the recheck must reproduce the solver's
   values.
-- **Inside the box.** The model is never evaluated outside the variable
-  bounds; return `Error::UndefinedPoint` where it is undefined inside them.
+- **Inside the box when solving, anywhere when evaluating.** `sqp.solve/1`
+  never evaluates the model outside the variable bounds. `sqp.evaluate/1`
+  evaluates the given points as they are, outside the bounds too. Return
+  `Error::UndefinedPoint` (or another error) wherever the model is
+  undefined, inside or outside the box: a solve then shortens its trial
+  step, and an evaluation reports claim `none` with the message instead of
+  failing the job.
 - **Quick factories.** A factory runs at validation, which has a 30-second
   limit, and again at execution.
