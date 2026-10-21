@@ -68,6 +68,7 @@ jobs:
       - run: python examples/solve_sqp.py
       - run: python examples/restore_hs071.py
       - run: python examples/orbit_transfer.py 20
+      - run: python examples/multistart_processes.py
 
   baseline:
     name: SLSQP comparison and stress test
