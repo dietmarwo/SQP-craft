@@ -118,9 +118,15 @@ call('workers','add','--id',WORKER,'--executable',worker)
 call('workers','add','--id',APPLICATION[0],'--executable',application)
 descriptions={w:call('problems','describe',w) for w in (WORKER,APPLICATION[0])}
 for w,d in descriptions.items():
-    # Discovery: a schema and an example for every profile.
+    # Discovery: a schema and an example for every profile, within the 64 KiB
+    # of describe output that `workers add` reads.
+    assert len(json.dumps(d,separators=(',',':')))<64*1024,w
     assert set(d['payload_schemas'])==set(d['profiles']),w
     assert {e['profile'] for e in d['examples']}==set(d['profiles']),w
+    for e in d['examples']:
+        # Every schema rejects an extra top-level field.
+        if jsonschema is not None:
+            assert not jsonschema.Draft202012Validator(d['payload_schemas'][e['profile']]).is_valid({**e['payload'],'unknown_field':1}),w
 report=[]
 for example in EXAMPLES:
     spec_path=HERE/(example+'.json');spec=json.loads(spec_path.read_text());payload=spec['payload']

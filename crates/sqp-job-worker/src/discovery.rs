@@ -21,14 +21,25 @@ fn model_properties(registry: &Registry) -> Value {
     })
 }
 
-fn vectors(min: usize, description: &str) -> Value {
-    json!({"type":"array","minItems":min,"maxItems":1_000_000,"description":description,
-        "items":{"type":"array","minItems":1,"maxItems":crate::registry::MAX_DIMENSION,"items":{"type":"number"}}})
+/// One task per entry, each a vector of `$defs/vector`.
+fn vectors(description: &str) -> Value {
+    json!({"type":"array","minItems":1,"maxItems":1_000_000,"description":description,
+        "items":{"$ref":"#/$defs/vector"}})
+}
+
+/// The `$defs` of both schemas: a point and the models' config schemas.
+fn defs(mut configs: serde_json::Map<String, Value>) -> Value {
+    configs.insert(
+        "vector".into(),
+        json!({"type":"array","minItems":1,"maxItems":crate::registry::MAX_DIMENSION,"items":{"type":"number"}}),
+    );
+    configs.into()
 }
 
 /// `payload_schemas`: one strict JSON Schema per profile.
 pub(crate) fn payload_schemas(registry: &Registry) -> Value {
-    let rules = registry.schema_rules();
+    let (rules, configs) = registry.schema_rules();
+    let defs = defs(configs);
     let mut solve = json!({
         "$schema": DRAFT,
         "$id": format!("urn:optimization-jobs:payload:{}", solve::PROFILE),
@@ -37,12 +48,13 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         "additionalProperties": false,
         "required": ["problem","dimension","starts","backend","max_iterations","max_callback_calls","feasibility_tolerance","stationarity_tolerance"],
         "properties": model_properties(registry),
-        "allOf": rules.clone()
+        "allOf": rules.clone(),
+        "$defs": defs.clone()
     });
     let p = solve["properties"].as_object_mut().expect("object");
     p.insert(
         "starts".into(),
-        vectors(1, "one finite start per task, inside the model's bounds"),
+        vectors("one finite start per task, inside the model's bounds"),
     );
     p.insert(
         "backend".into(),
@@ -80,12 +92,13 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         "additionalProperties": false,
         "required": ["problem","dimension","points","feasibility_tolerance"],
         "properties": model_properties(registry),
-        "allOf": rules
+        "allOf": rules,
+        "$defs": defs
     });
     let p = evaluate["properties"].as_object_mut().expect("object");
     p.insert(
         "points".into(),
-        vectors(1, "one point per task, also outside the bounds"),
+        vectors("one point per task, also outside the bounds"),
     );
     p.insert(
         "feasibility_tolerance".into(),

@@ -89,8 +89,22 @@ fn every_profile_has_a_payload_schema_and_an_example() {
                 schema["$id"],
                 format!("urn:optimization-jobs:payload:{profile}")
             );
+            // Unknown fields are errors, at the top and in every config.
             assert_eq!(schema["additionalProperties"], false);
             assert!(schema["$comment"].is_string());
+            let defs = schema["$defs"].as_object().unwrap();
+            for (name, def) in defs {
+                if name != "vector" {
+                    assert_eq!(def["additionalProperties"], false, "{name}");
+                }
+            }
+            // Every model rule refers to a config schema in $defs.
+            for rule in schema["allOf"].as_array().unwrap() {
+                if let Some(r) = rule["then"]["properties"]["config"]["$ref"].as_str() {
+                    let name = r.strip_prefix("#/$defs/").unwrap().replace("~1", "/");
+                    assert!(defs.contains_key(&name.replace("~0", "~")), "{r}");
+                }
+            }
             let examples = d["examples"]
                 .as_array()
                 .unwrap()

@@ -628,17 +628,35 @@ impl Registry {
         (problems.into(), examples)
     }
 
-    /// Per-model rules of the payload schemas: version, dimensions, config.
-    pub(crate) fn schema_rules(&self) -> Vec<Value> {
-        self.entries
+    /// Per-model rules of the payload schemas (version, dimensions, config)
+    /// and the `$defs` they refer to: one config schema per model with
+    /// parameters, and `no_config` for all others.
+    pub(crate) fn schema_rules(&self) -> (Vec<Value>, Map<String, Value>) {
+        let mut defs = Map::new();
+        defs.insert(
+            "no_config".into(),
+            json!({"type":"object","additionalProperties":false,"maxProperties":0}),
+        );
+        let rules = self
+            .entries
             .iter()
             .map(|e| {
                 let info = &e.info;
+                let config = if e.has_parameters() {
+                    let name = format!("config.{}", info.id);
+                    // A JSON Pointer escapes "~" and "/".
+                    let pointer = name.replace('~', "~0").replace('/', "~1");
+                    defs.insert(name, e.schema());
+                    format!("#/$defs/{pointer}")
+                } else {
+                    "#/$defs/no_config".into()
+                };
                 json!({"if":{"properties":{"problem":{"const":info.id}},"required":["problem"]},
                     "then":{"properties":{"problem_version":{"const":info.version},
                         "dimension":{"minimum":info.dimensions.start(),"maximum":info.dimensions.end()},
-                        "config":e.schema()}}})
+                        "config":{"$ref":config}}}})
             })
-            .collect()
+            .collect();
+        (rules, defs)
     }
 }
