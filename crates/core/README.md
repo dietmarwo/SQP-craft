@@ -1,5 +1,8 @@
 # sqp-craft
 
+[Optimization ecosystem](https://dietmarwo.github.io/optimization-jobs/) ·
+[Shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md)
+
 Problem, callback, solver and result contracts for a sparse SQP solver
 (`ProblemSpec`, `NlpProblem`, `SqpSolver`, `SolveResult`), KKT residuals, the QP
 seam for backends and a finite-difference derivative checker. No

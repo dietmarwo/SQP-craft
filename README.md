@@ -1,3 +1,15 @@
+# SQP-craft
+
+A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
+for smooth constrained problems such as trajectory transcriptions. The current
+dense-BFGS solver accepts at most 256 variables and needs derivatives.
+
+**Choosing an optimization tool?** Start with the
+[shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md) or the
+[optimization ecosystem overview](https://dietmarwo.github.io/optimization-jobs/).
+The guide compares this solver with Python/Rust black-box optimization
+and the other structured solver, then explains library, shell and MCP use.
+
 > **Shared agent job API:** this repository builds `sqp-job-worker`, a native
 > solver worker for the job API of
 > [optimization-jobs](https://github.com/dietmarwo/optimization-jobs), at the
@@ -14,11 +26,6 @@
 > **AI agents:** read [ai-context.md](ai-context.md) (formulation, options,
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
 > conventions).
-
-# SQP-craft
-
-A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
-for smooth constrained problems such as trajectory transcriptions.
 
 **Version 0.16.0: eight-worker execution and thirty further experiments**
 (iterations 31–60). Native `Options(threads=8)` offers a maximum worker budget;

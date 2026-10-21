@@ -81,3 +81,11 @@ cargo new sqp_craft-check && cd sqp_craft-check && cargo add sqp-craft-solver@"$
 
 Check the PyPI page, the crate pages and docs.rs, then create the GitHub
 release.
+
+## Discovery after a release
+
+Follow the [ecosystem publication checklist](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/discovery/README.md).
+Package descriptions and README links reach registries only with a new
+release. Check the rendered package page after publishing and update the
+shared catalog when installation availability changes. Repository topics
+and About text are GitHub settings, not fields a commit changes.
