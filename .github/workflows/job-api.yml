@@ -42,6 +42,8 @@ jobs:
         run: |
           cargo test --release --locked -p sqp-job-worker
           cargo build --release --locked -p optimization-runner -p sqp-job-worker
+          # The application worker of the tutorial (examples/custom_worker.rs).
+          cargo build --release --locked -p sqp-job-worker --example custom_worker
       - name: Shared harness against this worker
         # The scripts come from Cargo's checkout of optimization-jobs.
         run: |

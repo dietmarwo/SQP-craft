@@ -1,0 +1,58 @@
+{
+  "schema_version": "optimization.job/0.1",
+  "request_key": "tutorial.sqp.decay-fit.v1",
+  "worker": "sqp-curve-fit",
+  "payload_schema": "sqp.solve/1",
+  "resources": {
+    "cpu_slots": 4,
+    "outer_workers": 4,
+    "inner_threads": 1
+  },
+  "limits": {
+    "wall_time_seconds": 30.0,
+    "grace_seconds": 1.0
+  },
+  "inputs": [
+    {
+      "name": "data",
+      "file": "decay.csv",
+      "sha256": "b779f43d8f6981801b3c9c8d7243af34b88eb778eb576973c909c048f99f5b9f"
+    }
+  ],
+  "payload": {
+    "problem": "app.decay-fit",
+    "problem_version": "1",
+    "dimension": 3,
+    "config": {
+      "anchor_time": 1.0
+    },
+    "starts": [
+      [
+        5.0,
+        2.5,
+        0.0
+      ],
+      [
+        1.0,
+        0.2,
+        2.0
+      ],
+      [
+        9.0,
+        4.5,
+        -4.0
+      ],
+      [
+        3.0,
+        1.0,
+        1.0
+      ]
+    ],
+    "backend": "active_set",
+    "elastic_mode": true,
+    "max_iterations": 200,
+    "max_callback_calls": 4000,
+    "feasibility_tolerance": 1e-07,
+    "stationarity_tolerance": 1e-06
+  }
+}
