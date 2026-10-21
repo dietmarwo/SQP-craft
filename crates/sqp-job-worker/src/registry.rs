@@ -652,9 +652,9 @@ impl Registry {
                     "#/$defs/no_config".into()
                 };
                 json!({"if":{"properties":{"problem":{"const":info.id}},"required":["problem"]},
-                    "then":{"properties":{"problem_version":{"const":info.version},
+                    "then":{"properties":{"problem_version":{"enum":[info.version, null]},
                         "dimension":{"minimum":info.dimensions.start(),"maximum":info.dimensions.end()},
-                        "config":{"$ref":config}}}})
+                        "config":{"anyOf":[{"$ref":config},{"type":"null"}]}}}})
             })
             .collect();
         (rules, defs)

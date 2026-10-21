@@ -11,13 +11,15 @@ use serde_json::{Value, json};
 const DRAFT: &str = "https://json-schema.org/draft/2020-12/schema";
 
 /// The schema properties both profiles share: the model and its config.
+/// The two optional fields deserialize as `Option`, so an explicit `null`
+/// means the same as leaving the field out; the schemas accept it.
 fn model_properties(registry: &Registry) -> Value {
     let ids: Vec<&str> = registry.models().map(|m| m.id()).collect();
     json!({
         "problem": {"type":"string","enum":ids,"description":"registered model id (describe: problems)"},
-        "problem_version": {"type":"string","minLength":1,"description":"default: the registered version"},
+        "problem_version": {"type":["string","null"],"minLength":1,"description":"default (absent or null): the registered version"},
         "dimension": {"type":"integer","minimum":1,"maximum":crate::registry::MAX_DIMENSION},
-        "config": {"type":"object","description":"model parameters (problems[].config); default: the model's defaults"}
+        "config": {"type":["object","null"],"description":"model parameters (problems[].config); absent or null: the model's defaults"}
     })
 }
 

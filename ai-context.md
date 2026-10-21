@@ -283,7 +283,9 @@ Modelling rules:
   ‖∇f(x₀)‖∞ of 10⁴ or more, the first line search often fails (the BFGS
   start is the identity); rescale, or try `initial_hessian_scale` near that
   gradient norm.
-- Keep the box tight and meaningful: the model is never evaluated outside it.
+- Keep the box tight and meaningful: a solve never evaluates the model
+  outside it. `sqp.evaluate/1` evaluates given points as they are, outside
+  the box too, so return an error where the model is undefined.
 - Declare linear rows only when they are exactly linear: a declared row whose
   Jacobian changes ends the solve with `InvalidInput`, and a wrong
   declaration can make `linear_infeasible` wrong.
@@ -395,9 +397,11 @@ equivalent with `kkt::residuals` on a `KktPoint`.
   model instances. The binding releases the interpreter for native work but
   calls every callback on the calling thread.
   `examples/multistart_processes.py` runs distinct starts with a
-  `ProcessPoolExecutor`, one native thread per process, a worker count from
-  `os.sched_getaffinity(0)` where available, and rechecks the best result
-  with `kkt_residuals`.
+  `ProcessPoolExecutor`, one native thread per process. The model libraries'
+  pools (`OMP_NUM_THREADS` and friends) are set to `--model-threads`
+  (default 1), overwriting inherited values. The worker count stays within
+  the usable CPUs: the affinity mask lowered to the cgroup quota, as `node
+  doctor` counts them. The best result is rechecked with `kkt_residuals`.
 - Native models may implement `NlpProblem::set_threads` to split their own
   propagation with `sqp_craft_parallel::Execution` within the declared budget.
 - `CancellationToken` / `Cancellation` is checked before every model call and
@@ -579,8 +583,10 @@ is no BFGS or solver checkpoint resume.
 `sqp.evaluate/1` evaluates points against a registered model without solving,
 for example an agent's candidates or another solver's answer. Payload:
 `problem`, `dimension`, `points` (finite vectors of that dimension, one task
-each; they may lie outside the bounds) and `feasibility_tolerance`, and
-optionally `problem_version` and `config`; inputs as for `sqp.solve/1`;
+each; they may lie outside the bounds, and the model is evaluated there,
+so it must signal undefined points with an error, which gives claim `none`)
+and `feasibility_tolerance`, and optionally `problem_version` and `config`
+(absent or `null`: the registered defaults); inputs as for `sqp.solve/1`;
 `inner_threads` must be 1. Points are inline: the resolved job must stay below the
 runner's 4 MiB validation output. Each outcome has `termination:
 "evaluated"`, claim `feasible` within the tolerance or `none`, the objective,

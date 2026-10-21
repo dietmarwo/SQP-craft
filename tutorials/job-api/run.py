@@ -89,6 +89,19 @@ def schemas_reject(description,spec,mutations):
         bad={**spec['payload'],**change}
         assert not validator.is_valid(bad) and not valid(bad),change
 
+def schemas_accept(description,spec,fields=('problem_version','config')):
+    """Optional fields absent or null mean the registered defaults: the schema
+    and the worker both accept each variant of a valid payload."""
+    if jsonschema is None:return
+    validator=jsonschema.Draft202012Validator(description['payload_schemas'][spec['payload_schema']])
+    directory=root/'accepted';directory.mkdir(exist_ok=True);path=directory/'job.json'
+    for item in spec['inputs']:(directory/item['file']).write_bytes((HERE/item['file']).read_bytes())
+    for field in fields:
+        for payload in ({k:v for k,v in spec['payload'].items() if k!=field},{**spec['payload'],field:None}):
+            path.write_text(json.dumps({**spec,'payload':payload}))
+            ok=subprocess.run([str(runner),'--root',str(root),'validate','--spec',str(path)],capture_output=True).returncode==0
+            assert validator.is_valid(payload) and ok,(field,payload)
+
 def run_examples(worker_id,description):
     """Turns every example of a worker's describe into a job, as an MCP-only
     client would, and runs it."""
@@ -158,6 +171,9 @@ schemas_reject(descriptions[WORKER],simplex,[{'ignored_option':True},{'backend':
     {'problem_version':'9'},{'problem':'benchmark.unknown'},{'problem':'benchmark.rosenbrock','dimension':1},
     {'config':{'scale':1}},{'max_callback_calls':0},{'feasibility_tolerance':0.}])
 schemas_reject(descriptions[APPLICATION[0]],fit,[{'config':{'anchor_time':'t'}},{'config':{'anchor':1.}},{'dimension':2}])
+evaluate=json.loads((HERE/'simplex-evaluate.json').read_text())
+for description,spec in ((descriptions[WORKER],simplex),(descriptions[WORKER],evaluate),(descriptions[APPLICATION[0]],fit)):
+    schemas_accept(description,spec)
 described=[run for w,d in descriptions.items() for run in run_examples(w,d)]
 output={'node':str(root),'worker':WORKER,'application_worker':APPLICATION[0],'runs':report,'describe_examples':described}
 (root/'tutorial-report.json').write_text(json.dumps(output,indent=2)+'\n')

@@ -101,11 +101,18 @@ publishing metadata.
   `bounds`. `tests/discovery.rs` turns every example of the stock worker,
   the custom worker and a worker without benchmarks into a job and runs it;
   the tutorial checks every example and tutorial payload against the
-  schemas with `jsonschema>=4.18`.
+  schemas with `jsonschema>=4.18`. An explicit `null` for `problem_version`
+  or `config` means the same as leaving it out, in the worker and in the
+  schemas (`tests/discovery.rs` and the tutorial check absent, null, valid
+  and invalid values for both profiles and both workers).
 - `examples/multistart_processes.py`: many starts of a Python model in a
-  `ProcessPoolExecutor`, one native thread per process, the worker count
-  from `os.sched_getaffinity(0)`, and a `kkt_residuals` recheck of the best
-  result; CI and `scripts/check.sh` run it.
+  `ProcessPoolExecutor`, one native thread per process, and a
+  `kkt_residuals` recheck of the best result; CI and `scripts/check.sh` run
+  it. The model libraries' thread pools are set to `--model-threads`
+  (default 1), overwriting inherited values. The default worker count stays
+  within the usable CPUs: the affinity mask lowered to the cgroup v1 or v2
+  quota (`tests/test_multistart_example.py`). The script prints the
+  topology.
 - `AGENTS.md` for coding agents; `ai-context.md` gains a "Many cores"
   section, the discovery keys, the application registry (replacing the
   instruction to edit the worker's enum) and the MCP tool `put_input`.
