@@ -10,8 +10,8 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`069d87c`, which adds the MCP tools `put_input` and `get_guide` and a host
-report in `node doctor`. In another
+`43ef3ae`, which adds the MCP tools `put_input` and `get_guide` (with the
+corrected Pareto guidance) and a host report in `node doctor`. In another
 checkout, check `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's
 discovery output and the linked guides before using a command or claiming a
 capability.
