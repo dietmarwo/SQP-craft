@@ -1,6 +1,7 @@
 # AI context for solving smooth constrained problems with SQP-craft
 
-Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0). That
+Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0; released
+unchanged in its solver code as 0.17.0). That
 state includes the result contract 0.2 (claims with evidence,
 `sqp.evaluate/1`, error codes, JSON Schemas, #15); the shared job crates taken
 from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
@@ -58,11 +59,13 @@ Rust dependencies.
 | `optimization-job-api`, `optimization-runner` | git dependency on [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) | Shared job protocol and the `optimization-run` runner |
 | `sqp-job-worker` | `crates/sqp-job-worker` | Job worker library (`Registry`, `Adapter`) and the stock binary, profiles `sqp.solve/1` and `sqp.evaluate/1` |
 
-Nothing is published yet: neither crates.io nor PyPI has an `sqp-craft`
-package at this review. The five library crates and the Python package are
-prepared for both registries ([RELEASING.md](RELEASING.md)); the worker and
-the benchmarks stay source-only. Use a checkout
-of https://github.com/dietmarwo/SQP-craft. The workspace version is 0.16.0;
+Release 0.17.0 is the first on PyPI (`python -m pip install sqp-craft`);
+the five library crates go to crates.io with the same version. Check the
+registries for the latest version before relying on it
+([RELEASING.md](RELEASING.md)); the worker and the benchmarks stay
+source-only. For Rust, the job worker or changes after the latest release,
+use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace
+version is 0.17.0;
 the shared job crates are 0.2.0, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol
 identifier, independent of both. The "Version 0.4.0" line at the top of `docs/api.md` is stale; go by

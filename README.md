@@ -197,8 +197,12 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 
 ## Install from source
 
-Nothing has been published to PyPI or crates.io yet ([RELEASING.md](RELEASING.md)
-describes the release workflows); build from source. Requirements: git, Rust
+From 0.17.0, releases go to PyPI and crates.io:
+`python -m pip install sqp-craft` installs a wheel (CPython 3.10 or newer on
+Linux x86_64, Windows x64 and macOS x86_64/arm64) and needs no Rust; the Rust
+crates are below. The job worker is source-only
+([RELEASING.md](RELEASING.md) describes the releases). To build from source,
+for example for changes after the latest release, you need git, Rust
 1.85 or newer (`rustup` from https://rustup.rs; 1.88 for the job worker and the
 runner), CPython 3.10 or newer, and a C linker (the platform's default one).
 The QP backends are Rust code; no external optimizer, BLAS or CMake is needed.
@@ -222,9 +226,14 @@ cargo build --release --locked -p optimization-runner -p sqp-job-worker
 ```
 
 The library crates and the Python package depend on crates.io crates only.
-To use the Rust crates from another project before a crates.io release,
-depend on the core (`ProblemSpec`, `NlpProblem`, results), the solver and at
-least one QP backend:
+A Rust project depends on the core (`ProblemSpec`, `NlpProblem`, results),
+the solver and at least one QP backend:
+
+```sh
+cargo add sqp-craft sqp-craft-solver sqp-craft-clarabel   # add sqp-craft-activeset for ActiveSetQp
+```
+
+For changes after the latest release, use git dependencies instead:
 
 ```toml
 [dependencies]

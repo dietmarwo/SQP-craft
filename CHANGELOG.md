@@ -7,6 +7,13 @@ dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-22
+
+The first release on PyPI (`sqp-craft`) and crates.io (`sqp-craft`,
+`sqp-craft-parallel`, `sqp-craft-activeset`, `sqp-craft-clarabel`,
+`sqp-craft-solver`). The first crates.io upload needs an API
+token; later releases use Trusted Publishing ([RELEASING.md](RELEASING.md)).
+
 Everything merged after the commit that set 0.16.0 (`8c9bc0c`, #11): #10
 and #12 to #21, and the release preparation. The code of the solver crates
 and of the Python package is unchanged since 0.16.0; the crates gained
@@ -119,6 +126,22 @@ publishing metadata.
 
 ### Changed
 
+- crates.io and docs.rs pages: the core crate describes SQP with sparse
+  (CSR) constraint Jacobians instead of "a sparse SQP solver" (the solver is
+  dense BFGS), and its rustdoc drops the development note "Iteration 1"; the
+  five crates' homepage is the SQP-craft entry of the ecosystem page; the
+  READMEs show `cargo add`, and the solver README a complete, tested example
+  with the limits; the solver's rustdoc links `docs/snopt-lessons.md`
+  absolutely and no longer says "four" SNOPT mechanisms for a list of five.
+- `publish-crates.yml`: while Trusted Publishing is not enabled
+  (`CRATES_IO_TRUSTED_PUBLISHING`), a tag publishes the crates with the
+  secret `CARGO_REGISTRY_TOKEN`, one crate at a time in dependency order and
+  skipping versions already on crates.io. This publishes the first release
+  without a local toolchain; `RELEASING.md` describes the token and its
+  removal afterwards.
+- The PyPI description is `python/README.md`, a short page with installation,
+  an example, the limits and absolute links; the repository README, with
+  its relative links and history, stays on GitHub.
 - Discovery: the README opens with the title, a short description (dense
   BFGS, at most 256 variables, derivatives needed) and links to the shared
   solver-selection guide and the ecosystem overview; the five crate READMEs

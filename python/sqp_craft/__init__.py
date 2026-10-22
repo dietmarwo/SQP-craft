@@ -33,7 +33,7 @@ from ._native import check_derivatives as _check_derivatives
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.16.0"
+__version__ = "0.17.0"
 
 __all__ = [
     "Cancellation",
