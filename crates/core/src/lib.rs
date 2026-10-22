@@ -1,9 +1,12 @@
-//! Contracts for a sparse SQP solver: problem specification, model callbacks,
-//! solver and observer traits, typed results, KKT residuals and a QP seam.
+//! Contracts for SQP solvers of smooth constrained problems with sparse (CSR)
+//! constraint Jacobians: problem specification, model callbacks, solver and
+//! observer traits, typed results, KKT residuals and a QP seam.
 //!
-//! **Iteration 1.** This dependency-free core retains [`DummySolver`] as a
-//! contract fixture. The sibling `sqp-craft-solver` crate implements the dense
-//! BFGS pilot with `sqp-craft-clarabel` QPs. Select `method="sqp"` in Python.
+//! This core has no dependencies. The solver is the sibling crate
+//! `sqp-craft-solver` (dense damped BFGS, at most 256 variables) with the QP
+//! backends `sqp-craft-clarabel` or `sqp-craft-activeset`. [`DummySolver`]
+//! is a contract fixture: it evaluates the start point and never claims
+//! convergence.
 //!
 //! ```
 //! use sqp_craft::{

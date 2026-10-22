@@ -4,8 +4,8 @@
 //! A bounded research pilot, not a general solver: at most 256 variables and
 //! local Gauss–Newton restoration for inconsistent linearizations (disable it
 //! with `max_restoration_steps = 0`). Opt-in options add elastic step QPs, a
-//! second-order correction, and four mechanisms taken from SNOPT
-//! (docs/snopt-lessons.md):
+//! second-order correction, and these mechanisms taken from SNOPT
+//! ([`docs/snopt-lessons.md`](https://github.com/dietmarwo/SQP-craft/blob/main/docs/snopt-lessons.md)):
 //! - SNOPT's BFGS repair ([`HessianUpdate::Augmented`]);
 //! - an augmented-Lagrangian merit ([`Merit::AugmentedLagrangian`]);
 //! - a violation limit;

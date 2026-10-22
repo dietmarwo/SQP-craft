@@ -126,6 +126,13 @@ publishing metadata.
 
 ### Changed
 
+- crates.io and docs.rs pages: the core crate describes SQP with sparse
+  (CSR) constraint Jacobians instead of "a sparse SQP solver" (the solver is
+  dense BFGS), and its rustdoc drops the development note "Iteration 1"; the
+  five crates' homepage is the SQP-craft entry of the ecosystem page; the
+  READMEs show `cargo add`, and the solver README a complete, tested example
+  with the limits; the solver's rustdoc links `docs/snopt-lessons.md`
+  absolutely and no longer says "four" SNOPT mechanisms for a list of five.
 - `publish-crates.yml`: while Trusted Publishing is not enabled
   (`CRATES_IO_TRUSTED_PUBLISHING`), a tag publishes the crates with the
   secret `CARGO_REGISTRY_TOKEN`, one crate at a time in dependency order and
