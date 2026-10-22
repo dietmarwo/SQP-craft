@@ -9,8 +9,10 @@ dates are those of the commits that set each version.
 
 ## [0.17.0] - 2026-10-22
 
-The first release on PyPI (`sqp-craft`). The Rust crates follow on crates.io
-once their ownership is established ([RELEASING.md](RELEASING.md)).
+The first release on PyPI (`sqp-craft`) and crates.io (`sqp-craft`,
+`sqp-craft-parallel`, `sqp-craft-activeset`, `sqp-craft-clarabel`,
+`sqp-craft-solver`). The first crates.io upload needs an API
+token; later releases use Trusted Publishing ([RELEASING.md](RELEASING.md)).
 
 Everything merged after the commit that set 0.16.0 (`8c9bc0c`, #11): #10
 and #12 to #21, and the release preparation. The code of the solver crates
@@ -124,6 +126,12 @@ publishing metadata.
 
 ### Changed
 
+- `publish-crates.yml`: while Trusted Publishing is not enabled
+  (`CRATES_IO_TRUSTED_PUBLISHING`), a tag publishes the crates with the
+  secret `CARGO_REGISTRY_TOKEN`, one crate at a time in dependency order and
+  skipping versions already on crates.io. This publishes the first release
+  without a local toolchain; `RELEASING.md` describes the token and its
+  removal afterwards.
 - The PyPI description is `python/README.md`, a short page with installation,
   an example, the limits and absolute links; the repository README, with
   its relative links and history, stays on GitHub.

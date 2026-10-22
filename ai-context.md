@@ -60,8 +60,8 @@ Rust dependencies.
 | `sqp-job-worker` | `crates/sqp-job-worker` | Job worker library (`Registry`, `Adapter`) and the stock binary, profiles `sqp.solve/1` and `sqp.evaluate/1` |
 
 Release 0.17.0 is the first on PyPI (`python -m pip install sqp-craft`);
-check PyPI for the latest version before relying on it. The five library
-crates are prepared for crates.io but not published there yet
+the five library crates go to crates.io with the same version. Check the
+registries for the latest version before relying on it
 ([RELEASING.md](RELEASING.md)); the worker and the benchmarks stay
 source-only. For Rust, the job worker or changes after the latest release,
 use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace

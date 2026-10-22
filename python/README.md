@@ -64,8 +64,9 @@ thread.
 
 ## More
 
-- [Repository](https://github.com/dietmarwo/SQP-craft), with the Rust crates,
-  the multistart examples and the source build
+- [Repository](https://github.com/dietmarwo/SQP-craft), with the multistart
+  examples and the source build; the Rust crates start at
+  [`sqp-craft-solver`](https://crates.io/crates/sqp-craft-solver)
 - [AI agent guide](https://github.com/dietmarwo/SQP-craft/blob/main/ai-context.md):
   modelling, options, results, multistart and the job API
 - [Changelog](https://github.com/dietmarwo/SQP-craft/blob/main/CHANGELOG.md)
