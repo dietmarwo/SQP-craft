@@ -14,8 +14,8 @@ categories = ["mathematics", "science"]
 publish = ["crates-io"]
 
 [dependencies]
-sqp-craft-parallel = { path = "../parallel", version = "0.16.0" }
-sqp-craft = { path = "../core", version = "0.16.0" }
+sqp-craft-parallel = { path = "../parallel", version = "0.17.0" }
+sqp-craft = { path = "../core", version = "0.17.0" }
 
 [dev-dependencies]
 sqp-craft-clarabel = { path = "../clarabel" }

@@ -7,6 +7,11 @@ dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-22
+
+The first release on PyPI (`sqp-craft`). The Rust crates follow on crates.io
+once their ownership is established ([RELEASING.md](RELEASING.md)).
+
 Everything merged after the commit that set 0.16.0 (`8c9bc0c`, #11): #10
 and #12 to #21, and the release preparation. The code of the solver crates
 and of the Python package is unchanged since 0.16.0; the crates gained
@@ -119,6 +124,9 @@ publishing metadata.
 
 ### Changed
 
+- The PyPI description is `python/README.md`, a short page with installation,
+  an example, the limits and absolute links; the repository README, with
+  its relative links and history, stays on GitHub.
 - Discovery: the README opens with the title, a short description (dense
   BFGS, at most 256 variables, derivatives needed) and links to the shared
   solver-selection guide and the ecosystem overview; the five crate READMEs

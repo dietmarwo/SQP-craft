@@ -13,7 +13,7 @@ keywords = ["optimization", "qp", "clarabel", "sqp", "solver"]
 categories = ["mathematics", "science"]
 publish = ["crates-io"]
 [dependencies]
-sqp-craft-parallel = { path = "../parallel", version = "0.16.0" }
-sqp-craft = { path = "../core", version = "0.16.0" }
+sqp-craft-parallel = { path = "../parallel", version = "0.17.0" }
+sqp-craft = { path = "../core", version = "0.17.0" }
 clarabel = "=0.11.1"
 nalgebra = { version = "=0.33.2", default-features = false, features = ["std"] }

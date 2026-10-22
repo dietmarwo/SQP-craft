@@ -15,8 +15,8 @@ publish = ["crates-io"]
 # Refers to files outside the crate; kept out of the published package.
 exclude = ["examples/performance_kernels.rs"]
 [dependencies]
-sqp-craft-parallel = { path = "../parallel", version = "0.16.0" }
-sqp-craft = { path = "../core", version = "0.16.0" }
+sqp-craft-parallel = { path = "../parallel", version = "0.17.0" }
+sqp-craft = { path = "../core", version = "0.17.0" }
 nalgebra = { version = "=0.33.2", default-features = false, features = ["std"] }
 [dev-dependencies]
 sqp-craft-activeset = { path = "../activeset" }
