@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/dietmarwo/SQP-craft/main/docs/images/sqp-craft.png" alt="SQP-craft: smooth constrained optimization in Rust">
+</p>
+
 # SQP-craft
 
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
