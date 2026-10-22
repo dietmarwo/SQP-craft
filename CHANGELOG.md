@@ -7,6 +7,14 @@ dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Changed
+
+- optimization-jobs pin `37b30e4` (tag `v0.3.0`, the first crates.io release
+  of `optimization-job-api` and `optimization-runner`): crate metadata, the
+  shared guide that `get_guide` serves names the October 2026 registry
+  releases, and the job crates are 0.3.0. Envelope, result contract and
+  worker protocol are unchanged.
+
 ## [0.17.0] - 2026-10-22
 
 The first release on PyPI (`sqp-craft`) and crates.io (`sqp-craft`,
