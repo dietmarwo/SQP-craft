@@ -125,6 +125,8 @@ publishing metadata.
   link them too. `pyproject.toml` adds keywords and project URLs
   (documentation, issues, changelog, ecosystem, agent guide). `RELEASING.md`
   covers discovery after a release.
+- The README opens with a banner (`docs/images/sqp-craft.png`). It is
+  linked by absolute URL, so the PyPI description shows it too.
 - The resolved `sqp.solve/1` job records `problem_version` and
   `elastic_mode`, and the effective `config` of a model with parameters;
   the resolved `sqp.evaluate/1` job records `problem_version`. Every
