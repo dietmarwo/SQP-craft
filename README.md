@@ -134,6 +134,8 @@ and independent validation. Numerical tolerances and model callbacks were
 not relaxed or rewritten. The actual user trajectory application is still
 unavailable; the orbit fixture and generated problems are development tests.
 
+The [prompt-driven curve-fitting tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/curve-fit) runs the existing constrained decay-fit worker and checks its half-sum-of-squares objective, anchor equality and first-order evidence.
+
 ## Use from Python
 
 ```python
