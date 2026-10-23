@@ -1,5 +1,7 @@
 # Tutorial: native SQP jobs and multistart batches
 
+**Prompt-driven adaptation:** [agent walkthrough](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) using this repository's existing worker.
+
 This tutorial runs three registered smooth models: a simplex-constrained
 quadratic, Rosenbrock, and an unconstrained shifted quadratic using Clarabel.
 Each job has eight independent initial points and an eight-slot CPU budget.
