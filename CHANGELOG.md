@@ -9,6 +9,8 @@ dates are those of the commits that set each version.
 
 ### Added
 
+- Link the [sqp prompt tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) with checked examples and follow-up experiments over the existing native worker. No numerical code or dependency pins change.
+
 - The [prompt-driven curve-fitting tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/curve-fit) runs the existing constrained decay-fit worker and checks its half-sum-of-squares objective, anchor equality and first-order evidence.
 
 ### Changed
