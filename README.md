@@ -14,6 +14,15 @@ dense-BFGS solver accepts at most 256 variables and needs derivatives.
 The guide compares this solver with Python/Rust black-box optimization
 and the other structured solver, then explains library, shell and MCP use.
 
+![Pure Rust solver](https://img.shields.io/badge/solver-100%25%20Rust-brightgreen)
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)
+](https://github.com/rust-secure-code/safety-dance/)
+![No C/C++ dependencies](https://img.shields.io/badge/C%2FC%2B%2B%20dependencies-none-brightgreen)
+[![crates.io](https://img.shields.io/crates/v/sqp-craft-solver.svg?cacheSeconds=300)](https://crates.io/crates/sqp-craft-solver)
+[![docs.rs](https://docs.rs/sqp-craft-solver/badge.svg)](https://docs.rs/sqp-craft-solver)
+[![PyPI](https://img.shields.io/pypi/v/sqp-craft.svg?cacheSeconds=300)](https://pypi.org/project/sqp-craft/)
+[![AI agent guide](https://img.shields.io/badge/guide-AI%20agents-blue)](ai-context.md)
+
 > **Shared agent job API:** this repository builds `sqp-job-worker`, a native
 > solver worker for the job API of
 > [optimization-jobs](https://github.com/dietmarwo/optimization-jobs), at the
