@@ -9,6 +9,8 @@ dates are those of the commits that set each version.
 
 ### Changed
 
+- README badges as in fcmaes-rust: pure-Rust solver, `unsafe` forbidden in the library crates, no C/C++
+  dependencies, crates.io, docs.rs, PyPI and the AI agent guide.
 - optimization-jobs pin `37b30e4` (tag `v0.3.0`, the first crates.io release
   of `optimization-job-api` and `optimization-runner`): crate metadata, the
   shared guide that `get_guide` serves names the October 2026 registry
