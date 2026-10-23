@@ -136,7 +136,7 @@ unavailable; the orbit fixture and generated problems are development tests.
 
 The [prompt-driven curve-fitting tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/curve-fit) runs the existing constrained decay-fit worker and checks its half-sum-of-squares objective, anchor equality and first-order evidence.
 
-[Prompt tutorial: sqp](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) adds a checked agent workflow over the existing native worker.
+The [prompt-driven SQP tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) adds a checked agent workflow over the existing `sqp-job-worker`.
 
 ## Use from Python
 
