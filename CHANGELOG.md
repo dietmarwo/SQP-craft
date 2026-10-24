@@ -22,6 +22,9 @@ dates are those of the commits that set each version.
   shared guide that `get_guide` serves names the October 2026 registry
   releases, and the job crates are 0.3.0. Envelope, result contract and
   worker protocol are unchanged.
+- Clippy 1.88, the job worker's minimum Rust, is clean on the workspace too:
+  the worker's thread-limit message inlines its format argument. The text is
+  unchanged.
 
 ## [0.17.0] - 2026-10-22
 
