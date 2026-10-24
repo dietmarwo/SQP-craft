@@ -1,13 +1,5 @@
 # AI context for solving smooth constrained problems with SQP-craft
 
-P1 pin update (2026-10-24): the shared runner now exposes
-`node capabilities` and `jobs execution ID`, with a neutral terminal record
-referencing the native result. The existing optimization envelope, worker
-protocol, numerical behavior and solver claims are unchanged. Command and
-fleet execution are not enabled. All tracked tutorial/subcrate manifests
-and lockfiles move with the workspace pin.
-
-
 Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0; released
 unchanged in its solver code as 0.17.0). That
 state includes the result contract 0.2 (claims with evidence,
@@ -19,8 +11,10 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`4f93d75` (P1 source candidate, crates remain 0.3.0), which adds the MCP tools `put_input` and `get_guide` (with the
-corrected Pareto guidance) and a host report in `node doctor`. In another
+`70e210f` (after tag `v0.3.0`; the crates are still 0.3.0), which adds
+`node capabilities` and `jobs execution JOB_ID`; `37b30e4` (tag `v0.3.0`)
+added the MCP tools `put_input` and `get_guide` (with the corrected Pareto
+guidance) and a host report in `node doctor`. In another
 checkout, check `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's
 discovery output and the linked guides before using a command or claiming a
 capability.
