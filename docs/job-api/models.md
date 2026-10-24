@@ -17,7 +17,7 @@ sqp-job-worker = { git = "https://github.com/dietmarwo/SQP-craft" }
 sqp-craft = { git = "https://github.com/dietmarwo/SQP-craft" }
 # The revision SQP-craft's root Cargo.toml pins; another one would be a
 # second, incompatible copy of the crate.
-optimization-job-api = { git = "https://github.com/dietmarwo/optimization-jobs", rev = "70e210fbf562900c1be8f278e2ab2852ef5934e3" }
+optimization-job-api = { git = "https://github.com/dietmarwo/optimization-jobs", rev = "466a373ff81815493451063a9885db28c1946504" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ```
