@@ -132,8 +132,7 @@ impl Worker for Adapter {
         }
         if inner > MAX_INNER_THREADS {
             return Err(format!(
-                "{PROFILE} supports inner_threads=1..{}; {EVALUATE_PROFILE} evaluates points",
-                MAX_INNER_THREADS
+                "{PROFILE} supports inner_threads=1..{MAX_INNER_THREADS}; {EVALUATE_PROFILE} evaluates points"
             )
             .into());
         }
