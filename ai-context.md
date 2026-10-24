@@ -11,7 +11,7 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`466a373` (after tag `v0.3.0`; the crates are still 0.3.0), which adds
+`2351e40` (after tag `v0.3.0`; the crates are still 0.3.0), which adds
 opt-in trusted local command jobs and verified binary file operations through
 the CLI, plus `node capabilities` and `jobs execution JOB_ID`; `37b30e4` (tag `v0.3.0`)
 added the MCP tools `put_input` and `get_guide` (with the corrected Pareto
