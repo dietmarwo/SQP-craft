@@ -7,6 +7,16 @@ dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Shared runtime P1
+
+- Move every optimization-jobs dependency and lockfile to `4f93d75ba9dc0ca40d6de455261b7a753f130976`.
+  The shared runner extracts private execution/admission/supervision modules,
+  adds `execution.record/0.1` and capability discovery, and preserves native
+  optimization results. No solver algorithms, tolerances or public worker
+  schemas change. The new runner passed mixed-node tests with both existing
+  pinned SDK workers and checkout-SDK workers before this pin move.
+
+
 ### Added
 
 - The [prompt-driven SQP tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) solves a simplex allocation with both QP backends from four starts and runs Rosenbrock multistart through the existing `sqp-job-worker`, rechecking objectives and stationarity. No numerical code or dependency pin changes.
