@@ -35,6 +35,7 @@ and the other structured solver, then explains library, shell and MCP use.
 > Your own NLPs run as jobs in a worker of your own built on the worker
 > library ([application models](docs/job-api/models.md)).
 > Sibling workers on the same node: [LP-IP-craft](https://github.com/dietmarwo/LP-IP-craft) for LP/MIP, [fcmaes-rust](https://github.com/dietmarwo/fcmaes-rust) for black-box, multimodal and multi-objective search.
+> [experiment-craft](https://github.com/dietmarwo/experiment-craft) runs reproducible campaigns of these jobs (parameter sweeps, dependent steps, budgets and reports); its baseline rebuilds and tests `sqp-job-worker` at a pinned revision. It is in early development.
 
 > **AI agents:** read [ai-context.md](ai-context.md) (formulation, options,
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
