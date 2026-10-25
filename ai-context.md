@@ -11,10 +11,10 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`fcc4d5f` (after tag `v0.3.0`; the crates are still 0.3.0), which adds
-explicit SSH placement, checked remote files and persistent dispatch/reconciliation
-through the CLI, retaining opt-in local commands, `node capabilities` and
-`jobs execution JOB_ID`; `37b30e4` (tag `v0.3.0`)
+`8b4489d` (after tag `v0.3.0`; the crates are still 0.3.0), which adds
+`node capabilities`, `jobs execution JOB_ID`, opt-in trusted local command
+jobs with verified binary file transfer, and explicitly placed jobs on SSH
+nodes, all through the CLI; `37b30e4` (tag `v0.3.0`)
 added the MCP tools `put_input` and `get_guide` (with the corrected Pareto
 guidance) and a host report in `node doctor`. In another
 checkout, check `Cargo.toml`, `python/sqp_craft/__init__.py`, the worker's
