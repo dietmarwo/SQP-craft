@@ -11,7 +11,7 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`8b4489d` (after tag `v0.3.0`; the crates are still 0.3.0), which adds
+`602d31a` (the optimization-jobs 0.4.0 release), which adds
 `node capabilities`, `jobs execution JOB_ID`, opt-in trusted local command
 jobs with verified binary file transfer, and explicitly placed jobs on SSH
 nodes, all through the CLI; `37b30e4` (tag `v0.3.0`)
@@ -70,7 +70,7 @@ registries for the latest version before relying on it
 source-only. For Rust, the job worker or changes after the latest release,
 use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace
 version is 0.17.0;
-the shared job crates are 0.3.0, and the worker crate shares the workspace
+the shared job crates are 0.4.0, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol
 identifier, independent of both. The "Version 0.4.0" line at the top of `docs/api.md` is stale; go by
 `Cargo.toml`.
