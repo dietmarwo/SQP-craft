@@ -1,10 +1,10 @@
 # SQP1: Constrained calibration and checked derivatives
 
-This executable chapter uses the existing native Rust solver through its Python API. The numerical definitions live with this chapter's owner; the shared driver supplies orchestration and figures.
+This chapter runs native Rust solvers through their Python APIs. Its model and independent checks live in this directory; the shared driver in optimization-jobs adds figures and command-job execution.
 
 ## Model and decision
 
-Fit y=a*exp(-b*t)+c by half the sum of squared training residuals, with 0<=a<=10, 0<=b<=5, -5<=c<=5. The curve must pass through the training row at t=1. The original data file and prior worker example remain unchanged.
+Fit y=a*exp(-b*t)+c by half the sum of squared training residuals, with 0<=a<=10, 0<=b<=5, -5<=c<=5. The curve must pass through the training row at t=1. The data file is the one the job-API tutorial uses (`tutorials/job-api/decay.csv`).
 
 ## Work through the lesson
 
@@ -17,19 +17,19 @@ With residual $r_i=a e^{-bt_i}+c-y_i$, minimize $\tfrac12\sum_{i\in\mathcal T}r_
 
 ## Run
 
-Install the pinned solver distributions and scientific dependencies using the [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md). Keep the patched repositories as sibling directories. From this repository's root:
+Install the pinned solver packages and scientific dependencies as described in the [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md), with the repositories it lists cloned side by side. From this repository's root:
 
 ```bash
 python ../optimization-jobs/tutorials/structured/run.py --chapter SQP1 --output /absolute/new/sqp1
 ```
 
-For the owner entry point, run `python tutorials/constrained-calibration/run.py --preset smoke --output /absolute/new/sqp1-direct`. It produces JSON; the shared driver additionally renders PNG/SVG figures. `--preset study` selects the declared larger cases. Output may be new or empty, and an occupied directory is refused.
+To run the chapter on its own, use `python tutorials/constrained-calibration/run.py --preset smoke --output /absolute/new/sqp1-direct`. It produces JSON; the shared driver additionally renders PNG/SVG figures. `--preset study` runs the larger declared cases; a chapter without them repeats the smoke case. Output may be new or empty, and an occupied directory is refused.
 
 ## Independent answer and validation
 
 Analytic gradients and the anchor Jacobian pass finite differences. Four starts and both QP backends are retained. A reduced one-dimensional reference eliminates the anchor and optimizes amplitude analytically for each decay rate. A separate noiseless fixture has known zero loss; holdout rows never enter fitting.
 
-Every run retains native status, points and available diagnostics. LP candidates are checked against row/bound/integrality requirements; SQP results retain derivative checks and independently reconstructed KKT residuals. Application-specific references are computed separately. All failures remain in the report.
+Every run keeps the native status, points and available diagnostics. SQP results keep their derivative checks and independently reconstructed KKT residuals. Application-specific references are computed separately. All failures remain in the report.
 
 ## Read the result
 
@@ -49,7 +49,7 @@ Use another retained training anchor. Explain why the problem changed and why a 
 
 ## Provenance and limits
 
-The original plan's probes are historical planning evidence. The checked-in `results/smoke/summary.json` and figures record this implementation's executed case. Source and installed-package identities are also recorded by the shared driver. These are reproducible teaching experiments, not industrial or hardware performance certifications. Cross-formulation and cross-solver tables are descriptive.
+The checked-in `results/` record one run of each preset. The shared driver writes source and package identities to `environment.json` for the runs it makes. These are reproducible teaching experiments, not industrial or hardware performance certifications. Tables that compare formulations or solvers are descriptive.
 
 ## Recorded example
 
@@ -57,4 +57,4 @@ The original plan's probes are historical planning evidence. The checked-in `res
 
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
-The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) retain the declared study preset separately.
+The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.

@@ -1,6 +1,6 @@
 # SQP5: Earth-Mars rendezvous with pykep-core
 
-This executable chapter uses the existing native Rust solver through its Python API. The numerical definitions live with this chapter's owner; the shared driver supplies orchestration and figures.
+This chapter runs native Rust solvers through their Python APIs. Its model and independent checks live in this directory; the shared driver in optimization-jobs adds figures and command-job execution.
 
 ## Model and decision
 
@@ -8,28 +8,28 @@ A fixed 300-day leg departs at MJD2000 9800. Ephemerides are converted from SI t
 
 ## Work through the lesson
 
-The fixed 300-day leg departs at MJD2000 9800. Built-in Earth/Mars ephemerides freeze its endpoints. There are $3N$ throttle components plus normalized arrival mass, seven mismatch equalities and $N$ throttle-norm upper bounds.
+The fixed 300-day leg departs at MJD2000 9800. Built-in Earth/Mars ephemerides freeze its endpoints. There are $3N$ throttle components, the normalized arrival mass and three bounded departure excess-velocity components, seven mismatch equalities and $N$ throttle-norm upper bounds. Units are AU, the matching time unit $\sqrt{\mathrm{AU}^3/\mu_\odot}$ (about 58.1 days) and the initial mass of 1,000 kg. The maximum thrust 0.12 in these units is about 0.71 N, and the exhaust velocity is 30 km/s (specific impulse about 3,060 s).
 
-1. Form a Lambert-informed start and check pykep-core's analytic mismatch/throttle Jacobians in nondimensional units. The Lambert impulse is context, not a low-thrust bound.
+1. Form a Lambert-informed start and check the derivatives in nondimensional units: the mismatch Jacobian is pykep-core's analytic one, and the throttle-norm rows $2u_i$ are written in the chapter. The Lambert impulse is context, not a low-thrust bound.
 2. Keep `original_coast_model`: allowing zero throttle reaches an iteration limit near the nonsmooth coast region. A failed first-order solve is not evidence that rendezvous is physically impossible.
 3. Declare a separate model with $\|u_i\|\ge0.02$. Smoke has 20 segments and converges to normalized arrival mass about 0.900114 for an initial 1,000 kg. It does not solve the original coast-permitting formulation by assertion.
 4. Replay each impulsive midpoint segment with independent two-body DOP853 and the mass update; inspect mismatch in km and m/s. The native fixed Sims–Flanagan leg uses Lagrangian Kepler drifts with analytic STM Jacobians. Study uses 40 segments.
 
 ## Run
 
-Install the pinned solver distributions and scientific dependencies using the [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md). Keep the patched repositories as sibling directories. From this repository's root:
+Install the pinned solver packages and scientific dependencies as described in the [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md), with the repositories it lists cloned side by side. From this repository's root:
 
 ```bash
 python ../optimization-jobs/tutorials/structured/run.py --chapter SQP5 --output /absolute/new/sqp5
 ```
 
-For the owner entry point, run `python tutorials/low-thrust-pykep/run.py --preset smoke --output /absolute/new/sqp5-direct`. It produces JSON; the shared driver additionally renders PNG/SVG figures. `--preset study` selects the declared larger cases. Output may be new or empty, and an occupied directory is refused.
+To run the chapter on its own, use `python tutorials/low-thrust-pykep/run.py --preset smoke --output /absolute/new/sqp5-direct`. It produces JSON; the shared driver additionally renders PNG/SVG figures. `--preset study` runs the larger declared cases; a chapter without them repeats the smoke case. Output may be new or empty, and an occupied directory is refused.
 
 ## Independent answer and validation
 
 A Lambert-informed start is declared. The model permitting exact coasts can stall near zero throttle; its full outcome is retained. A separate model requires throttle norm >=0.02, converges and is checked by an independent forward/backward midpoint-impulse replay using SciPy DOP853.
 
-Every run retains native status, points and available diagnostics. LP candidates are checked against row/bound/integrality requirements; SQP results retain derivative checks and independently reconstructed KKT residuals. Application-specific references are computed separately. All failures remain in the report.
+Every run keeps the native status, points and available diagnostics. SQP results keep their derivative checks and independently reconstructed KKT residuals. Application-specific references are computed separately. All failures remain in the report.
 
 ## Read the result
 
@@ -49,7 +49,7 @@ Compare the two declared models and the extra fuel cost of excluding exact coast
 
 ## Provenance and limits
 
-The original plan's probes are historical planning evidence. The checked-in `results/smoke/summary.json` and figures record this implementation's executed case. Source and installed-package identities are also recorded by the shared driver. These are reproducible teaching experiments, not industrial or hardware performance certifications. Cross-formulation and cross-solver tables are descriptive.
+The checked-in `results/` record one run of each preset. The shared driver writes source and package identities to `environment.json` for the runs it makes. These are reproducible teaching experiments, not industrial or hardware performance certifications. Tables that compare formulations or solvers are descriptive.
 
 ## Recorded example
 
@@ -57,4 +57,4 @@ The original plan's probes are historical planning evidence. The checked-in `res
 
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
-The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) retain the declared study preset separately.
+The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.

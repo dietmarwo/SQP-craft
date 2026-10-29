@@ -8,6 +8,20 @@ import numpy as np
 from sqp_craft import ProblemSpec, SqpOptions, Options, solve, check_derivatives
 
 
+class CheckFailure(AssertionError):
+    """An independent tutorial check failed."""
+
+
+def require(condition, message="independent check failed"):
+    """Raise ``CheckFailure`` unless ``condition`` holds.
+
+    Tutorial checks use this instead of ``assert`` so that ``python -O`` and
+    ``PYTHONOPTIMIZE`` cannot remove them.
+    """
+    if not condition:
+        raise CheckFailure(message)
+
+
 def plain(v):
     if is_dataclass(v):
         return plain(asdict(v))
@@ -89,7 +103,7 @@ class Case:
             g, J = self.deriv(x)
             if not np.all(np.isfinite(g)) or not np.all(np.isfinite(J)):
                 raise ValueError("invalid derivative evaluation")
-            assert np.all(np.isfinite(lam)) and np.all(np.isfinite(z))
+            require(np.all(np.isfinite(lam)) and np.all(np.isfinite(z)))
             stationarity = np.max(np.abs(g - np.asarray(J).T @ lam - z))
             comp = 0.0
             sign = 0.0
@@ -129,7 +143,7 @@ class Case:
         x = self.start if start is None else np.asarray(start)
         derivative_check = check_derivatives(self.spec, self, x) if check else None
         if derivative_check is not None:
-            assert derivative_check.passed, plain(derivative_check)
+            require(derivative_check.passed, plain(derivative_check))
         r = solve(
             self.spec,
             self,
@@ -149,7 +163,7 @@ class Case:
             self.check(r.candidate, r.multipliers) if r.candidate is not None else None
         )
         if r.status == "converged":
-            assert audit and audit.get("first_order"), (r.status, audit)
+            require(audit and audit.get("first_order"), (r.status, audit))
         return r, dict(
             native=plain(r),
             independent=audit,
@@ -157,11 +171,49 @@ class Case:
             backend=backend,
             scaling=scaling,
             claim="first_order"
-            if r.status == "converged" and audit.get("first_order")
+            if r.status == "converged"
+            and audit.get("first_order")
+            and derivative_check is not None
+            and derivative_check.passed
             else "feasible"
             if audit and audit["feasible"]
             else "none",
         )
+
+
+def case_from_model(spec, model, start):
+    """Wrap a ``ProblemSpec`` and an SQP-craft callback model as a ``Case``.
+
+    The independent audit then evaluates the model's own functions and
+    derivatives, not the solver's reported evaluation.
+    """
+    ptr = list(spec.jacobian_indptr)
+    ix = list(spec.jacobian_indices)
+    rows = [ix[ptr[i] : ptr[i + 1]] for i in range(spec.m)]
+
+    def fun(x):
+        return model.functions(list(x))
+
+    def deriv(x):
+        g, values = model.derivatives(list(x))
+        J = np.zeros((spec.m, spec.n))
+        k = 0
+        for i, row in enumerate(rows):
+            for j in row:
+                J[i, j] = values[k]
+                k += 1
+        return np.asarray(g, float), J
+
+    return Case(
+        spec.lower,
+        spec.upper,
+        spec.constraint_lower,
+        spec.constraint_upper,
+        fun,
+        deriv,
+        start,
+        pattern=rows,
+    )
 
 
 def complex_jac(fun, x):

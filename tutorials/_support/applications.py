@@ -4,7 +4,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import root
-from numerics import Case, complex_jac, plain
+from numerics import Case, complex_jac, plain, require
 
 
 def rendezvous(preset):
@@ -66,7 +66,7 @@ def rendezvous(preset):
         dep[:3], arr[:3], tof, 1.0, maximum_revolutions=0
     ).solutions[0]
     excess = np.asarray(lambert.departure_velocity) - dep[3:]
-    assert np.all(np.abs(excess) < 0.25)
+    require(np.all(np.abs(excess) < 0.25))
     arrival_burn = arr[3:] - np.asarray(lambert.arrival_velocity)
     seed = np.full((N, 3), 1e-4)
     seed[-N // 4 :] = arrival_burn / (thrust * tof / 4)
@@ -110,7 +110,7 @@ def rendezvous(preset):
     controls = z[: 3 * N].reshape(N, 3)
     duration = tof / N
     cut = N // 2
-    assert r.status == "converged", f"rendezvous did not converge: {r.status}"
+    require(r.status == "converged", f"rendezvous did not converge: {r.status}")
 
     def propagate(state, dt):
         def rhs(t, s):
@@ -119,7 +119,7 @@ def rendezvous(preset):
         integration = solve_ivp(
             rhs, [0, dt], state[:6], method="DOP853", rtol=3e-12, atol=3e-13
         )
-        assert integration.success
+        require(integration.success)
         state[:6] = integration.y[:, -1]
 
     def half(state, indices, direction):
@@ -136,9 +136,9 @@ def rendezvous(preset):
     backward = half(np.r_[arr, z[3 * N]], range(N - 1, cut - 1, -1), -1)
     replay = forward - backward
     native = np.array(leg(z).mismatch_constraints())
-    assert np.max(np.abs(replay - native)) < 1e-7
+    require(np.max(np.abs(replay - native)) < 1e-7)
     if r.status == "converged":
-        assert np.max(np.abs(replay)) < 2e-7
+        require(np.max(np.abs(replay)) < 2e-7)
     return dict(
         result=rec,
         original_coast_model=exact_record,
@@ -223,8 +223,20 @@ def power(preset):
         options=Options(threads=1),
         backend_options=NativeOptions(component_threads=1),
     )
-    assert dc.status == "optimal"
+    require(dc.status == "optimal")
     dcx = np.array(dc.candidate)
+    # Independent check of the DC candidate: bounds, balance rows and line
+    # limits recomputed from the matrix above, not taken from the solver.
+    activity = A @ dcx
+    dc_violation = max(
+        0.0,
+        float(np.max(np.array(lp.lower) - dcx)),
+        float(np.max(dcx - np.array(lp.upper))),
+        float(np.max(np.array(lp.row_lower) - activity)),
+        float(np.max(activity - np.array(lp.row_upper))),
+    )
+    require(dc_violation <= 1e-7, dc_violation)
+    require(abs(float(cost @ dcx[5:]) - dc.evaluation.objective) < 1e-9)
 
     def equations(z):
         V = z[:5]
@@ -275,7 +287,7 @@ def power(preset):
         start,
     )
     r, rec = case.run(scaling="jacobian")
-    assert r.status == "converged"
+    require(r.status == "converged")
     z = np.array(r.candidate)
     voltage = z[:5] * np.exp(1j * z[5:10])
     S = voltage * np.conj(Y @ voltage)
@@ -284,9 +296,11 @@ def power(preset):
     for k, i in enumerate(gen):
         targetP[i] += z[10 + k]
         targetQ[i] += z[12 + k]
-    assert (
-        np.max(np.abs(S.real - targetP)) < 1e-7
-        and np.max(np.abs(S.imag - targetQ)) < 1e-7
+    require(
+        (
+            np.max(np.abs(S.real - targetP)) < 1e-7
+            and np.max(np.abs(S.imag - targetQ)) < 1e-7
+        )
     )
 
     # Independent PQ Newton replay of the DC dispatch; slack absorbs losses.
@@ -298,17 +312,39 @@ def power(preset):
         return np.r_[S.real[1:] - p[1:], S.imag[1:] + Qd[1:]]
 
     replay = root(residual, np.r_[dcx[1:5], np.ones(4)])
-    assert replay.success and np.max(np.abs(residual(replay.x))) < 1e-7
+    require(replay.success and np.max(np.abs(residual(replay.x))) < 1e-7)
+    # What the frozen DC dispatch means in AC physics: the slack covers losses,
+    # the second generator keeps its DC output with zero reactive output.
+    Vr = np.r_[1, replay.x[4:]] * np.exp(1j * np.r_[0, replay.x[:4]])
+    Sr = Vr * np.conj(Y @ Vr)
+    slack = dict(P=float(Sr[0].real + Pd[0]), Q=float(Sr[0].imag + Qd[0]))
+    branch = []
+    for i, j, r_, x_ in edges:
+        y = 1 / complex(r_, x_)
+        for a, b in [(i, j), (j, i)]:
+            branch.append(abs(Vr[a] * np.conj(y * (Vr[a] - Vr[b]))))
+    limits = dict(
+        slack_P_within_0_3=bool(0 <= slack["P"] <= 3),
+        slack_Q_within_2=bool(abs(slack["Q"]) <= 2),
+        voltage_within_0_9_1_1=bool(np.all((np.abs(Vr) >= 0.9) & (np.abs(Vr) <= 1.1))),
+        max_branch_flow=float(max(branch)),
+        branch_flows_within_1_5=bool(max(branch) <= 1.5),
+        losses=float(np.sum(Sr.real)),
+    )
     return dict(
         edges=edges,
         loads_P=Pd,
         loads_Q=Qd,
         dc=plain(dc),
+        dc_independent_violation=dc_violation,
         ac=rec,
         dc_ac_replay=dict(
             angles=np.r_[0, replay.x[:4]],
             voltage=np.r_[1, replay.x[4:]],
             residual=residual(replay.x),
+            slack=slack,
+            limits=limits,
+            method="scipy.optimize.root (Powell hybrid)",
         ),
         ac_complex_balance_error=float(np.max(np.abs(S - (targetP + 1j * targetQ)))),
     )

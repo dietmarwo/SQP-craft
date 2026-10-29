@@ -4,11 +4,15 @@
 
 # SQP-craft
 
-**Structured application workshops:** see the [new learning sequence](tutorials/README.md). The twenty-chapter series uses the native Rust solvers through Python, with independent checks, agent prompts and local campaign execution.
-
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
 for smooth constrained problems such as trajectory transcriptions. The current
 dense-BFGS solver accepts at most 256 variables and needs derivatives.
+
+Seven [application tutorials](tutorials/README.md) (SQP1–SQP6, X2) cover
+constrained calibration, multistart and scaling, a hanging chain, collocation
+from the brachistochrone to a low-thrust transfer, an Earth–Mars Sims–Flanagan
+leg, reaction kinetics and AC power dispatch, each with an independent
+reference.
 
 **Choosing an optimization tool?** Start with the
 [shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md) or the

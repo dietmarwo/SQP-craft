@@ -7,10 +7,11 @@ import json
 import math
 from pathlib import Path
 import time
+import traceback
 import numpy as np
 from scipy.optimize import brentq, minimize_scalar
 from scipy.integrate import solve_ivp
-from numerics import Case, plain, write
+from numerics import Case, case_from_model, plain, require, write
 
 
 def calibration(preset):
@@ -68,8 +69,8 @@ def calibration(preset):
         options={"xatol": 1e-13},
     )
     successful = [z for z in records if z["claim"] == "first_order"]
-    assert successful
-    assert min(z["independent"]["objective"] for z in successful) <= ref.fun + 1e-7
+    require(successful)
+    require(min(z["independent"]["objective"] for z in successful) <= ref.fun + 1e-7)
     old_y, old_Y = y, Y
     y = 3 * np.exp(-0.7 * t) + 0.5
     Y = 3 * np.exp(-0.7 * T) + 0.5
@@ -79,11 +80,15 @@ def calibration(preset):
         for initial in [starts[0], starts[1], starts[3]]:
             _, record = zero_case.run(backend, start=initial)
             noiseless.append(record)
-        assert any(
-            z["backend"] == backend
-            and z["claim"] == "first_order"
-            and z["independent"]["objective"] <= 1e-10
-            for z in noiseless
+        require(
+            (
+                any(
+                    z["backend"] == backend
+                    and z["claim"] == "first_order"
+                    and z["independent"]["objective"] <= 1e-10
+                    for z in noiseless
+                )
+            )
         )
     y, Y = old_y, old_Y
     return dict(
@@ -151,11 +156,25 @@ def diagnostics(preset):
                             variables=np.asarray(r.multipliers.variables) / D,
                         )
                         rec["physical_check"] = well().check(physical, mp)
+                    # The native claim holds in the submitted coordinates; the
+                    # tutorial's conclusion needs the physical-unit check too.
+                    rec["physical_claim"] = (
+                        "first_order"
+                        if rec["claim"] == "first_order"
+                        and rec.get("physical_check", {}).get("first_order")
+                        else "feasible"
+                        if rec.get("physical_check", {}).get("feasible")
+                        else "none"
+                    )
                     records.append(rec)
     zero = well(alpha=0)
     r, stationary = zero.run(start=[0, 0])
-    stationary["reduced_curvature"] = -4
-    assert abs(stationary["independent"]["objective"] - 1) < 1e-10
+    # Along y = x the reduced objective is (x^2 - 1)^2, with curvature
+    # 12 x^2 - 4 at the stationary point x = 0.
+    x0 = float(np.array(r.candidate)[0])
+    stationary["reduced_curvature"] = float(12 * x0**2 - 4)
+    require(stationary["reduced_curvature"] < 0, stationary["reduced_curvature"])
+    require(abs(stationary["independent"]["objective"] - 1) < 1e-10)
     simplex = []
 
     def sf(x):
@@ -168,7 +187,7 @@ def diagnostics(preset):
     for backend in ["active-set", "clarabel"]:
         for start in [[1, 0, 0, 0], [0, 0, 0, 0]]:
             rr, record = calibration.run(backend, start=start)
-            assert (
+            require(
                 rr.status == "converged" and abs(rr.evaluation.objective - 0.25) < 1e-7
             )
             simplex.append(record)
@@ -176,6 +195,18 @@ def diagnostics(preset):
         roots=roots,
         root_values=[(z * z - 1) ** 2 + 0.2 * z for z in roots],
         records=records,
+        claim_counts={
+            representation: {
+                "native_first_order": sum(
+                    r["claim"] == "first_order" for r in records if r["R"] == R
+                ),
+                "physical_first_order": sum(
+                    r["physical_claim"] == "first_order" for r in records if r["R"] == R
+                ),
+                "solves": sum(r["R"] == R for r in records),
+            }
+            for representation, R in [("balanced", 1), ("ill_scaled", 64)]
+        },
         simplex=simplex,
         stationary_maximum=stationary,
     )
@@ -244,7 +275,7 @@ def hanging(preset):
             discretization_error=reference - continuum,
         )
         if r.status == "converged":
-            assert abs(r.evaluation.objective - reference) < 1e-6
+            require(abs(r.evaluation.objective - reference) < 1e-6)
         rec["x"] = np.r_[0, np.asarray(r.candidate)[: N - 1], 1]
         rec["y"] = np.r_[0, np.asarray(r.candidate)[N - 1 :], 0]
         records.append(rec)
@@ -337,6 +368,9 @@ def brach_case(N):
     ), T
 
 
+ORBIT_REFERENCE = {20: 1.52206, 40: 1.52449}
+
+
 def collocation(preset):
     records = []
     for N in [10, 20, 40] if preset == "study" else [10, 20]:
@@ -357,10 +391,23 @@ def collocation(preset):
         rec.update(
             intervals=N,
             cycloid_time=Tref,
+            time_error=float(T - Tref),
             replay_endpoint=replay.y[:, -1],
             replay_error=float(np.max(np.abs(replay.y[:2, -1] - 1))),
         )
+        require(r.status == "converged", (N, r.status))
         records.append(rec)
+    # A finer mesh must move both the descent time and the replayed endpoint
+    # toward the exact answer.
+    for coarse, fine in zip(records, records[1:]):
+        require(
+            abs(fine["time_error"]) < abs(coarse["time_error"]),
+            "the descent time does not approach the cycloid",
+        )
+        require(
+            fine["replay_error"] < coarse["replay_error"],
+            "the replayed endpoint does not improve with the mesh",
+        )
     root = Path(__file__).resolve().parents[2]
     sp = importlib.util.spec_from_file_location(
         "orbit_tutorial", root / "examples/orbit_transfer.py"
@@ -373,7 +420,7 @@ def collocation(preset):
     for N in [20, 40, 60] if preset == "study" else [20]:
         spec, model, x = mod.build(N)
         check = check_derivatives(spec, model, x)
-        assert check.passed
+        require(check.passed)
         r = solve(
             spec,
             model,
@@ -386,9 +433,15 @@ def collocation(preset):
                 time_limit_seconds=120,
             ),
         )
+        require(r.status == "converged", (N, r.status))
+        audit = case_from_model(spec, model, x).check(r.candidate, r.multipliers)
+        require(audit.get("first_order"), audit)
         z = np.array(r.candidate)
         K = N + 1
-        phi = z[3 * K :]
+        # Interpolate the unwrapped angle: the control crosses +-pi, and plain
+        # interpolation between 2.7 and -1.8 rad would swing the thrust the
+        # wrong way round.
+        phi = np.unwrap(z[3 * K :])
         times = np.linspace(0, mod.FINAL_TIME, K)
 
         def rhs(t, s):
@@ -404,18 +457,36 @@ def collocation(preset):
         replay = solve_ivp(
             rhs, [0, mod.FINAL_TIME], [1, 0, 1], method="DOP853", rtol=1e-11, atol=1e-12
         )
+        final_radius = float(z[K - 1])
+        reference = ORBIT_REFERENCE.get(N)
+        if reference is not None:
+            # SciPy SLSQP on the same discretization, from the example's
+            # docstring, to the five decimals it states.
+            require(
+                abs(final_radius - reference) <= 5e-6,
+                (N, final_radius, reference),
+            )
         orbit.append(
             dict(
                 intervals=N,
                 native=plain(r),
+                independent=audit,
+                derivative_check=plain(check),
+                final_radius=final_radius,
+                slsqp_reference=reference,
                 replay_endpoint=replay.y[:, -1],
+                replay_radius_error=float(replay.y[0, -1] - final_radius),
                 replay_terminal=[
                     replay.y[1, -1],
                     replay.y[2, -1] - 1 / np.sqrt(replay.y[0, -1]),
                 ],
             )
         )
-        assert r.status == "converged", r.status
+    for coarse, fine in zip(orbit, orbit[1:]):
+        require(
+            abs(fine["replay_radius_error"]) < abs(coarse["replay_radius_error"]),
+            "the replayed radius does not approach the collocation radius",
+        )
     return dict(brachistochrone=records, orbit=orbit)
 
 
@@ -475,13 +546,13 @@ def kinetics(preset):
     records = []
     for start in [[0.8, 0.4, 1.3], [0.4, 1.3, 0.4]]:
         r, rec = case.run(start=start)
-        assert r.status == "converged"
+        require(r.status == "converged")
         records.append(rec)
     swapped = np.array([1 / 3, 1.5, 0.5])
     sym = kinetics_states(truth, times)[:, 1] - kinetics_states(swapped, times)[:, 1]
-    assert np.max(np.abs(sym)) < 1e-10
+    require(np.max(np.abs(sym)) < 1e-10)
     limit = kinetics_states([1, 1, 1], times)[:, 1]
-    assert np.max(np.abs(limit - times * np.exp(-times))) < 1e-7
+    require(np.max(np.abs(limit - times * np.exp(-times))) < 1e-7)
 
     # Separate noisy fitting experiment. Odd sample times never enter the objective.
     seed, sigma = 20261029, 0.002
@@ -492,18 +563,22 @@ def kinetics(preset):
     noisy_records = []
     for start in [[0.8, 0.4, 1.3], [0.4, 1.3, 0.4]]:
         r, rec = noisy_case.run(start=start)
-        assert r.status == "converged"
+        require(r.status == "converged")
         prediction = kinetics_states(r.candidate, all_times[1::2])[:, 1]
         rec["holdout_rmse"] = np.sqrt(np.mean((prediction - noisy[1::2]) ** 2))
         rec["holdout_clean_rmse"] = np.sqrt(np.mean((prediction - clean[1::2]) ** 2))
         noisy_records.append(rec)
-    assert (
-        noisy_records[0]["native"]["candidate"][1]
-        < noisy_records[0]["native"]["candidate"][2]
+    require(
+        (
+            noisy_records[0]["native"]["candidate"][1]
+            < noisy_records[0]["native"]["candidate"][2]
+        )
     )
-    assert (
-        noisy_records[1]["native"]["candidate"][1]
-        > noisy_records[1]["native"]["candidate"][2]
+    require(
+        (
+            noisy_records[1]["native"]["candidate"][1]
+            > noisy_records[1]["native"]["candidate"][2]
+        )
     )
 
     # Coarse functions and matching coarse sensitivities are consistent, but less
@@ -512,7 +587,7 @@ def kinetics(preset):
     inconsistent = model(times, obs, 0.02, 0.8)
     coarse_check = check_derivatives(coarse.spec, coarse, coarse.start)
     bad_check = check_derivatives(inconsistent.spec, inconsistent, inconsistent.start)
-    assert coarse_check.passed and not bad_check.passed
+    require(coarse_check.passed and not bad_check.passed)
     fine_states = kinetics_states(truth, times)
     coarse_states = kinetics_states(truth, times, 0.8)
     closed_jac = complex_jac(
@@ -525,7 +600,7 @@ def kinetics(preset):
         truth,
     )
     sensitivity_error = np.max(np.abs(fine_states[:, 6:9] - closed_jac))
-    assert sensitivity_error < 1e-7
+    require(sensitivity_error < 1e-7)
     return dict(
         times=times,
         observations=obs,
@@ -571,7 +646,9 @@ def main(chapter=None):
     p.add_argument("--preset", choices=["smoke", "study"], default="smoke")
     p.add_argument("--output", type=Path, required=True)
     args = p.parse_args()
-    if args.output.exists() and any(args.output.iterdir()):
+    if args.output.exists() and (
+        not args.output.is_dir() or any(args.output.iterdir())
+    ):
         raise FileExistsError("retain old results; use a new output directory")
     args.output.mkdir(parents=True, exist_ok=True)
     start = time.time()
@@ -599,7 +676,14 @@ def main(chapter=None):
             )
         )
     except Exception as e:
-        write(args.output / "failure.json", dict(chapter=args.chapter, error=repr(e)))
+        write(
+            args.output / "failure.json",
+            dict(
+                chapter=args.chapter,
+                error=repr(e),
+                traceback=traceback.format_exc(),
+            ),
+        )
         raise
 
 

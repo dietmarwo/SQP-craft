@@ -1,6 +1,6 @@
 # SQP3: Hanging chain: separate mesh and solver error
 
-This executable chapter uses the existing native Rust solver through its Python API. The numerical definitions live with this chapter's owner; the shared driver supplies orchestration and figures.
+This chapter runs native Rust solvers through their Python APIs. Its model and independent checks live in this directory; the shared driver in optimization-jobs adds figures and command-job execution.
 
 ## Model and decision
 
@@ -20,25 +20,25 @@ $$\min\sum_{i=0}^{N-1}\frac{L}{2N}(y_i+y_{i+1}),\qquad
 
 ## Run
 
-Install the pinned solver distributions and scientific dependencies using the [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md). Keep the patched repositories as sibling directories. From this repository's root:
+Install the pinned solver packages and scientific dependencies as described in the [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md), with the repositories it lists cloned side by side. From this repository's root:
 
 ```bash
 python ../optimization-jobs/tutorials/structured/run.py --chapter SQP3 --output /absolute/new/sqp3
 ```
 
-For the owner entry point, run `python tutorials/hanging-chain/run.py --preset smoke --output /absolute/new/sqp3-direct`. It produces JSON; the shared driver additionally renders PNG/SVG figures. `--preset study` selects the declared larger cases. Output may be new or empty, and an occupied directory is refused.
+To run the chapter on its own, use `python tutorials/hanging-chain/run.py --preset smoke --output /absolute/new/sqp3-direct`. It produces JSON; the shared driver additionally renders PNG/SVG figures. `--preset study` runs the larger declared cases; a chapter without them repeats the smoke case. Output may be new or empty, and an occupied directory is refused.
 
 ## Independent answer and validation
 
 An independent one-dimensional tension solve gives exact discrete equilibrium; the catenary gives the continuum reference. Smoke runs 16/32 links; study adds 64/128. Their potential differences separate numerical convergence from discretization error.
 
-Every run retains native status, points and available diagnostics. LP candidates are checked against row/bound/integrality requirements; SQP results retain derivative checks and independently reconstructed KKT residuals. Application-specific references are computed separately. All failures remain in the report.
+Every run keeps the native status, points and available diagnostics. SQP results keep their derivative checks and independently reconstructed KKT residuals. Application-specific references are computed separately. All failures remain in the report.
 
 ## Read the result
 
 Read `summary.json` before interpreting `figure.png`. The report records the actual result; expected reference values are not substituted for missing numerical outcomes. A completed command job means that the chapter's executable checks completed, while individual solver attempts can still be nonconvergent where the lesson explicitly retains them.
 
-An infeasible point can have an objective below the true minimum. Continuation interpolates a declared start and does not resume solver state.
+Every recorded mesh converges from its declared start, and each objective is compared with the exact discrete reference. Keep in mind that an infeasible point can have an objective below the true minimum, so an objective alone is no evidence.
 
 ## Agent prompt
 
@@ -52,7 +52,7 @@ Reflect a solution upward and inspect first-order conditions. Explain why 128 is
 
 ## Provenance and limits
 
-The original plan's probes are historical planning evidence. The checked-in `results/smoke/summary.json` and figures record this implementation's executed case. Source and installed-package identities are also recorded by the shared driver. These are reproducible teaching experiments, not industrial or hardware performance certifications. Cross-formulation and cross-solver tables are descriptive.
+The checked-in `results/` record one run of each preset. The shared driver writes source and package identities to `environment.json` for the runs it makes. These are reproducible teaching experiments, not industrial or hardware performance certifications. Tables that compare formulations or solvers are descriptive.
 
 ## Recorded example
 
@@ -60,4 +60,4 @@ The original plan's probes are historical planning evidence. The checked-in `res
 
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
-The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) retain the declared study preset separately.
+The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.

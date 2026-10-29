@@ -1,6 +1,6 @@
 # Structured application tutorials
 
-Run a chapter directly with the native solver API, or use the shared agent/command driver. Start with the first two chapters, then select an application.
+Each chapter is a Python script that writes its model as SQP-craft callbacks, checks the derivatives, solves with the native solver (`method="sqp"`) and checks the result against an independent reference. Run one with `python tutorials/<chapter>/run.py --output /new/dir`. Start with the first two chapters, then pick an application.
 
 | ID | Chapter |
 |---|---|
@@ -12,4 +12,4 @@ Run a chapter directly with the native solver API, or use the shared agent/comma
 | SQP6 | [Reaction kinetics and identifiability](reaction-kinetics/README.md) |
 | X2 | [Power dispatch: DC LP versus AC physics](power-dispatch/README.md) |
 
-[Shared setup, all twenty chapters, and command-job execution](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md). The existing [job API tutorial](job-api/README.md) remains available.
+The [shared setup](https://github.com/dietmarwo/optimization-jobs/blob/main/tutorials/structured/README.md) in optimization-jobs runs the whole twenty-chapter series (LP, SQP, fcmaes and cross-solver chapters) directly or as trusted command jobs. The [job API tutorial](job-api/README.md) shows the `sqp-job-worker` profiles and a registered custom model.

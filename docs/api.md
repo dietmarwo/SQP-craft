@@ -1,6 +1,7 @@
 # Contract: problem, callbacks, solver, results
 
-Version 0.17.0. Consult the workspace manifest and current package release notes for the numerical API version.
+This contract describes the current `main` branch; the workspace version is in
+`Cargo.toml`, and [CHANGELOG.md](../CHANGELOG.md) lists the changes per release.
 
 ## The problem
 
