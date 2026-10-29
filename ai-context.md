@@ -762,3 +762,7 @@ optimization-jobs' CI does that with all three workers.
   `examples/custom_worker.rs` (an application worker)
 - [AGENTS.md](AGENTS.md): build, test and conventions for coding agents
 - `python/sqp_craft/__init__.py`: Python API and defaults
+
+## Structured application tutorials
+
+See [the solver-local learning sequence](tutorials/README.md). The twenty-chapter cross-repository series uses existing native numerical engines through the Python APIs. Application scripts can run through trusted command jobs using the shared CLI driver; they are not serialized callbacks or additional MCP profiles. Direct APIs expose duals and multipliers for independent checks.

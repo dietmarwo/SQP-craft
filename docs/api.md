@@ -1,7 +1,6 @@
 # Contract: problem, callbacks, solver, results
 
-Version 0.4.0. Interfaces are pre-release; `publish = false` prevents
-accidental releases.
+Version 0.17.0. Consult the workspace manifest and current package release notes for the numerical API version.
 
 ## The problem
 

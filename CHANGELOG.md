@@ -9,6 +9,10 @@ dates are those of the commits that set each version.
 
 ### Added
 
+- Structured application workshops with executable native-solver examples, independent references, prompt exercises and retained smoke results; shared direct/command execution and a local campaign example.
+
+### Added
+
 - The [prompt-driven SQP tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) solves a simplex allocation with both QP backends from four starts and runs Rosenbrock multistart through the existing `sqp-job-worker`, rechecking objectives and stationarity. No numerical code or dependency pin changes.
 
 - The [prompt-driven curve-fitting tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/curve-fit) runs the existing constrained decay-fit worker and checks its half-sum-of-squares objective, anchor equality and first-order evidence.
