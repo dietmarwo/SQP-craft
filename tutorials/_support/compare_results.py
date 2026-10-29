@@ -1,10 +1,11 @@
 """Compare a fresh chapter summary with the recorded one.
 
 Timing fields are ignored. Integers, strings and booleans must match exactly;
-floats must agree to 1e-6, relative or absolute. The SQP solves themselves
-reproduce bit for bit, but the SciPy and NumPy reference computations (ODE
-replays, residuals near zero) vary in their last digits between CPUs, because
-NumPy picks vectorized math kernels by CPU feature. Usage:
+floats must agree to 1e-6, relative or absolute, and never match a null, a
+boolean or a string. The SQP solves themselves reproduce bit for bit, but the
+SciPy and NumPy reference computations (ODE replays, residuals near zero) vary
+in their last digits between CPUs, because NumPy picks vectorized math kernels
+by CPU feature. Usage:
 
     python tutorials/_support/compare_results.py RECORDED.json NEW.json
 """
@@ -17,6 +18,10 @@ import os
 import sys
 
 TIMING = ("seconds", "time", "elapsed", "wall", "duration")
+
+
+def is_number(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def differences(recorded, new, path="", out=None):
@@ -36,8 +41,12 @@ def differences(recorded, new, path="", out=None):
             for i, (a, b) in enumerate(zip(recorded, new, strict=True)):
                 differences(a, b, f"{path}[{i}]", out)
     elif isinstance(recorded, float) or isinstance(new, float):
-        a, b = float(recorded), float(new)
-        if not math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-6):
+        if not (is_number(recorded) and is_number(new)):
+            # For example null in one summary and a number in the other.
+            out.append(f"{path}: {recorded!r} != {new!r}")
+        elif math.isnan(recorded) and math.isnan(new):
+            pass
+        elif not math.isclose(recorded, new, rel_tol=1e-6, abs_tol=1e-6):
             out.append(f"{path}: {recorded!r} != {new!r}")
     elif recorded != new:
         out.append(f"{path}: {str(recorded)[:80]!r} != {str(new)[:80]!r}")
