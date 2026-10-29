@@ -1,7 +1,7 @@
 {
   "chapter": "SQP4",
   "preset": "smoke",
-  "seconds": 0.21239495277404785,
+  "seconds": 0.13524413108825684,
   "result": {
     "brachistochrone": [
       {
@@ -445,19 +445,19 @@
             "fixed_step_corrections": 11,
             "bound_step_corrections": 5,
             "step_norm": 1.3159458973177607e-05,
-            "total_seconds": 0.00530936,
-            "callback_seconds": 0.0038610049999999994,
-            "qp_seconds": 0.0010875840000000002,
+            "total_seconds": 0.004268507,
+            "callback_seconds": 0.0030467719999999997,
+            "qp_seconds": 0.000928392,
             "qp_setups": 19,
             "qp_updates": 0,
             "qp_cold_retries": 0,
             "qp_retry_reason": null,
-            "qp_conversion_seconds": 4.612e-05,
-            "qp_setup_seconds": 0.00011546399999999999,
+            "qp_conversion_seconds": 4.7301999999999995e-05,
+            "qp_setup_seconds": 9.851200000000002e-05,
             "qp_update_seconds": 0.0,
-            "qp_solve_seconds": 0.000799187,
-            "qp_check_seconds": 8.224800000000002e-05,
-            "bfgs_seconds": 4.9926e-05,
+            "qp_solve_seconds": 0.000662698,
+            "qp_check_seconds": 7.8795e-05,
+            "bfgs_seconds": 4.6237e-05,
             "qp_trace": [],
             "history": [
               {
@@ -765,6 +765,7 @@
         "claim": "first_order",
         "intervals": 10,
         "cycloid_time": 0.5828954631547427,
+        "time_error": 0.0003025076778601088,
         "replay_endpoint": [
           0.9990685357676972,
           1.0058189762689294,
@@ -1583,19 +1584,19 @@
             "fixed_step_corrections": 12,
             "bound_step_corrections": 1,
             "step_norm": 9.08949493070299e-05,
-            "total_seconds": 0.008961029,
-            "callback_seconds": 0.004729919000000001,
-            "qp_seconds": 0.003718547,
+            "total_seconds": 0.007811142,
+            "callback_seconds": 0.00422772,
+            "qp_seconds": 0.0030714410000000003,
             "qp_setups": 14,
             "qp_updates": 0,
             "qp_cold_retries": 0,
             "qp_retry_reason": null,
-            "qp_conversion_seconds": 0.00016567,
-            "qp_setup_seconds": 0.000341966,
+            "qp_conversion_seconds": 0.000101455,
+            "qp_setup_seconds": 0.000325934,
             "qp_update_seconds": 0.0,
-            "qp_solve_seconds": 0.002971306,
-            "qp_check_seconds": 0.00015605399999999998,
-            "bfgs_seconds": 0.00011497199999999998,
+            "qp_solve_seconds": 0.0024101640000000002,
+            "qp_check_seconds": 0.00015028399999999999,
+            "bfgs_seconds": 0.000117656,
             "qp_trace": [],
             "history": [
               {
@@ -1833,6 +1834,7 @@
         "claim": "first_order",
         "intervals": 20,
         "cycloid_time": 0.5828954631547427,
+        "time_error": 8.183336633138527e-05,
         "replay_endpoint": [
           0.9998018428332197,
           1.001484305099861,
@@ -2758,19 +2760,19 @@
             "fixed_step_corrections": 0,
             "bound_step_corrections": 0,
             "step_norm": 4.780399845194516e-06,
-            "total_seconds": 0.09016855,
-            "callback_seconds": 0.04529588,
-            "qp_seconds": 0.039226902,
+            "total_seconds": 0.049084876,
+            "callback_seconds": 0.022128826000000004,
+            "qp_seconds": 0.023354547000000003,
             "qp_setups": 105,
             "qp_updates": 0,
             "qp_cold_retries": 0,
             "qp_retry_reason": null,
-            "qp_conversion_seconds": 0.0009239280000000002,
-            "qp_setup_seconds": 0.004568763000000001,
+            "qp_conversion_seconds": 0.000615896,
+            "qp_setup_seconds": 0.002527692,
             "qp_update_seconds": 0.0,
-            "qp_solve_seconds": 0.031247522,
-            "qp_check_seconds": 0.001619813,
-            "bfgs_seconds": 0.0012832359999999997,
+            "qp_solve_seconds": 0.018653898,
+            "qp_check_seconds": 0.00100494,
+            "bfgs_seconds": 0.000840305,
             "qp_trace": [],
             "history": [],
             "restoration_attempts": 0,
@@ -2779,14 +2781,42 @@
             "restoration_history": []
           }
         },
+        "independent": {
+          "objective": -1.522060482652968,
+          "primal": 1.457167719820518e-13,
+          "feasible": true,
+          "stationarity": 9.931909936387873e-07,
+          "complementarity": 2.0098056544837903e-13,
+          "dual_sign": 0.0,
+          "first_order": true
+        },
+        "derivative_check": {
+          "passed": true,
+          "inconclusive": false,
+          "checked": 81,
+          "fixed": [
+            0,
+            21,
+            42
+          ],
+          "skipped": [],
+          "counts": {
+            "functions": 487,
+            "derivatives": 1
+          },
+          "issues": []
+        },
+        "final_radius": 1.522060482652968,
+        "slsqp_reference": 1.52206,
         "replay_endpoint": [
-          1.5697621262783128,
-          0.03974076654579557,
-          0.8064344573376692
+          1.5137353030355678,
+          -0.011480107545869651,
+          0.8088609504343438
         ],
+        "replay_radius_error": -0.008325179617400202,
         "replay_terminal": [
-          0.03974076654579557,
-          0.008287106158941016
+          -0.011480107545869651,
+          -0.003922833333191211
         ]
       }
     ]

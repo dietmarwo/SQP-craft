@@ -1,7 +1,7 @@
 {
   "chapter": "X2",
   "preset": "smoke",
-  "seconds": 0.0376284122467041,
+  "seconds": 0.019728422164916992,
   "result": {
     "edges": [
       [
@@ -256,13 +256,14 @@
           "diagnostics.objective_lattice": "false",
           "numeric_threads": "1"
         },
-        "total_seconds": 0.00016673,
-        "conversion_seconds": 1.8227e-05,
-        "solve_seconds": 5.2399e-05,
-        "check_seconds": 9.755e-06,
+        "total_seconds": 0.000167382,
+        "conversion_seconds": 1.7782e-05,
+        "solve_seconds": 5.5531e-05,
+        "check_seconds": 8.448e-06,
         "time_budget_exceeded": false
       }
     },
+    "dc_independent_violation": 1.1102230246251565e-15,
     "ac": {
       "native": {
         "status": "converged",
@@ -751,19 +752,19 @@
           "fixed_step_corrections": 12,
           "bound_step_corrections": 4,
           "step_norm": 5.724004042106934e-05,
-          "total_seconds": 0.013613147,
-          "callback_seconds": 0.013247417,
-          "qp_seconds": 0.000168502,
+          "total_seconds": 0.005971815,
+          "callback_seconds": 0.005769642,
+          "qp_seconds": 9.764299999999999e-05,
           "qp_setups": 8,
           "qp_updates": 0,
           "qp_cold_retries": 0,
           "qp_retry_reason": null,
-          "qp_conversion_seconds": 2.7572000000000003e-05,
-          "qp_setup_seconds": 7.581000000000001e-06,
+          "qp_conversion_seconds": 1.1232999999999999e-05,
+          "qp_setup_seconds": 5.536e-06,
           "qp_update_seconds": 0.0,
-          "qp_solve_seconds": 8.429700000000001e-05,
-          "qp_check_seconds": 3.0964000000000004e-05,
-          "bfgs_seconds": 1.4292e-05,
+          "qp_solve_seconds": 4.7541000000000004e-05,
+          "qp_check_seconds": 1.8619e-05,
+          "bfgs_seconds": 8.676000000000001e-06,
           "qp_trace": [],
           "history": [
             {
@@ -937,7 +938,20 @@
         -1.09970937911541e-09,
         4.945848175452738e-10,
         -2.329371417975068e-11
-      ]
+      ],
+      "slack": {
+        "P": 2.2390874253840436,
+        "Q": 1.0908742479813416
+      },
+      "limits": {
+        "slack_P_within_0_3": true,
+        "slack_Q_within_2": true,
+        "voltage_within_0_9_1_1": true,
+        "max_branch_flow": 1.4687551692096175,
+        "branch_flows_within_1_5": true,
+        "losses": 0.03908742482178612
+      },
+      "method": "scipy.optimize.root (Powell hybrid)"
     },
     "ac_complex_balance_error": 3.5929934953710945e-12
   },
