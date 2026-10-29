@@ -51,14 +51,17 @@ jobs:
           lp-ip-craft==0.29.0 pykep-rust==0.1.4
       - name: Run each chapter and compare with its recorded summary
         run: |
+          failed=""
           for chapter in constrained-calibration multistart-scaling hanging-chain collocation low-thrust-pykep reaction-kinetics power-dispatch; do
             for preset in smoke study; do
               out="$RUNNER_TEMP/structured/$chapter-$preset"
               python "tutorials/$chapter/run.py" --preset "$preset" --output "$out"
               python tutorials/_support/compare_results.py \
-                "tutorials/$chapter/results/$preset/summary.json" "$out/summary.json"
+                "tutorials/$chapter/results/$preset/summary.json" "$out/summary.json" \
+                || failed="$failed $chapter-$preset"
             done
           done
+          test -z "$failed" || { echo "differs from the recorded summary:$failed"; exit 1; }
       - uses: actions/upload-artifact@v6
         if: always()
         with:

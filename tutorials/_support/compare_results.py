@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 
 TIMING = ("seconds", "time", "elapsed", "wall", "duration")
@@ -50,6 +51,10 @@ def main(argv):
     found = differences(recorded, new)
     for line in found[:20]:
         print(line)
+    if found and os.environ.get("GITHUB_ACTIONS") == "true":
+        # Annotations stay readable when job logs are not.
+        shown = "%0A".join(found[:10])
+        print(f"::error title=differs from {argv[1]}::{len(found)} differences%0A{shown}")
     if found:
         raise SystemExit(f"{len(found)} differences from the recorded summary")
     print("matches the recorded summary")
