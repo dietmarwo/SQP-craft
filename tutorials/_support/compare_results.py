@@ -1,7 +1,10 @@
 """Compare a fresh chapter summary with the recorded one.
 
 Timing fields are ignored. Integers, strings and booleans must match exactly;
-floats must agree to a relative tolerance of 1e-9. Usage:
+floats must agree to 1e-6, relative or absolute. The SQP solves themselves
+reproduce bit for bit, but the SciPy and NumPy reference computations (ODE
+replays, residuals near zero) vary in their last digits between CPUs, because
+NumPy picks vectorized math kernels by CPU feature. Usage:
 
     python tutorials/_support/compare_results.py RECORDED.json NEW.json
 """
@@ -34,7 +37,7 @@ def differences(recorded, new, path="", out=None):
                 differences(a, b, f"{path}[{i}]", out)
     elif isinstance(recorded, float) or isinstance(new, float):
         a, b = float(recorded), float(new)
-        if not math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12):
+        if not math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-6):
             out.append(f"{path}: {recorded!r} != {new!r}")
     elif recorded != new:
         out.append(f"{path}: {str(recorded)[:80]!r} != {str(new)[:80]!r}")
