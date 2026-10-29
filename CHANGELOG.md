@@ -9,12 +9,16 @@ dates are those of the commits that set each version.
 
 ### Added
 
+- [Application tutorials](tutorials/README.md) SQP1–SQP6 and X2 (constrained calibration, multistart and scaling, hanging chain, collocation, Earth–Mars low thrust with pykep-rust, reaction kinetics, AC power dispatch). Each checks derivatives before solving, reconstructs KKT residuals from the model's own derivatives, compares with an independent reference and keeps recorded smoke and study results. The `structured-tutorials` workflow runs all seven chapters and compares them with the recorded results.
+
 - The [prompt-driven SQP tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) solves a simplex allocation with both QP backends from four starts and runs Rosenbrock multistart through the existing `sqp-job-worker`, rechecking objectives and stationarity. No numerical code or dependency pin changes.
 
 - The [prompt-driven curve-fitting tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/curve-fit) runs the existing constrained decay-fit worker and checks its half-sum-of-squares objective, anchor equality and first-order evidence.
 
 ### Changed
 
+- `docs/api.md` no longer states a version; the workspace version is in
+  `Cargo.toml` (it said 0.4.0).
 - The README points to [experiment-craft](https://github.com/dietmarwo/experiment-craft),
   which runs reproducible campaigns of `sqp-job-worker` jobs and rebuilds and
   tests this repository at a pinned revision.

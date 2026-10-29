@@ -72,8 +72,7 @@ use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace
 version is 0.17.0;
 the shared job crates are 0.4.0, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol
-identifier, independent of both. The "Version 0.4.0" line at the top of `docs/api.md` is stale; go by
-`Cargo.toml`.
+identifier, independent of both.
 
 Toolchains:
 
@@ -762,3 +761,7 @@ optimization-jobs' CI does that with all three workers.
   `examples/custom_worker.rs` (an application worker)
 - [AGENTS.md](AGENTS.md): build, test and conventions for coding agents
 - `python/sqp_craft/__init__.py`: Python API and defaults
+
+## Structured application tutorials
+
+[tutorials/README.md](tutorials/README.md) lists seven application chapters (SQP1–SQP6 and X2). Each writes its model as Python callbacks, runs `check_derivatives` before solving, solves with `solve(..., method="sqp")`, and reconstructs the KKT residuals from the model's own derivatives and the returned multipliers (`tutorials/_support/numerics.py`). A `first_order` tutorial claim needs both a converged solve and a passed derivative check. Run a chapter with `python tutorials/<chapter>/run.py --output DIR`. The cross-repository driver in optimization-jobs (`tutorials/structured/`) runs all twenty chapters of the series directly or as trusted command jobs; the chapters add no job profile or registered model.

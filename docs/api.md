@@ -1,7 +1,7 @@
 # Contract: problem, callbacks, solver, results
 
-Version 0.4.0. Interfaces are pre-release; `publish = false` prevents
-accidental releases.
+This contract describes the current `main` branch; the workspace version is in
+`Cargo.toml`, and [CHANGELOG.md](../CHANGELOG.md) lists the changes per release.
 
 ## The problem
 

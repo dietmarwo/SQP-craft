@@ -1,0 +1,1 @@
+Add A or C observations, or fix A0, to break the symmetry. Compare integration refinement with derivative checking; an internally consistent coarse model can pass a derivative check while having poor physical accuracy.

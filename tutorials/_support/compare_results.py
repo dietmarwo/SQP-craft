@@ -1,0 +1,67 @@
+"""Compare a fresh chapter summary with the recorded one.
+
+Timing fields are ignored. Integers, strings and booleans must match exactly;
+floats must agree to 1e-6, relative or absolute. The SQP solves themselves
+reproduce bit for bit, but the SciPy and NumPy reference computations (ODE
+replays, residuals near zero) vary in their last digits between CPUs, because
+NumPy picks vectorized math kernels by CPU feature. Usage:
+
+    python tutorials/_support/compare_results.py RECORDED.json NEW.json
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import sys
+
+TIMING = ("seconds", "time", "elapsed", "wall", "duration")
+
+
+def differences(recorded, new, path="", out=None):
+    out = [] if out is None else out
+    if isinstance(recorded, dict) and isinstance(new, dict):
+        for key in sorted(set(recorded) | set(new)):
+            if any(t in key.lower() for t in TIMING):
+                continue
+            if key not in recorded or key not in new:
+                out.append(f"{path}/{key}: present in only one summary")
+            else:
+                differences(recorded[key], new[key], f"{path}/{key}", out)
+    elif isinstance(recorded, list) and isinstance(new, list):
+        if len(recorded) != len(new):
+            out.append(f"{path}: length {len(recorded)} != {len(new)}")
+        else:
+            for i, (a, b) in enumerate(zip(recorded, new, strict=True)):
+                differences(a, b, f"{path}[{i}]", out)
+    elif isinstance(recorded, float) or isinstance(new, float):
+        a, b = float(recorded), float(new)
+        if not math.isclose(a, b, rel_tol=1e-6, abs_tol=1e-6):
+            out.append(f"{path}: {recorded!r} != {new!r}")
+    elif recorded != new:
+        out.append(f"{path}: {str(recorded)[:80]!r} != {str(new)[:80]!r}")
+    return out
+
+
+def main(argv):
+    if len(argv) != 3:
+        raise SystemExit(__doc__)
+    with open(argv[1]) as f:
+        recorded = json.load(f)
+    with open(argv[2]) as f:
+        new = json.load(f)
+    found = differences(recorded, new)
+    for line in found[:20]:
+        print(line)
+    if found and os.environ.get("GITHUB_ACTIONS") == "true":
+        # Annotations stay readable when job logs are not.
+        shown = "%0A".join(found[:10])
+        print(f"::error title=differs from {argv[1]}::{len(found)} differences%0A{shown}")
+    if found:
+        raise SystemExit(f"{len(found)} differences from the recorded summary")
+    print("matches the recorded summary")
+
+
+if __name__ == "__main__":
+    main(sys.argv)
