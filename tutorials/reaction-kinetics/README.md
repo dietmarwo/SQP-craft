@@ -71,3 +71,7 @@ The checked-in `results/` record one run of each preset. The shared driver write
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
 The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.
+
+## Nonlinear CRN extension
+
+[CRN C2](https://github.com/dietmarwo/CRN-craft/blob/main/tutorials/optimization/C2-sensitivities.md) extends this closed-form reference to nonlinear enzyme kinetics with optional native BDF sensitivities. It audits log-coordinate gradients and integration independently, compares BiteOpt/multistart SQP/hybrid fitting under solve caps, and tests stochastic transfer with held-out SSA. The canonical SQP6 ambiguity demonstration remains the starting point.
