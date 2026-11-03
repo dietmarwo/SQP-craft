@@ -30,7 +30,9 @@ concurrency:
 jobs:
   chapters:
     name: SQP1-SQP6 and X2 with the source-built package
-    runs-on: ubuntu-latest
+    # Recorded summaries were produced on Ubuntu 24.04; on the 26.04 image the
+    # SQP3 study and SQP5 solver paths follow last-digit libm differences.
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
       CARGO_BUILD_JOBS: '2'
