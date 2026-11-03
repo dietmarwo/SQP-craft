@@ -7,12 +7,9 @@ dates are those of the commits that set each version.
 
 ## [Unreleased]
 
-### Documentation
-
-- Linked the nonlinear CRN BDF-sensitivity extension from SQP6, preserving the closed-form identifiability reference.
-
 ### Added
 
+- A link to the nonlinear CRN BDF-sensitivity extension from SQP6, preserving the closed-form identifiability reference.
 - [Application tutorials](tutorials/README.md) SQP1–SQP6 and X2 (constrained calibration, multistart and scaling, hanging chain, collocation, Earth–Mars low thrust with pykep-rust, reaction kinetics, AC power dispatch). Each checks derivatives before solving, reconstructs KKT residuals from the model's own derivatives, compares with an independent reference and keeps recorded smoke and study results. The `structured-tutorials` workflow runs all seven chapters and compares them with the recorded results.
 
 - The [prompt-driven SQP tutorial](https://github.com/dietmarwo/optimization-jobs/tree/main/tutorials/agentic/sqp) solves a simplex allocation with both QP backends from four starts and runs Rosenbrock multistart through the existing `sqp-job-worker`, rechecking objectives and stationarity. No numerical code or dependency pin changes.
