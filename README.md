@@ -4,6 +4,8 @@
 
 # SQP-craft
 
+> **One of 18 related repositories.** The [repository overview](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md) shows what each one does and how they connect.
+
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
 for smooth constrained problems such as trajectory transcriptions. The current
 dense-BFGS solver accepts at most 256 variables and needs derivatives.
