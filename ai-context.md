@@ -11,7 +11,9 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`602d31a` (the optimization-jobs 0.4.0 release), which adds
+`12f9d57` (the optimization-jobs 0.4.0 release `602d31a` plus documentation:
+doc comments on every public item, and a simulator section and corrections in
+the guide that `get_guide` serves); 0.4.0 adds
 `node capabilities`, `jobs execution JOB_ID`, opt-in trusted local command
 jobs with verified binary file transfer, and explicitly placed jobs on SSH
 nodes, all through the CLI; `37b30e4` (tag `v0.3.0`)
