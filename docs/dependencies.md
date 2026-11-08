@@ -15,9 +15,10 @@ Rayon 1.12.0 (MIT OR Apache-2.0) provides the bounded worker pools of the
 
 PyO3 0.30.1 provides the Python binding (MIT OR Apache-2.0). Upstream sources
 and licenses of all crates are fetched by Cargo during a source build; they are
-not vendored. No wheels or native libraries are published (`publish = false`);
-anyone distributing a built wheel must include the notices of the statically
-linked crates.
+not vendored. From 0.17.0 the library crates are published on crates.io and
+wheels on PyPI; the binding crate `sqp-craft-python` and the job worker stay
+unpublished (`publish = false`). Anyone distributing a built wheel must include
+the notices of the statically linked crates.
 
 ## Benchmark harness
 

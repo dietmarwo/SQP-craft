@@ -43,6 +43,10 @@ dates are those of the commits that set each version.
   the worker's thread-limit message inlines its format argument. The text is
   unchanged.
 
+### Fixed
+
+- Documentation: `ai-context.md` counts the MCP server's fifteen tools (it said thirteen); the README headline describes 0.17.0, the first PyPI and crates.io release, and labels 0.16.0 as previous; `docs/dependencies.md` no longer says nothing is published; `docs/api.md` names `sqp-craft-parallel` as a dependency of the active-set backend; the hanging-chain tutorial quotes the recorded continuum potential (-0.911208463399); the README describes `docs/validation.md` as the iteration 3 (0.4.0) validation.
+
 ## [0.17.0] - 2026-10-22
 
 The first release on PyPI (`sqp-craft`) and crates.io (`sqp-craft`,

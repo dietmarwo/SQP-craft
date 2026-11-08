@@ -15,7 +15,7 @@ $$\min\sum_{i=0}^{N-1}\frac{L}{2N}(y_i+y_{i+1}),\qquad
 
 1. Check the banded constraint Jacobian and solve smoke meshes 16 and 32. Link lengths and KKT residuals assess the discretized optimization.
 2. Independently solve one scalar horizontal-tension equation for the exact discrete equilibrium. Objective disagreement with that reference is solver error.
-3. Compare the discrete reference with the continuum catenary: $a=0.229640215078$, potential approximately -0.911208463318. This difference is discretization error. Study continues through 64 and 128 links; compare the actual errors before claiming an observed order.
+3. Compare the discrete reference with the continuum catenary: $a=0.229640215078$, potential approximately -0.911208463399. This difference is discretization error. Study continues through 64 and 128 links; compare the actual errors before claiming an observed order.
 4. The implementation records the hard dimension boundary explicitly: 129 links use 256 variables; 128 is the largest admissible power-of-two mesh. The reflected arch and additional warm-start experiments remain follow-up exercises.
 
 ## Run

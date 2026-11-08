@@ -504,8 +504,8 @@ not a deterministic API guarantee.
 
 `ActiveSetQp` is the dual active-set method of Goldfarb and Idnani on a dense
 Cholesky factor `H = L Lᵀ`; [active-set-qp.md](active-set-qp.md) has the
-design, measurements and validation. It needs no dependency beyond the core
-crate.
+design, measurements and validation. It depends only on the core crate and
+`sqp-craft-parallel`, whose bounded worker pool large outputs can use.
 
 - Every finite bound side is a constraint `σ aᵀp ≥ σ b` (`σ = 1` lower,
   `σ = −1` upper); equal bounds are an equality, which is never dropped.
