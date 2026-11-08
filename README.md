@@ -49,7 +49,14 @@ and the other structured solver, then explains library, shell and MCP use.
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
 > conventions).
 
-**Version 0.16.0: eight-worker execution and thirty further experiments**
+**Version 0.17.0: first release on PyPI and crates.io.** `pip install sqp-craft`
+installs a wheel, and the library crates `sqp-craft`, `sqp-craft-solver`,
+`sqp-craft-clarabel`, `sqp-craft-activeset` and `sqp-craft-parallel` are on
+crates.io. The solver crates and the Python package are numerically unchanged
+since 0.16.0; the release adds the CUTEst benchmark harness, publishing metadata
+and release workflows (see [CHANGELOG.md](CHANGELOG.md)).
+
+**Previous version 0.16.0: eight-worker execution and thirty further experiments**
 (iterations 31–60). Native `Options(threads=8)` offers a maximum worker budget;
 large active-set QP outputs and opt-in native propagation models can use it.
 Small pilot kernels and full BFGS keep their measured scalar path. Rust
@@ -212,7 +219,7 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | `examples/compare_workspace.py` | Repeated cold/reuse comparison with independent acceptance checks |
 | [docs/iteration-2-results.md](docs/iteration-2-results.md) | Feasibility restoration and subsequent review fixes |
 | [docs/iteration-1-results.md](docs/iteration-1-results.md) | What iteration 1 delivers, review findings, SLSQP comparison, limits |
-| [docs/validation.md](docs/validation.md) | Checks run for this version |
+| [docs/validation.md](docs/validation.md) | Validation of iteration 3 (0.4.0); later checks are in the performance and release documents |
 | [ai-context.md](ai-context.md) | Operational context for AI agents: formulation, options, results, multistart, job API |
 | [AGENTS.md](AGENTS.md) | Build, test and conventions for coding agents |
 | `examples/multistart_processes.py` | Many starts of a Python model in separate processes, with a KKT recheck |

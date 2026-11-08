@@ -605,7 +605,7 @@ the reason in `details.message`. The work counter is `evaluations`. See
 ### Agents over MCP
 
 Agents can drive the same jobs through `optimization-mcp`, the MCP server
-(stdio, one node) that the runner's build also makes: thirteen tools
+(stdio, one node) that the runner's build also makes: fifteen tools
 (describe, validate, submit, wait, result summaries, cancel, kill, repair)
 over `optimization-run` and, with the MCP Tasks extension, a task per
 submitted job that completes with its result. The node's owner initializes
