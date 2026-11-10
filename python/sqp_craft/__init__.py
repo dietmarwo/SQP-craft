@@ -36,7 +36,7 @@ from ._native import check_lagrangian_hessian as _check_lagrangian_hessian
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.17.0"
+__version__ = "0.18.0"
 
 __all__ = [
     "Cancellation",

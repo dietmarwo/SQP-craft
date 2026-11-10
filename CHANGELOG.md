@@ -6,6 +6,8 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-10
+
 ### Added
 
 - Experimental [structured SQP](docs/structured-sqp.md) above the 256-variable
@@ -63,6 +65,13 @@ the job worker share it). Dates are those of the commits that set each version.
   coordinate instead of the default 256 directions.
 - `QpReport` and `RunReport` have new public fields, so code that builds
   them with struct literals must add them (`..Default::default()` works).
+- `tutorials/_support/compare_results.py` compares the active-set backend's
+  `qp_backend` label without SQP-craft's own package version
+  (`goldfarb-idnani 0.17.0` matches `goldfarb-idnani 0.18.0`), so a release
+  bump alone does not break the recorded tutorial summaries, here or in
+  optimization-jobs' twenty-chapter workflow, which installs the published
+  wheel. Every numerical field and Clarabel's engine version are still
+  compared; the recorded summaries keep the version that produced them.
 - README: links the [overview of the 18 related repositories](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md).
 - The structured-tutorial CI job runs on `ubuntu-24.04` instead of `ubuntu-latest`. Since `ubuntu-latest` moved to Ubuntu 26.04, the SQP3 study and both SQP5 presets differ from their recorded summaries with the same package versions (38 differences in SQP3, 3,285 and 3,880 in the SQP5 presets); on Ubuntu 24.04 all three match again.
 - `docs/api.md` no longer states a version; the workspace version is in

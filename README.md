@@ -53,7 +53,18 @@ and the other structured solver, then explains library, shell and MCP use.
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
 > conventions).
 
-**Version 0.17.0: first release on PyPI and crates.io.** `pip install sqp-craft`
+**Version 0.18.0: experimental structured SQP above 256 variables.** Opt-in
+[partitioned BFGS](docs/structured-sqp.md) on overlapping constraint cliques
+and an optional exact sparse Lagrangian Hessian, with sparse Clarabel QPs,
+sparse restoration, a memory and fill budget checked before solving, and
+structure diagnostics. On the Earth–Mars multiple-shooting transfer
+(pykep-rust 0.1.6) it passed the independent first-order check at 130 to
+1,916 variables within 30 seconds and at 4,994 variables with a 90-second
+budget. The default dense mode is unchanged. `sqp.solve/1` accepts the
+structured mode for registered models up to 5,000 variables. See the
+[target card](docs/target-card.md) and [CHANGELOG.md](CHANGELOG.md).
+
+**Previous version 0.17.0: first release on PyPI and crates.io.** `pip install sqp-craft`
 installs a wheel, and the library crates `sqp-craft`, `sqp-craft-solver`,
 `sqp-craft-clarabel`, `sqp-craft-activeset` and `sqp-craft-parallel` are on
 crates.io. The solver crates and the Python package are numerically unchanged
