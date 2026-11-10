@@ -51,3 +51,17 @@ def test_integers_and_strings_match_exactly_and_timings_are_ignored():
         "/b: present in only one summary",
     ]
     assert compare.differences({"a": [1, 2]}, {"a": [1]}) == ["/a: length 2 != 1"]
+
+
+def test_only_the_own_backend_version_is_ignored():
+    same = {"qp_backend": "goldfarb-idnani 0.17.0"}
+    assert compare.differences(same, {"qp_backend": "goldfarb-idnani 0.18.0"}) == []
+    assert compare.differences(same, {"qp_backend": "clarabel 0.11.1"}) == [
+        "/qp_backend: 'goldfarb-idnani' != 'clarabel 0.11.1'"
+    ]
+    assert compare.differences(
+        {"qp_backend": "clarabel 0.11.1"}, {"qp_backend": "clarabel 0.12.0"}
+    ) == ["/qp_backend: 'clarabel 0.11.1' != 'clarabel 0.12.0'"]
+    assert compare.differences(
+        {"backend": "goldfarb-idnani 0.17.0"}, {"backend": "goldfarb-idnani 0.18.0"}
+    ) == ["/backend: 'goldfarb-idnani 0.17.0' != 'goldfarb-idnani 0.18.0'"]

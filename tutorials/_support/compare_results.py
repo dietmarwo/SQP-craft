@@ -1,6 +1,10 @@
 """Compare a fresh chapter summary with the recorded one.
 
-Timing fields are ignored. Integers, strings and booleans must match exactly;
+Timing fields are ignored, and so is the SQP-craft package version in the
+active-set backend's label (``"goldfarb-idnani 0.17.0"``): a release bump
+changes that label, not the arithmetic, which every numerical field still
+checks; the engine name must match. Integers, other strings and booleans must
+match exactly;
 floats must agree to 1e-6, relative or absolute, and never match a null, a
 boolean or a string. The SQP solves themselves reproduce bit for bit, but the
 SciPy and NumPy reference computations (ODE replays, residuals near zero) vary
@@ -15,9 +19,20 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import sys
 
 TIMING = ("seconds", "time", "elapsed", "wall", "duration")
+# The active-set backend is part of SQP-craft and labels itself with its
+# package version; Clarabel's label names the external engine's version and
+# stays exact.
+OWN_BACKEND = re.compile(r"^(goldfarb-idnani) \d+\.\d+\.\d+$")
+
+
+def engine(value):
+    """The backend label without SQP-craft's own package version."""
+    match = OWN_BACKEND.match(value) if isinstance(value, str) else None
+    return match.group(1) if match else value
 
 
 def is_number(value):
@@ -32,6 +47,8 @@ def differences(recorded, new, path="", out=None):
                 continue
             if key not in recorded or key not in new:
                 out.append(f"{path}/{key}: present in only one summary")
+            elif key == "qp_backend":
+                differences(engine(recorded[key]), engine(new[key]), f"{path}/{key}", out)
             else:
                 differences(recorded[key], new[key], f"{path}/{key}", out)
     elif isinstance(recorded, list) and isinstance(new, list):
