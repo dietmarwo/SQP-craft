@@ -75,3 +75,13 @@ The [study summary](results/study/summary.json) and [study figure](results/study
 ## Nonlinear CRN extension
 
 [CRN C2](https://github.com/dietmarwo/CRN-craft/blob/main/tutorials/optimization/C2-sensitivities.md) extends this closed-form reference to nonlinear enzyme kinetics with optional native BDF sensitivities. It audits log-coordinate gradients and integration independently, compares BiteOpt/multistart SQP/hybrid fitting under solve caps, and tests stochastic transfer with held-out SSA. The canonical SQP6 ambiguity demonstration remains the starting point.
+
+## Exact Hessian experiment
+
+Run `python tutorials/_support/exact_hessian.py` from the repository root
+with sqp-craft 0.18.0 or later. The variant differentiates the RK4 recurrence
+through second-order sensitivities and checks the exact least-squares
+Hessian against differences of the analytic gradient. Exact curvature
+took four accepted steps from the fixed start, compared with sixteen
+for full BFGS on the same RK4 model. Both passed the first-order check.
+See [structured SQP](../../docs/structured-sqp.md).

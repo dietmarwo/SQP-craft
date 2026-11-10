@@ -1,8 +1,10 @@
 # AGENTS.md
 
 SQP-craft is a sequential quadratic programming solver in Rust with Python
-bindings, for smooth constrained NLPs with at most 256 variables (dense
-damped BFGS, Clarabel or dense active-set step QPs, independent KKT checks).
+bindings for smooth constrained NLPs. Full and uniform-block BFGS are
+limited to 256 variables. The experimental
+[structured modes](docs/structured-sqp.md) use sparse curvature with Clarabel
+above that limit. Every mode uses independent first-order KKT checks.
 It also builds `sqp-job-worker`, a worker for the shared job API of
 [optimization-jobs](https://github.com/dietmarwo/optimization-jobs).
 

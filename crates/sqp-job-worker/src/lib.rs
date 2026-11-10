@@ -194,6 +194,74 @@ mod tests {
     }
 
     #[test]
+    fn large_registered_model_requires_opt_in_and_keeps_the_same_job_profile() {
+        use sqp_craft::{Bounds, CsrPattern, NlpProblem, ProblemSpec};
+
+        #[derive(Clone)]
+        struct Affine;
+        impl NlpProblem for Affine {
+            fn functions(&mut self, x: &[f64], _c: &mut [f64]) -> sqp_craft::Result<f64> {
+                Ok(-x[x.len() - 1])
+            }
+
+            fn derivatives(
+                &mut self,
+                _x: &[f64],
+                g: &mut [f64],
+                _j: &mut [f64],
+            ) -> sqp_craft::Result<()> {
+                g.fill(0.0);
+                *g.last_mut().expect("positive dimension") = -1.0;
+                Ok(())
+            }
+        }
+
+        let n = 300;
+        let mut registry = Registry::benchmarks();
+        registry.register::<registry::NoConfig, _>(
+            registry::ModelInfo::new("custom.large", "1", "Affine box").dimensions(n..=n),
+            move |_, _| {
+                let spec = ProblemSpec::new(
+                    Bounds::new(vec![-1.0; n], vec![1.0; n]),
+                    Bounds::free(0),
+                    CsrPattern::dense(0, n),
+                )?;
+                Ok(registry::Model::new(spec, Affine))
+            },
+        );
+        registry.check().unwrap();
+        let adapter = Adapter::new(registry);
+        let mut s = job(
+            PROFILE,
+            json!({
+                "problem": "custom.large", "dimension": n, "starts": [vec![0.0; n]],
+                "backend": "clarabel", "max_iterations": 100, "max_callback_calls": 500,
+                "feasibility_tolerance": 1e-7, "stationarity_tolerance": 1e-6,
+            }),
+            1,
+        );
+        let err = |s: &mut JobSpec| {
+            adapter
+                .prepare(s, Path::new("."))
+                .err()
+                .expect("invalid job")
+                .to_string()
+        };
+        assert!(err(&mut s).contains("require hessian=partitioned"));
+        s.payload["hessian"] = json!("partitioned");
+        assert!(err(&mut s).contains("declared objective_pattern"));
+        s.payload["objective_pattern"] = json!([]);
+        s.payload["elements"] = json!([]);
+        let p = adapter.prepare(&mut s, Path::new(".")).unwrap();
+        let result = p.solve(0, 10.0).unwrap().outcome;
+        assert_eq!(result.termination, "converged");
+        assert_eq!(result.claim, "first_order");
+        assert_eq!(result.details["structure"]["hessian_nnz"], n);
+        assert_eq!(s.payload["hessian"], "partitioned");
+        result.check().unwrap();
+    }
+
+    #[test]
     fn evaluate_checks_points_inside_and_outside_the_bounds() {
         let mut s = job(
             EVALUATE_PROFILE,

@@ -58,10 +58,13 @@ fn main() -> Result<()> {
 ```
 
 Limits: smooth objective and constraints with first derivatives; at most 256
-variables (dense BFGS); a local method, so `Converged` is a first-order KKT
-point within the tolerances, not a global optimum (use several starts for
-multimodal models). For larger sparse problems an IPOPT-family solver fits
-better. See the [API documentation](https://docs.rs/sqp-craft-solver) and the
+variables with the default full BFGS (dense); a local method, so `Converged`
+is a first-order KKT point within the tolerances, not a global optimum (use
+several starts for multimodal models). The experimental
+[structured modes](https://github.com/dietmarwo/SQP-craft/blob/main/docs/structured-sqp.md) (`Hessian::Partitioned`, `Hessian::Exact`) take
+larger sparse models with small overlapping elements through Clarabel; for
+general large sparse problems an IPOPT-family solver fits better. See the
+[API documentation](https://docs.rs/sqp-craft-solver) and the
 [AI agent guide](https://github.com/dietmarwo/SQP-craft/blob/main/ai-context.md).
 
 Part of [SQP-craft](https://github.com/dietmarwo/SQP-craft), which also holds the

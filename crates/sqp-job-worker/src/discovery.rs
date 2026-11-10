@@ -67,6 +67,22 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         json!({"type":"boolean","default":false,"description":"l1-elastic step QPs instead of feasibility restoration; needs backend active_set"}),
     );
     p.insert(
+        "hessian".into(),
+        json!({"type":["string","null"],"enum":["full","partitioned",null],
+        "description":"defaults to full; partitioned with Clarabel required above 256 variables"}),
+    );
+    p.insert(
+        "elements".into(),
+        json!({"type":["array","null"],"items":{"type":"array",
+        "minItems":1,"items":{"type":"integer","minimum":0},"uniqueItems":true},
+        "description":"optional partition of constraint rows; overrides the registered partition"}),
+    );
+    p.insert(
+        "objective_pattern".into(),
+        json!({"type":["array","null"],"items":{"type":"integer","minimum":0},
+        "uniqueItems":true,"description":"sorted nonlinear objective columns; [] declares affine"}),
+    );
+    p.insert(
         "max_iterations".into(),
         json!({"type":"integer","minimum":0,"description":"accepted steps per task; 0 only evaluates the start"}),
     );
@@ -85,6 +101,11 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
     solve["allOf"].as_array_mut().expect("array").push(json!({
         "if":{"properties":{"elastic_mode":{"const":true}},"required":["elastic_mode"]},
         "then":{"properties":{"backend":{"const":"active_set"}}}
+    }));
+    solve["allOf"].as_array_mut().expect("array").push(json!({
+        "if":{"properties":{"dimension":{"minimum":257}},"required":["dimension"]},
+        "then":{"properties":{"backend":{"const":"clarabel"},"hessian":{"const":"partitioned"}},
+            "required":["hessian"]}
     }));
     let mut evaluate = json!({
         "$schema": DRAFT,
@@ -127,6 +148,13 @@ pub(crate) fn examples(examples: &[Example]) -> Value {
         let mut solve = json!({"problem":e.id,"problem_version":e.version,"dimension":e.dimension,
             "starts":[e.start],"backend":"active_set","elastic_mode":false,"max_iterations":200,
             "max_callback_calls":4000,"feasibility_tolerance":1e-7,"stationarity_tolerance":1e-6});
+        let backend = if e.dimension > sqp_craft_solver::DENSE_SIZE_CAP {
+            solve["backend"] = json!("clarabel");
+            solve["hessian"] = json!("partitioned");
+            "Clarabel"
+        } else {
+            "active-set"
+        };
         let mut evaluate = json!({"problem":e.id,"problem_version":e.version,"dimension":e.dimension,
             "points":[e.start],"feasibility_tolerance":1e-7});
         if let Some(config) = &e.config {
@@ -134,9 +162,11 @@ pub(crate) fn examples(examples: &[Example]) -> Value {
             evaluate["config"] = config.clone();
         }
         let n = e.dimension;
-        out.push(json!({"profile":solve::PROFILE,
-            "description":format!("{}: one SQP solve in {n} variables from one start, active-set backend", e.id),
-            "resources":one,"limits":limits,"payload":solve,"inputs":inputs(e)}));
+        if e.can_solve {
+            out.push(json!({"profile":solve::PROFILE,
+                "description":format!("{}: one SQP solve in {n} variables from one start, {backend} backend", e.id),
+                "resources":one,"limits":limits,"payload":solve,"inputs":inputs(e)}));
+        }
         out.push(json!({"profile":evaluate::PROFILE,
             "description":format!("{}: the objective, constraint values and violation at one point", e.id),
             "resources":one,"limits":limits,"payload":evaluate,"inputs":inputs(e)}));

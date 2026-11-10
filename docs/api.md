@@ -51,12 +51,20 @@ by more than `10⁻⁹(1 + |a|)` ends the solve with `InvalidInput`. A wrong
 declaration can also make `linear_infeasible` wrong, so that status relies on
 the declaration.
 
+**Structured curvature.** Partitioned BFGS uses optional
+`ProblemSpec::with_elements` and `with_objective_pattern` declarations
+(`elements` and `objective_pattern` in Python). Exact mode requires a
+fixed lower-triangular pattern with every diagonal, declared by
+`with_lagrangian_hessian` (`hessian_indptr` and `hessian_indices` in Python).
+See [structured SQP](structured-sqp.md) for syntax and examples.
+
 ## Model callbacks
 
 | Rust (`NlpProblem`) | Python model method | Computes |
 | --- | --- | --- |
 | `functions(x, constraints_out) -> f` | `functions(x) -> (f, c)` | objective and constraint values |
 | `derivatives(x, gradient_out, jacobian_out)` | `derivatives(x) -> (g, jac_values)` | dense gradient (length `n`) and Jacobian values in pattern order (length `nnz`) |
+| `lagrangian_hessian(x, lambda, lower_out)` | `lagrangian_hessian(x, lambda) -> lower_values` | optional Hessian of `f − λᵀc` in declared lower-CSR order |
 
 The evaluations are grouped the way SQP consumes them: `f` and `c` together at
 every line-search trial point, `grad f` and `J` together at every accepted
@@ -122,12 +130,14 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | --- | --- | --- |
 | `max_iterations` | `100` | Maximum accepted steps |
 | `max_backtracks` | `25` | Step halvings after the first trial |
-| `max_callback_calls` | `2000` | `functions` + `derivatives` calls, including rejected and undefined trials |
+| `max_callback_calls` | `2000` | Model calls including rejected or undefined trials and the optional exact Hessian callback |
 | `time_limit_seconds` | `None` | Cooperative budget for the whole solve; the QP receives the remainder |
 | `stationarity_tolerance` | `1e-6` | Absolute, `‖∇f − Jᵀλ − z‖∞` |
 | `complementarity_tolerance` | `1e-6` | Absolute |
 | `dual_sign_tolerance` | `1e-8` | Multipliers whose sign selects an infinite bound |
-| `dense_size_limit` | `256` | Variables allowed, 1 to 256 |
+| `dense_size_limit` | `256` | Variables allowed in full and uniform-block modes, 1 to 256 |
+| `hessian` | `"full"` | `"full"`, `"partitioned"`, or `"exact"` |
+| `structured_memory_limit_bytes` | `64 MiB` | Estimated structured storage and fill budget, maximum 128 MiB |
 | `initial_hessian_scale` | `1` | `B = scale·I` initially and after a reset |
 | `max_hessian_resets` | `3` | Total resets (failed BFGS updates and non-descent retries) |
 | `qp_solver` | `"clarabel"` | Python only: `"clarabel"` (interior point) or `"active-set"` (dense dual active set, see below); in Rust, the type `B` of `NativeSqp<B>` |
@@ -147,7 +157,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 
 ## The native SQP method
 
-A dense-BFGS line-search SQP for at most 256 variables. Each iteration at `x_k`:
+A line-search SQP with full BFGS by default. Each iteration at `x_k`:
 
 1. **Step QP.** `min ½pᵀBp + gᵀp` subject to
    `lower_c − c(x_k) <= J p <= upper_c − c(x_k)` and
@@ -244,8 +254,9 @@ The four options from SNOPT change these steps as follows
   - restoration and the proximal point work in `x̃`;
   - an elastic row costs `R_i γ` per original unit.
 
-There is no exact-Hessian option. First-order convergence is not a global or
-second-order optimality certificate.
+Exact mode computes the Lagrangian Hessian at the accepted point and can
+shift the diagonal if the backend rejects it. First-order convergence
+certifies only the first-order residuals.
 
 ### Statuses
 
@@ -415,12 +426,14 @@ Clarabel 0.11.1, an interior-point conic solver in Rust. It does not solve
 elastic QPs (`configure` returns `Unsupported`). Cold starts only:
 supplied warm-start data is validated, then rejected as `Unsupported` rather
 than ignored. Its engine is serial: it accepts a budget of up to eight workers,
-which only a native model's own `set_threads` work can use. Positive-definite
-Hessians, at most 256 NLP variables.
+which only a native model's own `set_threads` work can use. It accepts
+positive-definite Hessians. The legacy dense path handles up to 256 variables
+and large QPs require a sparse Hessian and passing the structural budget.
 Every model's Hessian is checked exactly before conversion: a strictly
 diagonally dominant one is accepted by an upward-rounded Gershgorin test, a
 pattern that splits into disconnected components is factorized per component,
-and any other by a dense Cholesky factorization. A failure is returned as
+and other small matrices by dense Cholesky. Large sparse matrices use
+symbolic reuse and sparse numeric Cholesky. A failure is returned as
 `QpOutcome::NotPositiveDefinite`, keeping the cached workspace and
 conversion data, so the caller's re-solve reuses them. Every backend that
 needs a positive-definite Hessian must do the same (see `QpBackend::solve`):
@@ -664,7 +677,8 @@ The restoration QP uses `g=J_active^T r` and
 bounds intersected with the direction bound. All equality rows and currently
 violated inequality rows contribute; inactive inequalities contribute zero.
 The original inconsistent linear rows are omitted from this QP. There are no
-extra slack variables, so the 256-variable cap is unchanged.
+extra slack variables. Structured modes assemble the same Gauss–Newton
+model in sparse storage.
 
 An independently accepted QP direction (after the same step-bound moves as an
 ordinary step) is backtracked until it stays within the strict variable box and

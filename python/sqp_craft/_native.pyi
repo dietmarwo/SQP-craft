@@ -20,6 +20,10 @@ class ProblemSpec:
         jacobian_indptr: Iterable[int],
         jacobian_indices: Iterable[int],
         linear_rows: Optional[Iterable[int]] = None,
+        elements: Optional[Iterable[Iterable[int]]] = None,
+        objective_pattern: Optional[Iterable[int]] = None,
+        hessian_indptr: Optional[Iterable[int]] = None,
+        hessian_indices: Optional[Iterable[int]] = None,
     ) -> None: ...
     @property
     def n(self) -> int: ...
@@ -41,6 +45,14 @@ class ProblemSpec:
     def jacobian_indices(self) -> list[int]: ...
     @property
     def linear_rows(self) -> list[int]: ...
+    @property
+    def elements(self) -> Optional[list[list[int]]]: ...
+    @property
+    def objective_pattern(self) -> Optional[list[int]]: ...
+    @property
+    def hessian_indptr(self) -> Optional[list[int]]: ...
+    @property
+    def hessian_indices(self) -> Optional[list[int]]: ...
 
 class Cancellation:
     """Cooperative cancellation flag; checked between model calls."""
@@ -61,6 +73,7 @@ def solve_native(
     observer: Optional[Callable[[dict[str, Any]], bool]] = None,
     method: str = "dummy",
     method_options: Optional[dict[str, Any]] = None,
+    lagrangian_hessian: Optional[Callable[[list[float], list[float]], Any]] = None,
 ) -> dict[str, Any]: ...
 def check_derivatives(
     spec: ProblemSpec,
@@ -82,3 +95,17 @@ def kkt_residuals(
     row_multipliers: list[float],
     variable_multipliers: list[float],
 ) -> dict[str, float]: ...
+
+
+def check_lagrangian_hessian(
+    spec: ProblemSpec,
+    functions: Callable[[list[float]], Any],
+    derivatives: Callable[[list[float]], Any],
+    hessian: Callable[[list[float], list[float]], Any],
+    x: Iterable[float],
+    constraint_multipliers: Iterable[float],
+    steps: list[float],
+    absolute_tolerance: float,
+    relative_tolerance: float,
+    max_directions: int,
+) -> dict[str, Any]: ...

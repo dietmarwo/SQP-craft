@@ -274,6 +274,46 @@ pub trait SqpSolver {
     ) -> Result<SolveResult>;
 }
 
+/// Counters for one element of a partitioned BFGS model.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct CurvatureElementReport {
+    /// Source constraint rows. Empty for the objective element.
+    pub rows: Vec<usize>,
+    /// Successful updates, including damped and modified updates.
+    pub updates: u64,
+    /// Successful updates that used Powell damping.
+    pub damped: u64,
+    /// Successful updates that used an augmented-Lagrangian repair.
+    pub modified: u64,
+    /// Updates skipped because the local step was negligible.
+    pub skipped: u64,
+    /// Local resets after a rejected element update.
+    pub resets: u64,
+}
+
+/// Structural and numeric diagnostics for a partitioned solve.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct StructureReport {
+    /// Stored entries of the lower-triangular step Hessian.
+    pub hessian_nnz: usize,
+    /// Natural-order Hessian Cholesky entries, including the diagonal.
+    pub hessian_factor_nnz: usize,
+    /// Estimated step KKT factor entries with duals eliminated first.
+    pub kkt_factor_nnz: usize,
+    /// Estimated peak structured storage checked against the configured budget.
+    pub estimated_memory_bytes: usize,
+    /// A rejected assembled model caused a switch to full BFGS.
+    pub fell_back_to_full: bool,
+    /// Number of exact Hessian callback calls in exact mode.
+    pub exact_hessian_calls: Option<u64>,
+    /// Largest diagonal shift applied to an exact Hessian, in QP coordinates.
+    pub maximum_diagonal_shift: Option<f64>,
+    /// Number of diagonal shifts applied in exact mode.
+    pub diagonal_shifts: Option<u64>,
+    /// Per-element statistics, in deterministic assembly order.
+    pub elements: Vec<CurvatureElementReport>,
+}
+
 /// Native-loop statistics. Timings are elapsed inclusive phase times, not pure GIL wait.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RunReport {
@@ -301,6 +341,8 @@ pub struct RunReport {
     pub bfgs_modified_updates: u64,
     /// Switches from requested block curvature to full BFGS after a failed update.
     pub block_hessian_fallbacks: u64,
+    /// Structured diagnostics, available for partitioned curvature.
+    pub structure: Option<StructureReport>,
     /// Step QPs the backend rejected as `QpOutcome::NotPositiveDefinite`; each
     /// is followed by a Hessian reset (counted in `hessian_resets`) or a stop.
     pub qp_not_positive_definite: u64,
@@ -342,6 +384,8 @@ pub struct RunReport {
     pub qp_seconds: f64,
     /// Fresh QP engine setup attempts.
     pub qp_setups: u64,
+    /// Last backend-reported factor nonzeros, if available.
+    pub qp_factor_nnz: Option<usize>,
     /// Successful numeric QP workspace updates.
     pub qp_updates: u64,
     /// Fresh retries after a failed update or reused solve.

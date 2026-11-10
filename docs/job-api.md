@@ -37,6 +37,10 @@ own models in a `Registry` and runs them in a worker of its own
 JSON Schema of each payload (`payload_schemas`) and runnable examples
 (`examples`).
 
+For registered models above 256 variables, `sqp.solve/1` accepts opt-in
+partitioned curvature with Clarabel. See
+[model registration and structured payloads](job-api/models.md#registering-a-model).
+
 ## Agents: the MCP server
 
 The same build makes `optimization-mcp`, an MCP server over one node

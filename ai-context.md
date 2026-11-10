@@ -47,10 +47,11 @@ server.
 
 SQP-craft is a sequential quadratic programming solver in Rust with Python
 bindings, aimed at smooth constrained problems such as trajectory
-transcriptions. It is a research pilot for at most 256 variables: dense damped
-BFGS, step QPs solved by Clarabel (interior point, the default) or by a dense
-Goldfarb–Idnani active-set method, an ℓ1 merit line search, bounded
-feasibility restoration and independent first-order KKT checks. No external
+transcriptions. It defaults to dense damped BFGS for at most 256 variables,
+with Clarabel (interior point) or a dense Goldfarb–Idnani active-set backend.
+The experimental [structured modes](docs/structured-sqp.md) use sparse
+curvature and Clarabel above that limit. All paths use a merit line search,
+bounded feasibility restoration and independent first-order KKT checks. No external
 optimizer, BLAS or CMake is needed; Clarabel, nalgebra and Rayon are pinned
 Rust dependencies.
 
@@ -102,7 +103,7 @@ would change the solution.
 | Question | Why it matters |
 |---|---|
 | Are the objective and constraints twice continuously differentiable where the solver may evaluate them? | SQP needs smoothness; kinks, branches and noise break BFGS and the line search. |
-| How many variables? | The native method accepts at most 256 (`dense_size_limit`). |
+| How many variables? | Full and uniform-block BFGS accept at most 256. Structured modes use a memory and fill budget. |
 | Which bounds and constraint rows apply, and which rows are equalities? | Bounds hold at every iterate; rows may be violated until convergence. |
 | Are analytic or automatic derivatives available, and what is the Jacobian sparsity? | The model must supply the gradient and the Jacobian values for a fixed CSR pattern. |
 | Which rows are linear? | A start that violates declared linear rows is projected onto them; later iterates stay on them, and they leave the merit function. |
@@ -121,7 +122,7 @@ and how the result was validated.
 
 ## First decide whether SQP-craft is appropriate
 
-Use it for smooth constrained problems with at most 256 variables and reliable
+Use the default mode for smooth constrained problems with at most 256 variables and reliable
 derivatives, when a dependency-light Rust solver with independent KKT checks
 is valuable, and when a local first-order solution is the goal.
 
@@ -141,11 +142,12 @@ Prefer another tool when:
   derivatives, with box bounds only, 1–32 variables and at most 256
   evaluations: the experimental `fcmaes.surrogate/1` (exact-GP Bayesian
   optimization; confirm it in the fcmaes worker's `describe` output);
-- there are more than 256 variables, or exact sparse second derivatives are
-  available and matter: a sparse interior-point or exact-Hessian SQP code
-  (the IPOPT, WORHP, KNITRO family) fits better; SQP-craft has no
-  exact-Hessian option. On CUTEst, exact Hessians raised Uno's filterSQP from
-  760 to 845 solved problems ([benchmark](docs/benchmark-results.md));
+- for larger problems with small overlapping variable sets, try
+  [partitioned SQP](docs/structured-sqp.md) with declared nonlinear objective
+  support and Clarabel. For source models with sparse second derivatives,
+  the direct Rust or Python API can use `hessian="exact"`. For general large
+  sparse NLPs use a mature sparse solver such as IPOPT and compare verified
+  outcomes;
 - the application needs a global optimum, a second-order certificate or a
   certificate of infeasibility: none is provided;
 - the variables are integer: there is no integer support (LP-IP-craft for
@@ -185,7 +187,7 @@ and returns `stub`. Always pass `method="sqp"` to optimize.
 ```text
 minimize    f(x)
 subject to  constraint_lower <= c(x) <= constraint_upper     (m rows, m >= 0)
-            lower            <=  x   <= upper                (n variables, 1 <= n <= 256)
+            lower            <=  x   <= upper                (n variables, n >= 1)
 ```
 
 There is no hidden sign change: maximize by minimizing `-f`. Equal finite
@@ -375,7 +377,7 @@ Errors: `InvalidInput` (`ValueError`) for malformed specs, starts or options;
 `Evaluation` (`EvaluationError`) for non-finite or wrongly sized model output;
 `UndefinedPoint` (`UndefinedPointError`) at the start; `Unsupported`
 (`NotImplementedError`) for valid but unimplemented requests, such as
-`n > 256`, `threads > 8` or elastic mode with Clarabel; `Backend`
+dense mode above its limit, `threads > 8` or elastic mode with Clarabel; `Backend`
 (`RuntimeError`). Exceptions raised by Python callbacks are re-raised
 unchanged.
 
@@ -492,6 +494,13 @@ version 1 each, which read no inputs and have no config:
 | `benchmark.quadratic` | Sum of `(x[i]-(i+1)/n)^2` | `[-5,5]`, 1–256 variables |
 | `benchmark.simplex` | Sum of `x[i]^2`, subject to `sum(x) = 1` | `[0,1]`, 1–256 variables |
 | `benchmark.rosenbrock` | Adjacent-pair Rosenbrock | `[-5,5]`, 2–256 variables |
+
+Registered models above 256 variables require `hessian: "partitioned"` and
+`backend: "clarabel"` in `sqp.solve/1`. An application worker can declare up
+to 5,000 variables and 262,144 Jacobian entries for such models. Supply
+`objective_pattern` in the factory or payload, empty for an affine
+objective. Optional `elements` in the payload override the registered row
+partition.
 
 A user's model runs in an *application worker*: a small binary that depends
 on the `sqp-job-worker` library, registers models in a
@@ -698,7 +707,7 @@ registration. `describe` reports the shared version as
 | `stalled` / `no_descent` | Noise-level steps or inaccurate derivatives; rerun `check_derivatives`, tighten `qp_tolerance` only with evidence |
 | `numerical_failure` | BFGS reset budget spent; check derivatives and scaling |
 | `EvaluationError` | Non-finite or wrongly sized model output; fix the model or signal undefined points |
-| `NotImplementedError` | `n > 256`, `threads > 8`, elastic mode with Clarabel, or a solver not compiled in |
+| `NotImplementedError` | dense mode above its limit, `threads > 8`, elastic mode with Clarabel, or a solver not compiled in |
 | A converged run is far from the expected solution | A different local solution; use more starts |
 
 ## Test commands

@@ -52,6 +52,7 @@ SQP_VARIANTS: dict[str, tuple[dict, bool]] = {
 # first step is at most of unit length (a stand-in for a first-step scaling or
 # step limit; resets use the same matrix).
 EXPERIMENTS: dict[str, tuple[dict, bool]] = {
+    "clarabel+partitioned": ({"hessian": "partitioned", "qp_reuse_workspace": True}, True),
     "active-set+b0-gradient": (ACTIVE, False),
 }
 REPORT_FIELDS = ["qp_solves", "qp_iterations", "rejected_trials", "undefined_trials",
@@ -145,7 +146,8 @@ def _sqp_craft(name: str, problem) -> dict:
     options = SqpOptions(max_iterations=MAX_ITERATIONS, max_callback_calls=MAX_CALLBACKS,
                          time_limit_seconds=TIME_LIMIT, **fields)
     try:
-        r = solve(problem.spec(linear=linear), _SqpModel(problem), list(problem.x0),
+        r = solve(problem.spec(linear=linear, structured=True) if fields.get("hessian") == "partitioned"
+                  else problem.spec(linear=linear), _SqpModel(problem), list(problem.x0),
                   method="sqp", method_options=options)
     except Exception as error:  # an error, not a status: recorded as such
         return dict(status="error", claimed=False, x=None, constraint_multipliers=None,

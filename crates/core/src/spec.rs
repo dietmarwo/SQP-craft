@@ -261,6 +261,41 @@ pub struct CsrMatrix {
 }
 
 impl CsrMatrix {
+    /// Multiplies a square symmetric matrix stored as its lower triangle.
+    ///
+    /// # Panics
+    /// On incompatible buffer lengths or an invalid lower-triangular pattern.
+    pub fn symmetric_lower_product(&self, p: &[f64], out: &mut [f64]) {
+        assert_eq!(p.len(), self.pattern.rows, "p length");
+        assert_eq!(out.len(), self.pattern.rows, "out length");
+        out.fill(0.0);
+        for i in 0..self.pattern.rows {
+            let range = self.pattern.indptr[i]..self.pattern.indptr[i + 1];
+            let pi = p[i];
+            let mut value = out[i];
+            if range.len() == i + 1 {
+                // In a valid lower-only sorted row, full length proves 0..=i.
+                let values = &self.values[range];
+                for ((&v, &pj), outj) in values[..i].iter().zip(&p[..i]).zip(&mut out[..i]) {
+                    value += v * pj;
+                    *outj += v * pi;
+                }
+                out[i] = value + values[i] * pi;
+                continue;
+            }
+            for (&j, &v) in self.pattern.indices[range.clone()]
+                .iter()
+                .zip(&self.values[range])
+            {
+                value += v * p[j];
+                if j != i {
+                    out[j] += v * pi;
+                }
+            }
+            out[i] = value;
+        }
+    }
+
     /// Checks the pattern, the number of values and their finiteness.
     pub fn validate(&self, what: &str) -> Result<()> {
         self.pattern.validate(what)?;
@@ -299,6 +334,9 @@ pub struct ProblemSpec {
     constraints: Bounds,
     jacobian: CsrPattern,
     linear: Vec<bool>,
+    elements: Option<Vec<Vec<usize>>>,
+    objective_pattern: Option<Vec<usize>>,
+    lagrangian_hessian: Option<CsrPattern>,
 }
 
 impl ProblemSpec {
@@ -328,6 +366,9 @@ impl ProblemSpec {
             constraints,
             jacobian,
             linear: vec![false; m],
+            elements: None,
+            objective_pattern: None,
+            lagrangian_hessian: None,
         })
     }
 
@@ -360,6 +401,91 @@ impl ProblemSpec {
     /// Whether any row was declared linear.
     pub fn has_linear_rows(&self) -> bool {
         self.linear.iter().any(|&l| l)
+    }
+
+    /// Declares a partition of the constraint rows for structured curvature.
+    ///
+    /// Every row must occur exactly once. Within an element, the union of the
+    /// row supports defines its variables. Linear and free rows contribute
+    /// to the declaration but have no curvature.
+    pub fn with_elements(mut self, row_groups: &[Vec<usize>]) -> Result<Self> {
+        let mut seen = vec![false; self.m()];
+        for (element, rows) in row_groups.iter().enumerate() {
+            ensure(!rows.is_empty(), || {
+                format!("elements: group {element} is empty")
+            })?;
+            for &i in rows {
+                ensure(i < seen.len(), || {
+                    format!(
+                        "elements: row {i} in group {element} is out of range for m = {}",
+                        self.m()
+                    )
+                })?;
+                ensure(!seen[i], || {
+                    format!("elements: row {i} appears more than once")
+                })?;
+                seen[i] = true;
+            }
+        }
+        if let Some(row) = seen.iter().position(|&present| !present) {
+            return Err(crate::Error::InvalidInput(format!(
+                "elements: row {row} is missing"
+            )));
+        }
+        self.elements = Some(row_groups.to_vec());
+        Ok(self)
+    }
+
+    /// Declares the sorted, distinct variables on which the objective
+    /// depends nonlinearly. An empty slice declares an affine objective.
+    /// Without a declaration, the objective is treated as a dense element.
+    pub fn with_objective_pattern(mut self, columns: &[usize]) -> Result<Self> {
+        ensure(columns.windows(2).all(|pair| pair[0] < pair[1]), || {
+            "objective_pattern: indices must be strictly increasing".into()
+        })?;
+        if let Some(&j) = columns.iter().find(|&&j| j >= self.n()) {
+            return Err(crate::Error::InvalidInput(format!(
+                "objective_pattern: index {j} is out of range for n = {}",
+                self.n()
+            )));
+        }
+        self.objective_pattern = Some(columns.to_vec());
+        Ok(self)
+    }
+
+    /// Explicit row partition, if one was declared.
+    pub fn elements(&self) -> Option<&[Vec<usize>]> {
+        self.elements.as_deref()
+    }
+
+    /// Declared nonlinear objective support. An empty slice means affine.
+    pub fn objective_pattern(&self) -> Option<&[usize]> {
+        self.objective_pattern.as_deref()
+    }
+
+    /// Declares a fixed lower-CSR pattern for the Lagrangian Hessian.
+    /// All diagonals are required, including structurally zero ones.
+    pub fn with_lagrangian_hessian(mut self, pattern: CsrPattern) -> Result<Self> {
+        ensure(pattern.rows == self.n() && pattern.cols == self.n(), || {
+            format!(
+                "Lagrangian Hessian pattern must have shape {} x {}",
+                self.n(),
+                self.n()
+            )
+        })?;
+        pattern.validate("Lagrangian Hessian pattern")?;
+        for i in 0..self.n() {
+            ensure(pattern.row(i).last() == Some(&i), || {
+                format!("Lagrangian Hessian row {i} must end with its diagonal")
+            })?;
+        }
+        self.lagrangian_hessian = Some(pattern);
+        Ok(self)
+    }
+
+    /// Lower-CSR pattern used by the optional exact Hessian callback.
+    pub fn lagrangian_hessian_pattern(&self) -> Option<&CsrPattern> {
+        self.lagrangian_hessian.as_ref()
     }
 
     /// Number of variables `n`.

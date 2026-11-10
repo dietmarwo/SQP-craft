@@ -7,8 +7,12 @@
 > **One of 18 related repositories.** The [repository overview](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md) shows what each one does and how they connect.
 
 A sequential quadratic programming (SQP) solver in Rust, with Python bindings,
-for smooth constrained problems such as trajectory transcriptions. The current
-dense-BFGS solver accepts at most 256 variables and needs derivatives.
+for smooth constrained problems such as trajectory transcriptions. Dense BFGS
+accepts up to 256 variables. The experimental
+[structured SQP modes](docs/structured-sqp.md) use sparse curvature and
+Clarabel for larger models. Partitioned BFGS passed the independent
+first-order check on the 4,994-variable SQP5 transfer with an extended time
+budget.
 
 Seven [application tutorials](tutorials/README.md) (SQP1–SQP6, X2) cover
 constrained calibration, multistart and scaling, a hanging chain, collocation

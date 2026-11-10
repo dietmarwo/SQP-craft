@@ -1,6 +1,7 @@
 //! Local bound-constrained Gauss–Newton feasibility restoration. No slack
 //! variables, no NLP multiplier estimates, and no infeasibility certificate.
 use super::*;
+use nalgebra::DMatrix;
 use sqp_craft::RestorationRecord;
 
 /// A Gauss–Newton step that, without being cut by the trust bound, predicts
@@ -48,10 +49,20 @@ fn model(
     e: &Evaluation,
     settings: &SqpOptions,
     scales: &Scales,
+    structured: Option<&CsrPattern>,
 ) -> Result<QpModel> {
     let n = spec.n();
     let residuals = row_residuals(spec.constraints(), &e.constraints)?;
-    let mut h = DMatrix::identity(n, n) * settings.restoration_regularization;
+    let mut dense = structured
+        .is_none()
+        .then(|| DMatrix::identity(n, n) * settings.restoration_regularization);
+    let mut sparse = structured.map(|p| {
+        let mut values = vec![0.0; p.nnz()];
+        for &end in &p.indptr[1..] {
+            values[end - 1] = settings.restoration_regularization;
+        }
+        values
+    });
     let mut gradient = vec![0.0; n];
     let j = spec.jacobian();
     for (i, &residual) in residuals.iter().enumerate() {
@@ -71,32 +82,47 @@ fn model(
             )?;
             for b in j.indptr[i]..=a {
                 let other = j.indices[b];
-                h[(col, other)] = finite(
-                    h[(col, other)]
-                        + finite(
-                            value * (e.jacobian_values[b] * d[other]),
-                            "restoration curvature",
-                        )?,
+                let out = match (structured, sparse.as_mut()) {
+                    (Some(pattern), Some(values)) => {
+                        let slot = pattern
+                            .row(col)
+                            .binary_search(&other)
+                            .expect("nonlinear restoration row is in a Hessian clique");
+                        &mut values[pattern.indptr[col] + slot]
+                    }
+                    _ => &mut dense.as_mut().expect("dense restoration")[(col, other)],
+                };
+                *out = finite(
+                    *out + finite(
+                        value * (e.jacobian_values[b] * d[other]),
+                        "restoration curvature",
+                    )?,
                     "restoration curvature",
                 )?;
             }
         }
     }
-    let mut indptr = vec![0];
-    let mut indices = Vec::new();
-    let mut values = Vec::new();
-    for i in 0..n {
-        for j in 0..=i {
-            let v = h[(i, j)];
-            if v != 0. {
-                indices.push(j);
-                values.push(v);
-            }
+    let hessian_lower = if let (Some(pattern), Some(values)) = (structured, sparse) {
+        CsrMatrix {
+            pattern: pattern.clone(),
+            values,
         }
-        indptr.push(indices.len());
-    }
-    let mut q = QpModel {
-        hessian_lower: CsrMatrix {
+    } else {
+        let h = dense.expect("dense restoration");
+        let mut indptr = vec![0];
+        let mut indices = Vec::new();
+        let mut values = Vec::new();
+        for i in 0..n {
+            for j in 0..=i {
+                let v = h[(i, j)];
+                if v != 0. {
+                    indices.push(j);
+                    values.push(v);
+                }
+            }
+            indptr.push(indices.len());
+        }
+        CsrMatrix {
             pattern: CsrPattern {
                 rows: n,
                 cols: n,
@@ -104,7 +130,10 @@ fn model(
                 indices,
             },
             values,
-        },
+        }
+    };
+    let mut q = QpModel {
+        hessian_lower,
         gradient,
         variables: shifted(spec.variables(), x)?,
         matrix: CsrMatrix {
@@ -133,6 +162,7 @@ fn model(
 }
 
 /// `None` means one complete step was accepted; `Some` is a terminal status.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn step<B: QpBackend>(
     backend: &mut B,
     spec: &ProblemSpec,
@@ -141,6 +171,7 @@ pub(super) fn step<B: QpBackend>(
     result: &mut SolveResult,
     options: &Options,
     scales: &Scales,
+    structured: Option<&CsrPattern>,
 ) -> Result<Option<Status>> {
     if let Some(s) = calls.before_call() {
         return Ok(Some(s));
@@ -150,7 +181,7 @@ pub(super) fn step<B: QpBackend>(
     let x = result.candidate.as_ref().expect("complete point");
     let e = result.evaluation.as_ref().expect("complete point");
     let before = merit(spec.constraints(), &e.constraints)?;
-    let q = model(spec, x, e, settings, scales)?;
+    let q = model(spec, x, e, settings, scales, structured)?;
     let acceptance = options
         .feasibility_tolerance
         .min(settings.stationarity_tolerance)
@@ -345,6 +376,7 @@ mod tests {
             &e,
             &SqpOptions::default(),
             &Scales::identity(n, n),
+            None,
         )
         .unwrap();
         assert_eq!(q.hessian_lower.values.len(), n);
@@ -380,7 +412,8 @@ mod tests {
                 &[0.0],
                 &evaluation,
                 &SqpOptions::default(),
-                &Scales::identity(1, 1)
+                &Scales::identity(1, 1),
+                None,
             ),
             Err(Error::Evaluation(_))
         ));

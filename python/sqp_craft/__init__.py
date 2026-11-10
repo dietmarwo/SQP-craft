@@ -1,10 +1,12 @@
 """Python interface to sqp-craft: a native Rust SQP solver for smooth
 constrained problems.
 
-``solve(spec, model, x0, method="sqp")`` runs the native dense-BFGS SQP with
-Clarabel QP subproblems (at most 256 variables). The default
-``method="dummy"`` only evaluates the start point and returns
-``status == "stub"``; it is kept as a contract fixture.
+``solve(spec, model, x0, method="sqp")`` runs the native SQP with Clarabel QP
+subproblems: dense BFGS by default (at most 256 variables), or the
+experimental ``SqpOptions(hessian="partitioned")`` and ``hessian="exact"``
+modes for larger sparse models. The default ``method="dummy"`` only
+evaluates the start point and returns ``status == "stub"``; it is kept as a
+contract fixture.
 
 A model provides two methods::
 
@@ -30,6 +32,7 @@ from ._native import (
     UndefinedPointError,
 )
 from ._native import check_derivatives as _check_derivatives
+from ._native import check_lagrangian_hessian as _check_lagrangian_hessian
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
@@ -56,6 +59,7 @@ __all__ = [
     "Status",
     "UndefinedPointError",
     "check_derivatives",
+    "check_lagrangian_hessian",
     "kkt_residuals",
     "solve",
 ]
@@ -85,7 +89,12 @@ class Model(Protocol):
     """The callback contract. Raise ``UndefinedPointError`` where the model is
     not defined (for example a failed propagation): at a line-search trial the
     solver shortens the step, at the start point the solve aborts. Any other
-    exception aborts the solve and is re-raised unchanged."""
+    exception aborts the solve and is re-raised unchanged.
+
+    With ``SqpOptions(hessian="exact")`` the model also needs
+    ``lagrangian_hessian(x, lam)``, returning the values of
+    ``∇²f(x) − Σ lam_i ∇²c_i(x)`` in the lower CSR order declared by
+    ``ProblemSpec(hessian_indptr=..., hessian_indices=...)``."""
 
     def functions(self, x: list[float]) -> tuple[float, Iterable[float]]: ...
 
@@ -117,7 +126,7 @@ class SqpOptions:
     max_backtracks: int = 25
     """Maximum step halvings in one line search after the first trial."""
     max_callback_calls: int = 2000
-    """Maximum ``functions`` plus ``derivatives`` calls, including rejected trials."""
+    """Maximum model calls, including rejected trials and any exact Hessian calls."""
     time_limit_seconds: Optional[float] = None
     """Cooperative wall-time budget; a running callback is not interrupted."""
     stationarity_tolerance: float = 1e-6
@@ -127,7 +136,11 @@ class SqpOptions:
     dual_sign_tolerance: float = 1e-8
     """Tolerance on multipliers whose sign selects an infinite bound."""
     dense_size_limit: int = 256
-    """Variables allowed, 1 to 256."""
+    """Variables allowed for full and uniform-block BFGS, 1 to 256."""
+    hessian: Literal["full", "partitioned", "exact"] = "full"
+    """Opt in to element BFGS (``"partitioned"``) or a callback (``"exact"``)."""
+    structured_memory_limit_bytes: int = 64 * 1024 * 1024
+    """Budget for estimated structured curvature and QP storage, in bytes."""
     initial_hessian_scale: float = 1.0
     """Initial and reset Hessian approximation ``scale · I``."""
     hessian_block_size: int = 0
@@ -315,6 +328,8 @@ class RunReport:
     restoration_steps: int
     restoration_seconds: float
     restoration_history: list[RestorationRecord]
+    structure: Optional[dict[str, Any]] = None
+    """Structured Hessian pattern, fill estimates and curvature diagnostics."""
 
 
 @dataclass(frozen=True)
@@ -387,6 +402,8 @@ def solve(
         None if observer is None else _adapt_observer(observer),
         method,
         None if method_options is None else asdict(method_options),
+        getattr(model, "lagrangian_hessian", None)
+        if method_options is not None and method_options.hessian == "exact" else None,
     )
     evaluation = raw["evaluation"]
     multipliers = raw["multipliers"]
@@ -489,6 +506,33 @@ def check_derivatives(
         list(steps),
         absolute_tolerance,
         relative_tolerance,
+        max_directions,
+    )
+    raw["counts"] = EvaluationCounts(**raw["counts"])
+    raw["issues"] = [DerivativeIssue(**i) for i in raw["issues"]]
+    return DerivativeReport(**raw)
+
+
+def check_lagrangian_hessian(
+    spec: ProblemSpec,
+    model: Model,
+    x: Iterable[float],
+    constraint_multipliers: Iterable[float],
+    *,
+    steps: Iterable[float] = (1e-4, 1e-5, 1e-6),
+    absolute_tolerance: float = 1e-5,
+    relative_tolerance: float = 1e-4,
+    max_directions: int = 256,
+) -> DerivativeReport:
+    """Check exact Hessian entries using bound-aware differences of ∇f − Jᵀλ.
+
+    The model provides ``lagrangian_hessian(x, constraint_multipliers)``
+    in the lower CSR order declared in ``spec``. An issue's output index
+    refers to the corresponding Lagrangian-gradient coordinate.
+    """
+    raw = _check_lagrangian_hessian(
+        spec, model.functions, model.derivatives, getattr(model, "lagrangian_hessian"),
+        x, constraint_multipliers, list(steps), absolute_tolerance, relative_tolerance,
         max_directions,
     )
     raw["counts"] = EvaluationCounts(**raw["counts"])

@@ -45,13 +45,17 @@ def problem_names(cache=None) -> list[str]:
 
 
 def load(name: str, cache=None):
-    """An instance of S2MPJ problem `name` with its default parameters."""
+    """Load a default problem or a case such as `HANGING:10,10`."""
+    problem, colon, arguments = name.partition(":")
+    if not problem.isidentifier():
+        raise ValueError(f"invalid S2MPJ problem name {problem!r}")
+    parameters = tuple(map(int, arguments.split(","))) if colon else ()
     root = checkout(cache)
     for path in (root, root / "python_problems"):
         if str(path) not in sys.path:
             sys.path.insert(0, str(path))
-    module = importlib.import_module(name)
-    return getattr(module, name)()
+    module = importlib.import_module(problem)
+    return getattr(module, problem)(*parameters)
 
 
 def main() -> None:

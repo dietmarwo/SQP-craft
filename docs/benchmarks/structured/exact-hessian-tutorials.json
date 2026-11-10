@@ -1,0 +1,56 @@
+{
+  "sqp4": {
+    "full": {
+      "status": "converged",
+      "iterations": 13,
+      "objective": 0.5829772965210741,
+      "first_order": true,
+      "structure": null
+    },
+    "exact": {
+      "status": "converged",
+      "iterations": 75,
+      "objective": 0.5829772971720699,
+      "first_order": true,
+      "structure": {
+        "hessian_nnz": 148,
+        "hessian_factor_nnz": 148,
+        "kkt_factor_nnz": 2844,
+        "estimated_memory_bytes": 325184,
+        "fell_back_to_full": false,
+        "qp_factor_nnz": null,
+        "exact_hessian_calls": 76,
+        "maximum_diagonal_shift": 0.18285286525148528,
+        "diagonal_shifts": 76,
+        "elements": []
+      }
+    }
+  },
+  "sqp6": {
+    "full": {
+      "status": "converged",
+      "iterations": 16,
+      "objective": 2.2579881397527205e-12,
+      "first_order": true,
+      "structure": null
+    },
+    "exact": {
+      "status": "converged",
+      "iterations": 4,
+      "objective": 3.5358800300759505e-15,
+      "first_order": true,
+      "structure": {
+        "hessian_nnz": 6,
+        "hessian_factor_nnz": 6,
+        "kkt_factor_nnz": 18,
+        "estimated_memory_bytes": 2304,
+        "fell_back_to_full": false,
+        "qp_factor_nnz": null,
+        "exact_hessian_calls": 5,
+        "maximum_diagonal_shift": 0.0,
+        "diagonal_shifts": 0,
+        "elements": []
+      }
+    }
+  }
+}

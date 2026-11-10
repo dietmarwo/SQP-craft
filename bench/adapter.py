@@ -45,23 +45,29 @@ class S2mpjProblem:
         self._linear_rows()
 
     # --- structure -------------------------------------------------------
-    def _structural_rows(self) -> list[set]:
-        raw, rows = self.raw, []
+    def _group_columns(self, groups, *, nonlinear_only=False) -> list[set]:
+        raw = self.raw
         A = getattr(raw, "A", None)
-        groups = np.asarray(getattr(raw, "congrps", np.arange(self.m))).reshape(-1)
-        grelt = getattr(raw, "grelt", None) or []
-        elvar = getattr(raw, "elvar", None) or []
         A = A.tocsr() if A is not None else None
-        for i in range(self.m):
-            g = int(groups[i])
+        grelt = getattr(raw, "grelt", None)
+        elvar = getattr(raw, "elvar", None)
+        grftype = getattr(raw, "grftype", None)
+        rows = []
+        for group in groups:
+            g = int(group)
             cols: set = set()
-            if A is not None and g < A.shape[0]:
+            nonlinear_group = grftype is not None and g < len(grftype) and grftype[g] is not None
+            if A is not None and g < A.shape[0] and (not nonlinear_only or nonlinear_group):
                 cols.update(int(j) for j in A.indices[A.indptr[g]:A.indptr[g + 1]])
-            if g < len(grelt):
+            if grelt is not None and g < len(grelt):
                 for e in np.asarray(grelt[g]).reshape(-1):
                     cols.update(int(j) for j in np.asarray(elvar[int(e)]).reshape(-1))
             rows.append(cols)
         return rows
+
+    def _structural_rows(self) -> list[set]:
+        groups = np.asarray(getattr(self.raw, "congrps", np.arange(self.m))).reshape(-1)
+        return self._group_columns(groups[:self.m])
 
     def _pattern(self, seed: int) -> None:
         rows = self._structural_rows() if self.m else []
@@ -168,14 +174,20 @@ class S2mpjProblem:
         return len(self.function_points), len(self.derivative_points)
 
     # --- sqp-craft --------------------------------------------------------
-    def spec(self, linear: bool = False):
+    def spec(self, linear: bool = False, structured: bool = False):
         from sqp_craft import ProblemSpec
 
+        declarations = {}
+        if structured:
+            groups = np.asarray(getattr(self.raw, "objgrps", [])).reshape(-1)
+            columns = self._group_columns(groups, nonlinear_only=True)
+            declarations["objective_pattern"] = sorted(set().union(*columns))
         return ProblemSpec(lower=list(self.lower), upper=list(self.upper),
                            constraint_lower=list(self.clower),
                            constraint_upper=list(self.cupper),
                            jacobian_indptr=self.indptr, jacobian_indices=self.indices,
-                           linear_rows=self.linear_rows if linear and self.linear_rows else None)
+                           linear_rows=self.linear_rows if linear and self.linear_rows else None,
+                           **declarations)
 
     def dense_jacobian(self, values) -> np.ndarray:
         J = np.zeros((self.m, self.n))

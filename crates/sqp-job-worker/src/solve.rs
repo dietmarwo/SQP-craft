@@ -14,7 +14,7 @@ use sqp_craft::{
 };
 use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
-use sqp_craft_solver::{NativeSqp, SqpOptions};
+use sqp_craft_solver::{DENSE_SIZE_CAP, Hessian, NativeSqp, SqpOptions};
 
 pub const PROFILE: &str = "sqp.solve/1";
 /// The QP backends a job can choose.
@@ -36,6 +36,12 @@ pub(crate) struct Payload {
     pub backend: String,
     #[serde(default)]
     pub elastic_mode: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hessian: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub elements: Option<Vec<Vec<usize>>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub objective_pattern: Option<Vec<usize>>,
     pub max_iterations: u64,
     pub max_callback_calls: u64,
     pub feasibility_tolerance: f64,
@@ -46,13 +52,14 @@ pub(crate) struct Run {
     pub model: Model,
     pub payload: Payload,
     pub options: Options,
+    hessian: Hessian,
     pub cancel: CancellationToken,
 }
 
 /// Checks a payload whose model is built; fills in the effective values.
 pub(crate) fn prepare(
     mut p: Payload,
-    built: crate::registry::Built,
+    mut built: crate::registry::Built,
     inner_threads: usize,
 ) -> Result<(Payload, Run)> {
     if !BACKENDS.contains(&p.backend.as_str())
@@ -67,6 +74,25 @@ pub(crate) fn prepare(
             "elastic_mode needs backend active_set: the Clarabel backend has no elastic QP".into(),
         );
     }
+    let hessian = Hessian::parse(p.hessian.as_deref().unwrap_or("full"))?;
+    if hessian == Hessian::Exact {
+        return Err("sqp.solve/1 supports full and partitioned Hessians".into());
+    }
+    if p.dimension > DENSE_SIZE_CAP && (hessian != Hessian::Partitioned || p.backend != "clarabel")
+    {
+        return Err("dimensions above 256 require hessian=partitioned and backend=clarabel".into());
+    }
+    if hessian == Hessian::Full && (p.elements.is_some() || p.objective_pattern.is_some()) {
+        return Err("elements and objective_pattern require hessian=partitioned".into());
+    }
+    built
+        .model
+        .set_structure(p.elements.as_deref(), p.objective_pattern.as_deref())?;
+    if p.dimension > DENSE_SIZE_CAP && built.model.spec().objective_pattern().is_none() {
+        return Err(
+            "dimensions above 256 require a declared objective_pattern (empty for affine)".into(),
+        );
+    }
     for start in &p.starts {
         built.model.spec().check_point(start, "initial point")?;
     }
@@ -78,6 +104,7 @@ pub(crate) fn prepare(
     SqpOptions {
         stationarity_tolerance: p.stationarity_tolerance,
         elastic_mode: p.elastic_mode,
+        hessian,
         ..Default::default()
     }
     .validate()?;
@@ -89,6 +116,7 @@ pub(crate) fn prepare(
             model: built.model,
             payload: p,
             options,
+            hessian,
             cancel: CancellationToken::default(),
         },
     ))
@@ -144,9 +172,15 @@ impl Run {
     }
     /// The options the task ran with, as the result reports them.
     fn effective_options(&self) -> Value {
-        json!({"backend":self.payload.backend,"elastic_mode":self.payload.elastic_mode,
+        let mut options = json!({"backend":self.payload.backend,"elastic_mode":self.payload.elastic_mode,
             "max_iterations":self.payload.max_iterations,"max_callback_calls":self.payload.max_callback_calls,
-            "threads":self.options.threads})
+            "threads":self.options.threads});
+        if let Some(hessian) = &self.payload.hessian {
+            options["hessian"] = json!(hessian);
+            options["qp_reuse_workspace"] =
+                json!(self.hessian == Hessian::Partitioned && self.payload.backend == "clarabel");
+        }
+        options
     }
     /// Judges a native result. A claim whose independent check fails is
     /// refuted, never reported: converged without passing the recomputed
@@ -331,6 +365,16 @@ impl Run {
             details["elastic"] = json!({"steps":r.report.elastic_steps,"weight":r.report.elastic_weight,
                 "weight_increases":r.report.elastic_weight_increases});
         }
+        if let Some(structure) = &r.report.structure {
+            details["structure"] = json!({
+                "hessian_nnz": structure.hessian_nnz,
+                "hessian_factor_nnz": structure.hessian_factor_nnz,
+                "kkt_factor_nnz": structure.kkt_factor_nnz,
+                "estimated_memory_bytes": structure.estimated_memory_bytes,
+                "qp_factor_nnz": r.report.qp_factor_nnz,
+                "fell_back_to_full": structure.fell_back_to_full,
+            });
+        }
         if let Some(note) = note {
             details["note"] = json!(note);
         }
@@ -380,6 +424,9 @@ impl Prepared for Run {
             time_limit_seconds: Some(remaining),
             stationarity_tolerance: self.payload.stationarity_tolerance,
             elastic_mode: self.payload.elastic_mode,
+            hessian: self.hessian,
+            qp_reuse_workspace: self.hessian == Hessian::Partitioned
+                && self.payload.backend == "clarabel",
             ..SqpOptions::default()
         };
         let start = &self.payload.starts[task];
@@ -436,6 +483,9 @@ mod tests {
                 starts: vec![vec![0.5; dimension]],
                 backend: "active_set".into(),
                 elastic_mode: false,
+                hessian: None,
+                elements: None,
+                objective_pattern: None,
                 max_iterations: 100,
                 max_callback_calls: 1000,
                 feasibility_tolerance: 1e-7,
@@ -445,6 +495,7 @@ mod tests {
                 threads: 1,
                 feasibility_tolerance: 1e-7,
             },
+            hessian: Hessian::Full,
             cancel: CancellationToken::default(),
         }
     }

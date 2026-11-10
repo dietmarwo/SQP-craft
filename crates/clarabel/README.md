@@ -7,6 +7,11 @@ The Clarabel QP backend for the SQP-craft QP seam, the default backend of
 [`sqp-craft-solver`](https://crates.io/crates/sqp-craft-solver), with optional
 reuse of allocations and symbolic structure between QPs.
 
+Dense Hessians are limited to 256 variables. Above that, the adapter takes
+sparse Hessians from [structured SQP](https://github.com/dietmarwo/SQP-craft/blob/main/docs/structured-sqp.md): it checks a symbolic memory
+estimate and positive definiteness by sparse Cholesky before converting
+the QP.
+
 Part of [SQP-craft](https://github.com/dietmarwo/SQP-craft), which also holds the
 Python package and the job worker. To build from source:
 

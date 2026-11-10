@@ -3,7 +3,7 @@
 //! observer traits, typed results, KKT residuals and a QP seam.
 //!
 //! This core has no dependencies. The solver is the sibling crate
-//! `sqp-craft-solver` (dense damped BFGS, at most 256 variables) with the QP
+//! `sqp-craft-solver` (dense BFGS by default, optional sparse curvature) with the QP
 //! backends `sqp-craft-clarabel` or `sqp-craft-activeset`. [`DummySolver`]
 //! is a contract fixture: it evaluates the start point and never claims
 //! convergence.
@@ -52,14 +52,16 @@ pub mod kkt;
 mod problem;
 pub mod qp;
 mod solver;
+#[doc(hidden)]
+pub mod sparse;
 mod spec;
 
 pub use dummy::DummySolver;
 pub use error::{Error, Result};
 pub use problem::NlpProblem;
 pub use solver::{
-    CancellationToken, Control, CurvatureUpdate, Evaluation, EvaluationCounts, IterationRecord,
-    Multipliers, Observer, Options, Progress, RestorationRecord, RunReport, SolveResult, SqpSolver,
-    Status,
+    CancellationToken, Control, CurvatureElementReport, CurvatureUpdate, Evaluation,
+    EvaluationCounts, IterationRecord, Multipliers, Observer, Options, Progress, RestorationRecord,
+    RunReport, SolveResult, SqpSolver, Status, StructureReport,
 };
 pub use spec::{Bounds, CsrMatrix, CsrPattern, ProblemSpec};
