@@ -10,6 +10,13 @@ fixtures and from the benchmark, which also runs SLSQP and Uno's filterSQP
 and IPOPT presets. Other statements about other codes describe their
 published methods.
 
+**November 2026 structured follow-up.** [Partitioned and exact curvature](structured-sqp.md)
+now have experimental sparse paths. The measured SQP5 chain reaches 1,916
+variables under the 30-second budget and 4,994 on an extended run. The
+number of SQP steps still grows with arc count. The tested Jacobian scaling
+caused early QP rejection on the larger Lambert starts. Sparse active-set
+QP and large elastic mode remain open.
+
 ## 1. QP subproblems: cold interior point on a dense Hessian
 
 Every step QP is solved from scratch by Clarabel's interior-point method.
@@ -195,8 +202,9 @@ These properties should survive every change:
    scale options, measured on synthetic badly scaled families
    ([snopt-lessons.md](snopt-lessons.md)); a default needs the target
    application.
-5. Sparse or limited-memory curvature with a sparse QP when the application
-   needs more than a few hundred variables (gap 2).
+5. Sparse curvature with a sparse QP for bounded-size elements (gap 2).
+   Implemented experimentally with [partitioned BFGS and an exact callback](structured-sqp.md).
+   The exact shooting Hessian awaits second-order sensitivities.
 6. A CUTEst subset through a Python interface, to measure gaps 3–5 instead
    of reasoning about them (gap 6). Done: 1,036 problems with SLSQP and Uno
    as comparators ([benchmark-results.md](benchmark-results.md)). Its

@@ -1,9 +1,10 @@
 //! Native SQP driver: dense damped BFGS, convex QP subproblems behind
 //! [`QpBackend`], and an L1 merit line search with per-constraint penalties.
 //!
-//! A bounded research pilot, not a general solver: at most 256 variables and
-//! local Gauss–Newton restoration for inconsistent linearizations (disable it
-//! with `max_restoration_steps = 0`). Opt-in options add elastic step QPs, a
+//! Full BFGS accepts up to 256 variables. Partitioned BFGS and exact
+//! curvature support larger sparse models. Gauss–Newton restoration handles
+//! inconsistent linearizations (`max_restoration_steps = 0` disables it).
+//! Opt-in options add elastic step QPs, a
 //! second-order correction, and these mechanisms taken from SNOPT
 //! ([`docs/snopt-lessons.md`](https://github.com/dietmarwo/SQP-craft/blob/main/docs/snopt-lessons.md)):
 //! - SNOPT's BFGS repair ([`HessianUpdate::Augmented`]);
@@ -33,8 +34,11 @@
 
 pub mod batch;
 mod bfgs;
+mod exact;
+mod hessian;
 mod linear;
 mod merit;
+mod partitioned;
 mod restoration;
 mod scaling;
 
@@ -43,6 +47,8 @@ pub use scaling::Scaling;
 
 use std::time::Instant;
 
+use hessian::{HessianModel, Legacy};
+#[cfg(test)]
 use nalgebra::DMatrix;
 use sqp_craft::kkt::nlp_residuals;
 use sqp_craft::qp::{QpBackend, QpModel, QpOptions, QpOutcome, QpSolution, QpWarmStart};
@@ -68,6 +74,8 @@ const MERIT_ROUNDING: f64 = 100.0;
 /// Consecutive steps allowed whose predicted merit decrease is non-positive
 /// only within the QP's accuracy (see the line search).
 const MAX_NOISE_STEPS: u32 = 3;
+/// Maximum convexification retries per exact Hessian.
+const MAX_EXACT_SHIFT_RETRIES: u32 = 2;
 /// Times elastic mode multiplies its weight by ten at a stationary point of
 /// the ℓ1 penalty with violated constraints before it reports
 /// `locally_infeasible`.
@@ -153,6 +161,32 @@ impl Merit {
     }
 }
 
+/// Curvature approximation used by the native SQP driver.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Hessian {
+    /// Legacy full BFGS or explicit uniform blocks, selected by block width.
+    #[default]
+    Full,
+    /// Sparse element-wise BFGS on overlapping constraint cliques.
+    Partitioned,
+    /// Callback-provided sparse Lagrangian Hessian.
+    Exact,
+}
+
+impl Hessian {
+    /// Parses the native and Python option spelling.
+    pub fn parse(name: &str) -> Result<Self> {
+        match name {
+            "full" => Ok(Self::Full),
+            "partitioned" => Ok(Self::Partitioned),
+            "exact" => Ok(Self::Exact),
+            _ => Err(Error::InvalidInput(format!(
+                "hessian must be \"full\", \"partitioned\", or \"exact\", got {name:?}"
+            ))),
+        }
+    }
+}
+
 /// Settings of [`NativeSqp`]. Every field is used; invalid values are rejected.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SqpOptions {
@@ -160,8 +194,8 @@ pub struct SqpOptions {
     pub max_iterations: u64,
     /// Maximum step halvings in one line search after the first trial.
     pub max_backtracks: u32,
-    /// Maximum `functions` plus `derivatives` calls, including rejected and
-    /// undefined trials.
+    /// Maximum model calls, including rejected and undefined trials and
+    /// the Lagrangian Hessian callback in exact mode.
     pub max_callback_calls: u64,
     /// Cooperative wall-time budget for the whole solve, in seconds.
     pub time_limit_seconds: Option<f64>,
@@ -171,8 +205,12 @@ pub struct SqpOptions {
     pub complementarity_tolerance: f64,
     /// Absolute tolerance on multipliers whose sign selects an infinite bound.
     pub dual_sign_tolerance: f64,
-    /// Variables allowed for this solve, `1..=DENSE_SIZE_CAP`.
+    /// Variables allowed in the legacy dense and block modes, `1..=DENSE_SIZE_CAP`.
     pub dense_size_limit: usize,
+    /// Hessian model. The default retains the legacy arithmetic.
+    pub hessian: Hessian,
+    /// Budget for estimated structured model and symbolic QP storage.
+    pub structured_memory_limit_bytes: usize,
     /// Initial and reset Hessian approximation `B = scale · I`.
     pub initial_hessian_scale: f64,
     /// Contiguous curvature block width; zero keeps full BFGS (default).
@@ -237,6 +275,8 @@ impl Default for SqpOptions {
             complementarity_tolerance: 1e-6,
             dual_sign_tolerance: 1e-8,
             dense_size_limit: DENSE_SIZE_CAP,
+            hessian: Hessian::Full,
+            structured_memory_limit_bytes: 64 * 1024 * 1024,
             initial_hessian_scale: 1.0,
             hessian_block_size: 0,
             max_hessian_resets: 3,
@@ -295,6 +335,19 @@ impl SqpOptions {
                 "dense_size_limit must be in 1..={DENSE_SIZE_CAP}, got {}",
                 self.dense_size_limit
             )));
+        }
+        if !(1..=sqp_craft::sparse::MAX_MEMORY_BYTES).contains(&self.structured_memory_limit_bytes)
+        {
+            return Err(Error::InvalidInput(format!(
+                "structured_memory_limit_bytes must be in 1..={}, got {}",
+                sqp_craft::sparse::MAX_MEMORY_BYTES,
+                self.structured_memory_limit_bytes
+            )));
+        }
+        if self.hessian != Hessian::Full && self.hessian_block_size != 0 {
+            return Err(Error::InvalidInput(
+                "hessian_block_size applies only to hessian=full".into(),
+            ));
         }
         if self.hessian_block_size > DENSE_SIZE_CAP {
             return Err(Error::InvalidInput(
@@ -366,6 +419,7 @@ fn record_qp_work(run: &mut sqp_craft::RunReport, qp: &sqp_craft::qp::QpReport) 
     run.qp_update_seconds += qp.update_seconds;
     run.qp_solve_seconds += qp.solve_seconds;
     run.qp_check_seconds += qp.check_seconds;
+    run.qp_factor_nnz = qp.factor_nnz;
 }
 
 /// `Σ weights_i · (max(0, lower_i − v_i) + max(0, v_i − upper_i))` over finite sides.
@@ -401,18 +455,13 @@ fn beyond_limits(bounds: &Bounds, values: &[f64], limits: &[f64]) -> bool {
         .any(|(i, (&v, &limit))| row_violation(bounds, i, v) > limit)
 }
 
-/// `pᵀBp`.
-fn curvature_along(b: &DMatrix<f64>, p: &[f64]) -> Result<f64> {
-    let pv = nalgebra::DVectorView::from_slice(p, p.len());
-    finite((b * pv).dot(&pv), "step curvature")
-}
-
 /// Model calls with budget, cancellation and timing bookkeeping.
 struct Calls<'a> {
     began: Instant,
     settings: &'a SqpOptions,
     cancel: &'a CancellationToken,
     counts: EvaluationCounts,
+    hessian_calls: u64,
     seconds: f64,
     gradient_scratch: Vec<f64>,
     jacobian_scratch: Vec<f64>,
@@ -439,7 +488,8 @@ impl Calls<'_> {
 
     fn before_call(&self) -> Option<Status> {
         self.stop().or_else(|| {
-            (self.counts.functions + self.counts.derivatives >= self.settings.max_callback_calls)
+            (self.counts.functions + self.counts.derivatives + self.hessian_calls
+                >= self.settings.max_callback_calls)
                 .then_some(Status::EvaluationLimit)
         })
     }
@@ -595,41 +645,15 @@ fn trial_point(bounds: &Bounds, x: &[f64], p: &[f64], alpha: f64) -> Vec<f64> {
         .collect()
 }
 
-/// The step QP at `x` with model values `e` and Hessian approximation `b`.
-#[cfg(test)]
-fn qp_model(spec: &ProblemSpec, x: &[f64], e: &Evaluation, b: &DMatrix<f64>) -> Result<QpModel> {
-    qp_model_with_blocks(spec, x, e, b, 0)
-}
-fn qp_model_with_blocks(
+/// The step QP at `x` with model values `e` and the current Hessian.
+fn qp_model(
     spec: &ProblemSpec,
     x: &[f64],
     e: &Evaluation,
-    b: &DMatrix<f64>,
-    block: usize,
+    hessian: &dyn HessianModel,
 ) -> Result<QpModel> {
-    let n = spec.n();
-    let mut indptr = vec![0];
-    let capacity = n * (if block == 0 { n } else { block.min(n) } + 1) / 2;
-    let mut indices = Vec::with_capacity(capacity);
-    let mut values = Vec::with_capacity(capacity);
-    for i in 0..n {
-        let first = i.checked_div(block).unwrap_or(0) * block;
-        for j in first..=i {
-            indices.push(j);
-            values.push(b[(i, j)]);
-        }
-        indptr.push(indices.len());
-    }
     Ok(QpModel {
-        hessian_lower: CsrMatrix {
-            pattern: CsrPattern {
-                rows: n,
-                cols: n,
-                indptr,
-                indices,
-            },
-            values,
-        },
+        hessian_lower: hessian.lower_csr(),
         gradient: e.gradient.clone(),
         variables: shifted(spec.variables(), x)?,
         matrix: CsrMatrix {
@@ -646,14 +670,9 @@ fn refresh_qp(
     spec: &ProblemSpec,
     x: &[f64],
     e: &Evaluation,
-    b: &DMatrix<f64>,
+    hessian: &dyn HessianModel,
 ) -> Result<()> {
-    let h = &mut q.hessian_lower;
-    for i in 0..spec.n() {
-        for k in h.pattern.indptr[i]..h.pattern.indptr[i + 1] {
-            h.values[k] = b[(i, h.pattern.indices[k])];
-        }
-    }
+    hessian.refresh_lower(&mut q.hessian_lower);
     q.gradient.clone_from(&e.gradient);
     q.matrix.values.clone_from(&e.jacobian_values);
     for (dst, src, values) in [
@@ -838,12 +857,29 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         }
         spec.check_point(x0, "start point")?;
         if spec.n() > self.settings.dense_size_limit {
-            return Err(Error::Unsupported(format!(
-                "n = {} exceeds the dense pilot limit of {} variables",
-                spec.n(),
-                self.settings.dense_size_limit
-            )));
+            if self.settings.hessian == Hessian::Full {
+                return Err(Error::Unsupported(format!(
+                    "n = {} exceeds the dense pilot limit of {} variables",
+                    spec.n(),
+                    self.settings.dense_size_limit
+                )));
+            }
+            if !self.qp.supports_large_sparse() || self.settings.elastic_mode {
+                return Err(Error::Unsupported(
+                    "structured SQP above the dense limit requires a sparse QP backend without elastic mode".into(),
+                ));
+            }
         }
+        let settings = &self.settings;
+        let mut hessian: Box<dyn HessianModel> = match settings.hessian {
+            Hessian::Full => Box::new(Legacy::new(
+                spec.n(),
+                settings.hessian_block_size,
+                settings.initial_hessian_scale,
+            )),
+            Hessian::Partitioned => Box::new(partitioned::Partitioned::new(spec, settings)?),
+            Hessian::Exact => Box::new(exact::Exact::new(spec, settings)?),
+        };
         if !cancel.is_cancelled()
             && !self
                 .settings
@@ -852,7 +888,6 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         {
             model.set_threads(options.threads)?;
         }
-        let settings = &self.settings;
         let qp_acceptance = options
             .feasibility_tolerance
             .min(settings.stationarity_tolerance)
@@ -862,6 +897,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             settings,
             cancel,
             counts: EvaluationCounts::default(),
+            hessian_calls: 0,
             seconds: 0.0,
             gradient_scratch: Vec::new(),
             jacobian_scratch: Vec::new(),
@@ -937,14 +973,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             Vec::new()
         };
 
-        let n = spec.n();
-        let mut b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
-        let mut effective_block = if settings.hessian_block_size >= n {
-            0
+        let mut exact_at = None;
+        let mut exact_shift_retries = 0;
+        let zero_lambda = if settings.hessian == Hessian::Exact {
+            vec![0.0; spec.m()]
         } else {
-            settings.hessian_block_size
+            Vec::new()
         };
-        let mut bfgs_work = bfgs::Curvature::new(n, effective_block);
+        let n = spec.n();
         let mut qp_work: Option<QpModel> = None;
         // The last step QP's working set, if the backend reports one.
         let mut qp_warm: Option<QpWarmStart> = None;
@@ -1008,10 +1044,30 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             // 1. Step QP.
             let x = r.candidate.as_ref().expect("evaluated");
             let e = r.evaluation.as_ref().expect("evaluated");
+            if settings.hessian == Hessian::Exact && exact_at != Some(r.iterations) {
+                if let Some(s) = calls.before_call() {
+                    status = Some(s);
+                    break;
+                }
+                let lambda = r
+                    .multipliers
+                    .as_ref()
+                    .map_or(zero_lambda.as_slice(), |m| m.constraints.as_slice());
+                let t = Instant::now();
+                hessian.exact_at(model, x, lambda, &scales)?;
+                calls.seconds += t.elapsed().as_secs_f64();
+                calls.hessian_calls += 1;
+                exact_at = Some(r.iterations);
+                exact_shift_retries = 0;
+                if let Some(s) = calls.stop() {
+                    status = Some(s);
+                    break;
+                }
+            }
             if let Some(q) = qp_work.as_mut() {
-                refresh_qp(q, spec, x, e, &b)?;
+                refresh_qp(q, spec, x, e, hessian.as_ref())?;
             } else {
-                qp_work = Some(qp_model_with_blocks(spec, x, e, &b, effective_block)?);
+                qp_work = Some(qp_model(spec, x, e, hessian.as_ref())?);
             }
             if !scaled_identity {
                 // B is kept in scaled coordinates; scale the rest.
@@ -1067,6 +1123,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         &mut r,
                         options,
                         &scales,
+                        hessian.structured_pattern(),
                     );
                     r.report.restoration_seconds += began.elapsed().as_secs_f64();
                     status = restored?;
@@ -1078,7 +1135,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     }
                     // Feasibility steps do not carry an NLP multiplier estimate.
                     // Restart curvature/penalties without spending the BFGS failure budget.
-                    b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                    hessian.reset();
                     penalties.fill(0.0);
                     have_penalties = false;
                     augmented.reset();
@@ -1110,6 +1167,20 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 }
                 Ok(QpOutcome::NotPositiveDefinite) => {
                     r.report.qp_not_positive_definite += 1;
+                    if settings.hessian == Hessian::Exact {
+                        if exact_shift_retries >= MAX_EXACT_SHIFT_RETRIES {
+                            status = Some(Status::NumericalFailure);
+                            r.message =
+                                "the exact Hessian remained indefinite after diagonal shifts"
+                                    .into();
+                            break;
+                        }
+                        hessian.shift_diagonal()?;
+                        exact_shift_retries += 1;
+                        retry_descent = false;
+                        notify = false;
+                        continue;
+                    }
                     // Damping keeps B positive definite in exact arithmetic,
                     // but rounding in the explicit update can leave it
                     // indefinite. The backend's exact check is the only
@@ -1123,13 +1194,14 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                             .into();
                         break;
                     }
-                    if effective_block > 0 {
-                        effective_block = 0;
-                        bfgs_work = bfgs::Curvature::new(n, 0);
-                        qp_work = None;
-                        r.report.block_hessian_fallbacks += 1;
-                    }
-                    b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                    hessian::fallback_to_full(
+                        &mut hessian,
+                        &mut qp_work,
+                        &mut r.report,
+                        n,
+                        settings.initial_hessian_scale,
+                    );
+                    hessian.reset();
                     r.report.hessian_resets += 1;
                     retry_descent = false;
                     notify = false;
@@ -1312,7 +1384,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     &e.constraints,
                     &linear,
                     dot(&e.gradient, p)?,
-                    curvature_along(&b, &scales.to_scaled(p))?,
+                    hessian.curvature_along(&scales.to_scaled(p))?,
                     &solution.multipliers.constraints,
                     &skip_rows,
                 )?)
@@ -1376,7 +1448,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 if !retry_descent
                     && r.report.hessian_resets < u64::from(settings.max_hessian_resets)
                 {
-                    b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                    hessian.reset();
                     r.report.hessian_resets += 1;
                     retry_descent = true;
                     notify = false;
@@ -1697,50 +1769,26 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 linear::check_constant(spec, reference, &next_evaluation)?;
             }
             let s: Vec<f64> = next.iter().zip(x).map(|(&a, &b)| a - b).collect();
-            let old_l = lagrangian_gradient(spec, e, &solution.multipliers)?;
-            let new_l = lagrangian_gradient(spec, &next_evaluation, &solution.multipliers)?;
-            let y: Vec<f64> = new_l.iter().zip(old_l).map(|(&a, b)| a - b).collect();
             let t = Instant::now();
-            let (mut change, mut departure) = match settings.hessian_update {
-                HessianUpdate::Damped => (Vec::new(), Vec::new()),
-                HessianUpdate::Augmented => curvature_repair(spec, e, &next_evaluation, &s)?,
-            };
-            // B lives in scaled coordinates: s̃ = s/D, ỹ = D y, J̃ = R J D.
-            let (s_scaled, y) = if scaled_identity {
-                (s.clone(), y)
-            } else {
-                let jacobian = spec.jacobian();
-                for i in 0..spec.m() {
-                    for a in jacobian.indptr[i]..jacobian.indptr[i + 1] {
-                        if let Some(c) = change.get_mut(a) {
-                            *c *= scales.rows[i] * scales.variables[jacobian.indices[a]];
-                        }
-                    }
-                    if let Some(d) = departure.get_mut(i) {
-                        *d *= scales.rows[i];
-                    }
-                }
-                let y = y
-                    .iter()
-                    .zip(&scales.variables)
-                    .map(|(v, d)| v * d)
-                    .collect();
-                (scales.to_scaled(&s), y)
-            };
-            let repair =
-                (settings.hessian_update == HessianUpdate::Augmented).then(|| bfgs::Repair {
-                    pattern: spec.jacobian(),
-                    change: &change,
-                    departure: &departure,
-                });
-            let updated = bfgs_work.update(&mut b, &s_scaled, &y, repair.as_ref());
+            let updated = hessian.update(&hessian::Update {
+                spec,
+                previous: e,
+                next: &next_evaluation,
+                multipliers: &solution.multipliers,
+                step: &s,
+                scales: &scales,
+                scaled_identity,
+                strategy: settings.hessian_update,
+            })?;
             r.report.bfgs_seconds += t.elapsed().as_secs_f64();
             match updated {
                 Some(CurvatureUpdate::Damped) => r.report.bfgs_damped_updates += 1,
                 Some(CurvatureUpdate::Modified) => r.report.bfgs_modified_updates += 1,
                 _ => {}
             }
-            record.curvature = Some(updated.unwrap_or(CurvatureUpdate::Reset));
+            if settings.hessian != Hessian::Exact {
+                record.curvature = Some(updated.unwrap_or(CurvatureUpdate::Reset));
+            }
             if settings.record_history {
                 r.report.history.push(record);
             }
@@ -1758,19 +1806,23 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         "BFGS update failed and the Hessian reset budget is exhausted".into();
                     break;
                 }
-                if effective_block > 0 {
-                    effective_block = 0;
-                    bfgs_work = bfgs::Curvature::new(n, 0);
-                    qp_work = None;
-                    r.report.block_hessian_fallbacks += 1;
-                }
-                b = DMatrix::identity(n, n) * settings.initial_hessian_scale;
+                hessian::fallback_to_full(
+                    &mut hessian,
+                    &mut qp_work,
+                    &mut r.report,
+                    n,
+                    settings.initial_hessian_scale,
+                );
+                hessian.reset();
                 r.report.hessian_resets += 1;
             }
             retry_descent = false;
             notify = true;
         }
 
+        if r.report.structure.is_none() {
+            r.report.structure = hessian.structure_report();
+        }
         r.report.elastic_weight = elastic_weight;
         r.status = status.unwrap_or(Status::IterationLimit);
         if r.message.is_empty() {
@@ -1843,7 +1895,9 @@ mod tests {
                 .is_some()
         );
         assert!(b.clone().cholesky().is_some());
-        let q = qp_model_with_blocks(&spec, &[0.; 7], &e, &b, 3).unwrap();
+        let mut hessian = Legacy::new(n, 3, 1.0);
+        hessian.matrix = b.clone();
+        let q = qp_model(&spec, &[0.; 7], &e, &hessian).unwrap();
         q.validate().unwrap();
         assert_eq!(q.hessian_lower.values.len(), 13);
         for i in 0..n {
@@ -1900,6 +1954,7 @@ mod tests {
             settings: &settings,
             cancel: &cancel,
             counts: EvaluationCounts::default(),
+            hessian_calls: 0,
             seconds: 0.,
             gradient_scratch: vec![],
             jacobian_scratch: vec![],
@@ -1929,8 +1984,8 @@ mod tests {
             primal_violation: 0.,
             feasible_candidate: true,
         };
-        let mut b = DMatrix::identity(3, 3);
-        let mut q = qp_model(&spec, &[1.; 3], &e, &b).unwrap();
+        let mut hessian = Legacy::new(3, 0, 1.0);
+        let mut q = qp_model(&spec, &[1.; 3], &e, &hessian).unwrap();
         let pointers = (
             q.hessian_lower.pattern.indices.as_ptr(),
             q.matrix.pattern.indices.as_ptr(),
@@ -1940,10 +1995,10 @@ mod tests {
         for step in 1..5 {
             e.constraints[0] = step as f64 / 10.;
             e.jacobian_values[2] = step as f64;
-            b[(1, 1)] = step as f64;
+            hessian.matrix[(1, 1)] = step as f64;
             let x = [0.5 + step as f64 / 10.; 3];
-            refresh_qp(&mut q, &spec, &x, &e, &b).unwrap();
-            assert_eq!(q, qp_model(&spec, &x, &e, &b).unwrap());
+            refresh_qp(&mut q, &spec, &x, &e, &hessian).unwrap();
+            assert_eq!(q, qp_model(&spec, &x, &e, &hessian).unwrap());
             assert_eq!(
                 pointers,
                 (

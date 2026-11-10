@@ -64,7 +64,7 @@ rechecks its answer in Python.
 | `ModelInfo` method | Says |
 | --- | --- |
 | `new(id, version, description)` | identifier, version and one line for `describe` |
-| `dimensions(lo..=hi)` | the dimensions a job may give, within 1..=256 (default all) |
+| `dimensions(lo..=hi)` | the allowed range, within 1..=5,000. Defaults to 1..=256 |
 | `config_schema(json)` | the JSON Schema `properties` of the config type; the registry adds `type`, `additionalProperties: false` and the defaults |
 | `input(name, description, example_file, example_text)` | a data input, with a small example for `describe` |
 | `example_dimension(n)`, `example_start(x)` | the example job (default: smallest dimension, middle of the box) |
@@ -75,6 +75,16 @@ A job states `problem` (the id), `dimension`, and optionally
 `problem_version` (it must equal the registered version) and `config`. The
 resolved job records the version and the effective config, defaults
 included, so the record shows exactly what ran.
+
+For dimensions above 256, the factory can return at most 262,144 Jacobian
+entries. Use `"hessian": "partitioned"` and `"backend": "clarabel"` in the
+solve payload. The `objective_pattern` declaration is required on the spec
+or in the payload, where `[]` declares an affine objective. Optional
+`elements` in the payload override the factory's partition of constraint
+rows. These fields extend `sqp.solve/1`. The worker still checks every
+first-order claim by evaluating a fresh model at the returned point.
+See [structured SQP](../structured-sqp.md) for the memory estimate and
+curvature diagnostics.
 
 ## What a factory receives
 

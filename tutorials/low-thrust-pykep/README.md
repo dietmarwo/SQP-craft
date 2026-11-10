@@ -58,3 +58,50 @@ The checked-in `results/` record one run of each preset. The shared driver write
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
 The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.
+
+## Multiple shooting
+
+The multiple-shooting extension keeps the same 300-day transfer and global cut.
+Each arc matches adjacent position, velocity and mass states with seven
+equations, followed by its four throttle bounds. The only nonlinear
+couplings are inside an arc and across its shared endpoint. The affine
+terminal-mass objective needs no objective element. The large cases use
+Clarabel with partitioned BFGS, one numerical thread, workspace reuse and
+no extra Jacobian scaling.
+
+It needs sqp-craft 0.18.0 or later and pykep-rust 0.1.6 or later (for
+`pykep_rust.trajopt.SimsFlanaganChain`), or both built from source, in the
+same environment. Run these commands from the SQP-craft root.
+
+```sh
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1
+python -m bench.trajectory_scale --arcs 101 --method derivatives \
+  --output derivative-1916.json
+python -m bench.trajectory_scale --arcs 101 --method partitioned --scaling none \
+  --output transfer-1916.json
+python -m bench.trajectory_scale --arcs 101 --method partitioned --scaling none \
+  --seed offset --output offset-1916.json
+```
+
+Inspect `check` for the independently recomputed first-order residuals.
+Inspect `replay` for the original single-leg and per-arc DOP853 defects in
+km, m/s and kg. The 1,916-variable Lambert case took 127 accepted steps.
+The 4,994-variable case used an extended budget and took 212 steps.
+See the [target card](../../docs/target-card.md) for model units and the
+[structured SQP guide](../../docs/structured-sqp.md) for the results and
+limitations.
+
+To run the frozen five sizes and two offset starts with experiment-craft,
+generate a manifest and use a new local node with trusted commands enabled.
+
+```sh
+python -m bench.trajectory_campaign /abs/new/sqp5-study
+optimization-run --root /abs/new/sqp5-node node init --capacity 1 --allow-commands
+experiment-craft run /abs/new/sqp5-study/campaign.json \
+  --workspace /abs/new/sqp5-work \
+  --runner "$(command -v optimization-run)" --node-root /abs/new/sqp5-node \
+  --mode foreground
+```
+
+Each campaign step seals a `result.json`. Check its `passed` or
+`check.accepted` field for numerical acceptance.

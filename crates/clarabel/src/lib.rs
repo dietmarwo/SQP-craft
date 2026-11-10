@@ -9,7 +9,7 @@
 #![warn(missing_docs)]
 use clarabel::{algebra::CscMatrix, solver::*};
 use nalgebra::DMatrix;
-use sqp_craft::{CancellationToken, Error, Multipliers, Result, qp::*};
+use sqp_craft::{CancellationToken, CsrPattern, Error, Multipliers, Result, qp::*, sparse};
 use std::time::Instant;
 
 /// Clarabel QP backend; configure through [`QpBackend::configure`].
@@ -22,6 +22,7 @@ pub struct ClarabelQp {
     checks: QpResidualWorkspace,
     conversion: Option<ConversionCache>,
     pd: PdScratch,
+    sparse_pd: Option<SparsePd>,
     threads: usize,
     #[cfg(test)]
     cancel_at_iteration: Option<u32>,
@@ -38,6 +39,7 @@ impl Clone for ClarabelQp {
             checks: QpResidualWorkspace::default(),
             conversion: None,
             pd: PdScratch::default(),
+            sparse_pd: None,
             threads: self.threads,
             #[cfg(test)]
             cancel_at_iteration: self.cancel_at_iteration,
@@ -134,6 +136,14 @@ struct PdScratch {
     dense: DMatrix<f64>,
     diagonal: Vec<f64>,
     radii: Vec<f64>,
+}
+
+const DENSE_PD_LIMIT: usize = 256;
+
+struct SparsePd {
+    pattern: CsrPattern,
+    symbolic: sparse::Symbolic,
+    factor: Vec<f64>,
 }
 
 /// Exact positive-definiteness gate for the Hessian.
@@ -496,6 +506,10 @@ impl QpBackend for ClarabelQp {
         }
         Ok(())
     }
+    fn supports_large_sparse(&self) -> bool {
+        true
+    }
+
     fn report(&self) -> QpReport {
         self.last.clone()
     }
@@ -516,11 +530,6 @@ impl QpBackend for ClarabelQp {
                 ));
             }
         }
-        if model.n() > 256 {
-            return Err(Error::Unsupported(
-                "Clarabel dense pilot is limited to 256 variables".into(),
-            ));
-        }
         self.last = QpReport {
             backend: "clarabel 0.11.1".into(),
             ..Default::default()
@@ -531,7 +540,46 @@ impl QpBackend for ClarabelQp {
             return Ok(outcome);
         }
         let t = Instant::now();
-        if !positive_definite(model, &mut self.pd) {
+        let pd = if model.n() > DENSE_PD_LIMIT {
+            let h = &model.hessian_lower;
+            let n = model.n();
+            if h.pattern.nnz() == n.saturating_mul(n + 1) / 2 {
+                return Err(Error::Unsupported(
+                    "Clarabel limits dense Hessians to 256 variables".into(),
+                ));
+            }
+            let fixed = n
+                .saturating_add(model.m())
+                .saturating_mul(192)
+                .saturating_add(model.matrix.pattern.nnz().saturating_mul(64));
+            sparse::check_memory(fixed, sparse::MAX_MEMORY_BYTES)?;
+            if !self.conversion.as_ref().is_some_and(|c| c.matches(model)) {
+                sparse::kkt_fill(
+                    &h.pattern,
+                    &model.matrix.pattern,
+                    &model.rows,
+                    &model.variables,
+                    sparse::MAX_MEMORY_BYTES - fixed,
+                )?;
+            }
+            if !self
+                .sparse_pd
+                .as_ref()
+                .is_some_and(|pd| pd.pattern == h.pattern)
+            {
+                self.sparse_pd = Some(SparsePd {
+                    symbolic: sparse::Symbolic::of(&h.pattern, sparse::MAX_MEMORY_BYTES)?,
+                    pattern: h.pattern.clone(),
+                    factor: Vec::new(),
+                });
+            }
+            let pd = self.sparse_pd.as_mut().expect("sparse Hessian pattern");
+            pd.symbolic
+                .positive_definite(&h.pattern, &h.values, &mut pd.factor)
+        } else {
+            positive_definite(model, &mut self.pd)
+        };
+        if !pd {
             // Nothing was solved or changed: keep both caches, so the
             // caller's re-solve (with a reset Hessian) reuses them exactly
             // as if this call had not happened.
@@ -633,6 +681,7 @@ impl QpBackend for ClarabelQp {
             workspace.solver.solve();
             self.last.solve_seconds += t.elapsed().as_secs_f64();
             workspace.solver.unset_termination_callback();
+            self.last.factor_nnz = Some(workspace.solver.info.linsolver.nnzL);
             let raw = workspace.solver.solution.status;
             self.last.raw_status = Some(format!("{raw:?}"));
             self.last.iterations += u64::from(workspace.solver.solution.iterations);

@@ -107,35 +107,7 @@ impl QpModel {
     /// # Panics
     /// On length mismatches or an invalid model.
     pub fn hessian_product(&self, p: &[f64], out: &mut [f64]) {
-        let h = &self.hessian_lower;
-        assert_eq!(p.len(), self.n(), "p length");
-        assert_eq!(out.len(), self.n(), "out length");
-        out.fill(0.0);
-        for i in 0..self.n() {
-            let range = h.pattern.indptr[i]..h.pattern.indptr[i + 1];
-            let pi = p[i];
-            let mut value = out[i];
-            if range.len() == i + 1 {
-                // In a valid lower-only sorted row, full length proves 0..=i.
-                let values = &h.values[range];
-                for ((&v, &pj), outj) in values[..i].iter().zip(&p[..i]).zip(&mut out[..i]) {
-                    value += v * pj;
-                    *outj += v * pi;
-                }
-                out[i] = value + values[i] * pi;
-                continue;
-            }
-            for (&j, &v) in h.pattern.indices[range.clone()]
-                .iter()
-                .zip(&h.values[range])
-            {
-                value += v * p[j];
-                if j != i {
-                    out[j] += v * pi;
-                }
-            }
-            out[i] = value;
-        }
+        self.hessian_lower.symmetric_lower_product(p, out);
     }
 
     /// Objective value `0.5 p^T H p + g^T p`.
@@ -535,6 +507,11 @@ pub trait QpBackend {
     fn supports_elastic(&self) -> bool {
         false
     }
+    /// Whether structured SQP may send step QPs above its dense dimension cap.
+    /// A backend opting in must keep its factorization path sparse.
+    fn supports_large_sparse(&self) -> bool {
+        false
+    }
     /// Engine identity and last termination details.
     fn report(&self) -> QpReport {
         QpReport::default()
@@ -641,6 +618,8 @@ impl QpOptions {
 /// Details not represented by the backend-neutral outcome enum.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct QpReport {
+    /// Nonzeros reported by the backend for its numeric factor structure.
+    pub factor_nnz: Option<usize>,
     /// Engine and version.
     pub backend: String,
     /// Native termination status.

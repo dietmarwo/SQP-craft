@@ -61,3 +61,12 @@ The checked-in `results/` record one run of each preset. The shared driver write
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
 The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.
+
+## Exact Hessian experiment
+
+Run `python tutorials/_support/exact_hessian.py` from the repository root
+with sqp-craft 0.18.0 or later. The script differentiates the trapezoidal defects
+analytically, checks the lower CSR Hessian at nonzero multipliers, and
+compares full BFGS with the convexified exact model. Both passed the
+first-order check. The exact run needed 75 steps and 76 diagonal shifts
+against 13 steps for full BFGS. See [structured SQP](../../docs/structured-sqp.md).

@@ -57,8 +57,9 @@ thread.
 
 - Smooth (twice continuously differentiable) objective and constraints with
   first derivatives; kinks, noise and branches break BFGS and the line search.
-- At most 256 variables (dense BFGS). For larger sparse problems, an
-  IPOPT-family solver fits better.
+- Full and uniform-block BFGS accept up to 256 variables. Experimental
+  [structured SQP](https://github.com/dietmarwo/SQP-craft/blob/main/docs/structured-sqp.md) uses sparse curvature and
+  Clarabel for larger models with declared structure.
 - A local method: `converged` means a first-order KKT point within the
   tolerances, not a global optimum. Use several starts for multimodal models.
 

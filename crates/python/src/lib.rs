@@ -106,7 +106,7 @@ struct PyProblemSpec {
 #[pymethods]
 impl PyProblemSpec {
     #[new]
-    #[pyo3(signature = (*, lower, upper, constraint_lower, constraint_upper, jacobian_indptr, jacobian_indices, linear_rows=None))]
+    #[pyo3(signature = (*, lower, upper, constraint_lower, constraint_upper, jacobian_indptr, jacobian_indices, linear_rows=None, elements=None, objective_pattern=None, hessian_indptr=None, hessian_indices=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         lower: &Bound<'_, PyAny>,
@@ -116,6 +116,10 @@ impl PyProblemSpec {
         jacobian_indptr: &Bound<'_, PyAny>,
         jacobian_indices: &Bound<'_, PyAny>,
         linear_rows: Option<&Bound<'_, PyAny>>,
+        elements: Option<&Bound<'_, PyAny>>,
+        objective_pattern: Option<&Bound<'_, PyAny>>,
+        hessian_indptr: Option<&Bound<'_, PyAny>>,
+        hessian_indices: Option<&Bound<'_, PyAny>>,
     ) -> PyResult<Self> {
         let variables = Bounds::new(floats(lower, "lower")?, floats(upper, "upper")?);
         let constraints = Bounds::new(
@@ -133,6 +137,38 @@ impl PyProblemSpec {
             inner = inner
                 .with_linear_rows(&indices(rows, "linear_rows")?)
                 .map_err(to_py_err)?;
+        }
+        if let Some(groups) = elements {
+            let rows = groups
+                .try_iter()?
+                .enumerate()
+                .map(|(i, group)| indices(&group?, &format!("elements[{i}]")))
+                .collect::<PyResult<Vec<_>>>()?;
+            inner = inner.with_elements(&rows).map_err(to_py_err)?;
+        }
+        if let Some(columns) = objective_pattern {
+            inner = inner
+                .with_objective_pattern(&indices(columns, "objective_pattern")?)
+                .map_err(to_py_err)?;
+        }
+        match (hessian_indptr, hessian_indices) {
+            (Some(ptr), Some(cols)) => {
+                let n = inner.n();
+                inner = inner
+                    .with_lagrangian_hessian(CsrPattern {
+                        rows: n,
+                        cols: n,
+                        indptr: indices(ptr, "hessian_indptr")?,
+                        indices: indices(cols, "hessian_indices")?,
+                    })
+                    .map_err(to_py_err)?;
+            }
+            (None, None) => {}
+            _ => {
+                return Err(PyValueError::new_err(
+                    "hessian_indptr and hessian_indices must be given together",
+                ));
+            }
         }
         Ok(Self { inner })
     }
@@ -193,6 +229,34 @@ impl PyProblemSpec {
             .collect()
     }
 
+    /// Explicit row partition, if supplied.
+    #[getter]
+    fn elements(&self) -> Option<Vec<Vec<usize>>> {
+        self.inner.elements().map(<[Vec<usize>]>::to_vec)
+    }
+
+    /// Declared nonlinear objective support, empty for an affine objective.
+    #[getter]
+    fn objective_pattern(&self) -> Option<Vec<usize>> {
+        self.inner.objective_pattern().map(<[usize]>::to_vec)
+    }
+
+    /// Lower-CSR Lagrangian Hessian row pointers, if supplied.
+    #[getter]
+    fn hessian_indptr(&self) -> Option<Vec<usize>> {
+        self.inner
+            .lagrangian_hessian_pattern()
+            .map(|p| p.indptr.clone())
+    }
+
+    /// Lower-CSR Lagrangian Hessian columns, if supplied.
+    #[getter]
+    fn hessian_indices(&self) -> Option<Vec<usize>> {
+        self.inner
+            .lagrangian_hessian_pattern()
+            .map(|p| p.indices.clone())
+    }
+
     /// Supports pickling, so a spec can be sent to worker processes.
     fn __getnewargs_ex__<'py>(
         &self,
@@ -206,6 +270,16 @@ impl PyProblemSpec {
         kwargs.set_item("jacobian_indptr", self.jacobian_indptr())?;
         kwargs.set_item("jacobian_indices", self.jacobian_indices())?;
         kwargs.set_item("linear_rows", self.linear_rows())?;
+        if let Some(groups) = self.elements() {
+            kwargs.set_item("elements", groups)?;
+        }
+        if let Some(columns) = self.objective_pattern() {
+            kwargs.set_item("objective_pattern", columns)?;
+        }
+        if let Some(ptr) = self.hessian_indptr() {
+            kwargs.set_item("hessian_indptr", ptr)?;
+            kwargs.set_item("hessian_indices", self.hessian_indices())?;
+        }
         Ok((PyTuple::empty(py), kwargs))
     }
 
@@ -303,6 +377,7 @@ fn reraise<T>(
 struct PythonModel {
     functions: Py<PyAny>,
     derivatives: Py<PyAny>,
+    hessian: Option<Py<PyAny>>,
     failure: Option<Failure>,
 }
 
@@ -311,6 +386,7 @@ impl PythonModel {
         Self {
             functions,
             derivatives,
+            hessian: None,
             failure: None,
         }
     }
@@ -352,6 +428,28 @@ impl NlpProblem for PythonModel {
         });
         result.map_err(|e| self.fail(e))
     }
+
+    fn lagrangian_hessian(
+        &mut self,
+        x: &[f64],
+        lambda: &[f64],
+        lower: &mut [f64],
+    ) -> sqp_craft::Result<()> {
+        self.failure = None;
+        let hessian = self.hessian.as_ref().ok_or_else(|| {
+            Error::Unsupported(
+                "model.lagrangian_hessian(x, lambda) is required in exact mode".into(),
+            )
+        })?;
+        let result = Python::attach(|py| {
+            py.check_signals()?;
+            let ret = hessian
+                .bind(py)
+                .call1((PyList::new(py, x)?, PyList::new(py, lambda)?))?;
+            copy_exact(&ret, lower, "lagrangian_hessian(x, lambda) values")
+        });
+        result.map_err(|e| self.fail(e))
+    }
 }
 
 /// Calls a Python function `observe(progress: dict) -> bool` whose result
@@ -387,7 +485,7 @@ impl Observer for PythonObserver {
 
 /// Runs the selected backend (`"dummy"` or `"sqp"`). Use `sqp_craft.solve` instead of calling this directly.
 #[pyfunction]
-#[pyo3(signature = (spec, functions, derivatives, x0, feasibility_tolerance, threads, cancellation, observer=None, method="dummy", method_options=None))]
+#[pyo3(signature = (spec, functions, derivatives, x0, feasibility_tolerance, threads, cancellation, observer=None, method="dummy", method_options=None, lagrangian_hessian=None))]
 #[allow(clippy::too_many_arguments)]
 fn solve_native<'py>(
     py: Python<'py>,
@@ -401,6 +499,7 @@ fn solve_native<'py>(
     observer: Option<Bound<'py, PyAny>>,
     method: &str,
     method_options: Option<&Bound<'py, PyDict>>,
+    lagrangian_hessian: Option<Py<PyAny>>,
 ) -> PyResult<Bound<'py, PyDict>> {
     for (name, f) in [("functions", &functions), ("derivatives", &derivatives)] {
         if !f.is_callable() {
@@ -412,12 +511,21 @@ fn solve_native<'py>(
     if observer.as_ref().is_some_and(|o| !o.is_callable()) {
         return Err(PyTypeError::new_err("observer must be callable"));
     }
+    if lagrangian_hessian
+        .as_ref()
+        .is_some_and(|h| !h.bind(py).is_callable())
+    {
+        return Err(PyTypeError::new_err(
+            "model.lagrangian_hessian must be callable",
+        ));
+    }
     let x0 = floats(x0, "x0")?;
     let options = Options {
         feasibility_tolerance,
         threads,
     };
     let mut model = PythonModel::new(functions.unbind(), derivatives.unbind());
+    model.hessian = lagrangian_hessian;
     let mut monitor = observer.map(|callback| PythonObserver {
         callback: callback.unbind(),
         failure: None,
@@ -469,6 +577,14 @@ fn solve_native<'py>(
                                 settings.dual_sign_tolerance = value.extract()?
                             }
                             "dense_size_limit" => settings.dense_size_limit = value.extract()?,
+                            "hessian" => {
+                                let name: String = value.extract()?;
+                                settings.hessian =
+                                    sqp_craft_solver::Hessian::parse(&name).map_err(to_py_err)?;
+                            }
+                            "structured_memory_limit_bytes" => {
+                                settings.structured_memory_limit_bytes = value.extract()?
+                            }
                             "initial_hessian_scale" => {
                                 settings.initial_hessian_scale = value.extract()?
                             }
@@ -635,6 +751,33 @@ fn solve_native<'py>(
         trace.append(d)?;
     }
     report.set_item("qp_trace", trace)?;
+    if let Some(structure) = &r.report.structure {
+        let data = PyDict::new(py);
+        data.set_item("hessian_nnz", structure.hessian_nnz)?;
+        data.set_item("hessian_factor_nnz", structure.hessian_factor_nnz)?;
+        data.set_item("kkt_factor_nnz", structure.kkt_factor_nnz)?;
+        data.set_item("estimated_memory_bytes", structure.estimated_memory_bytes)?;
+        data.set_item("fell_back_to_full", structure.fell_back_to_full)?;
+        data.set_item("qp_factor_nnz", r.report.qp_factor_nnz)?;
+        if let Some(calls) = structure.exact_hessian_calls {
+            data.set_item("exact_hessian_calls", calls)?;
+            data.set_item("maximum_diagonal_shift", structure.maximum_diagonal_shift)?;
+            data.set_item("diagonal_shifts", structure.diagonal_shifts)?;
+        }
+        let mut elements = Vec::with_capacity(structure.elements.len());
+        for e in &structure.elements {
+            let stats = PyDict::new(py);
+            stats.set_item("rows", &e.rows)?;
+            stats.set_item("updates", e.updates)?;
+            stats.set_item("damped", e.damped)?;
+            stats.set_item("modified", e.modified)?;
+            stats.set_item("skipped", e.skipped)?;
+            stats.set_item("resets", e.resets)?;
+            elements.push(stats);
+        }
+        data.set_item("elements", elements)?;
+        report.set_item("structure", data)?;
+    }
     let history = PyList::empty(py);
     for h in &r.report.history {
         let d = PyDict::new(py);
@@ -731,6 +874,50 @@ fn check_derivatives<'py>(
     let result = py
         .detach(|| sqp_craft::derivative_check::check_derivatives(inner, &mut model, &x, &options));
     let r = reraise(result, [model.failure])?;
+    derivative_report(py, r)
+}
+
+/// Check the sparse exact Hessian against the analytic gradient and Jacobian.
+#[pyfunction]
+#[pyo3(signature=(spec, functions, derivatives, hessian, x, constraint_multipliers, steps, absolute_tolerance, relative_tolerance, max_directions))]
+#[allow(clippy::too_many_arguments)]
+fn check_lagrangian_hessian<'py>(
+    py: Python<'py>,
+    spec: &Bound<'py, PyProblemSpec>,
+    functions: Py<PyAny>,
+    derivatives: Py<PyAny>,
+    hessian: Py<PyAny>,
+    x: &Bound<'py, PyAny>,
+    constraint_multipliers: &Bound<'py, PyAny>,
+    steps: Vec<f64>,
+    absolute_tolerance: f64,
+    relative_tolerance: f64,
+    max_directions: usize,
+) -> PyResult<Bound<'py, PyDict>> {
+    let x = floats(x, "x")?;
+    let lambda = floats(constraint_multipliers, "constraint_multipliers")?;
+    let inner = &spec.get().inner;
+    let options = sqp_craft::derivative_check::DerivativeOptions {
+        steps,
+        absolute_tolerance,
+        relative_tolerance,
+        max_directions,
+    };
+    let mut model = PythonModel::new(functions, derivatives);
+    model.hessian = Some(hessian);
+    let result = py.detach(|| {
+        sqp_craft::derivative_check::check_lagrangian_hessian(
+            inner, &mut model, &x, &lambda, &options,
+        )
+    });
+    let r = reraise(result, [model.failure])?;
+    derivative_report(py, r)
+}
+
+fn derivative_report(
+    py: Python<'_>,
+    r: sqp_craft::derivative_check::DerivativeReport,
+) -> PyResult<Bound<'_, PyDict>> {
     let out = PyDict::new(py);
     out.set_item("passed", r.passed)?;
     out.set_item("inconclusive", r.inconclusive)?;
@@ -801,6 +988,7 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("UndefinedPointError", py.get_type::<UndefinedPointError>())?;
     m.add_function(wrap_pyfunction!(solve_native, m)?)?;
     m.add_function(wrap_pyfunction!(check_derivatives, m)?)?;
+    m.add_function(wrap_pyfunction!(check_lagrangian_hessian, m)?)?;
     m.add_function(wrap_pyfunction!(kkt_residuals, m)?)?;
     Ok(())
 }

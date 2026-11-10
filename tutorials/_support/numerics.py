@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 import numpy as np
-from sqp_craft import ProblemSpec, SqpOptions, Options, solve, check_derivatives
+from sqp_craft import ProblemSpec, SolveResult, SqpOptions, Options, solve, check_derivatives
 
 
 class CheckFailure(AssertionError):
@@ -24,7 +24,10 @@ def require(condition, message="independent check failed"):
 
 def plain(v):
     if is_dataclass(v):
-        return plain(asdict(v))
+        data = asdict(v)
+        if isinstance(v, SolveResult) and data["report"].get("structure") is None:
+            data["report"].pop("structure", None)
+        return plain(data)
     if isinstance(v, np.ndarray):
         return plain(v.tolist())
     if isinstance(v, np.generic):

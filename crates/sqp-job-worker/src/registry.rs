@@ -68,8 +68,10 @@ use sqp_craft::{
 };
 use std::{collections::BTreeMap, ops::RangeInclusive, sync::Arc};
 
-/// Largest dimension of any model: the native SQP's dense limit.
-pub const MAX_DIMENSION: usize = 256;
+/// Largest dimension an application worker can explicitly register.
+pub const MAX_DIMENSION: usize = 5_000;
+/// Jacobian entry cap for registered models above the native dense limit.
+pub const MAX_STRUCTURED_JACOBIAN_ENTRIES: usize = 262_144;
 
 /// The config of a model without parameters: `config` may be omitted or
 /// `{}`, and any field is an error.
@@ -110,20 +112,41 @@ impl Model {
     pub fn spec(&self) -> &ProblemSpec {
         &self.spec
     }
+
+    pub(crate) fn set_structure(
+        &mut self,
+        elements: Option<&[Vec<usize>]>,
+        objective: Option<&[usize]>,
+    ) -> Result<()> {
+        if elements.is_some() || objective.is_some() {
+            let mut spec = self.spec.clone();
+            if let Some(groups) = elements {
+                spec = spec.with_elements(groups)?;
+            }
+            if let Some(columns) = objective {
+                spec = spec.with_objective_pattern(columns)?;
+            }
+            self.spec = spec;
+        }
+        Ok(())
+    }
     /// A fresh model instance, as every task and every recheck gets one.
     pub fn instance(&self) -> Box<dyn NlpProblem> {
         (self.make)()
     }
     /// Compares the gradient and the Jacobian of a fresh instance with
-    /// finite differences at `x` (inside the bounds), with the default
-    /// [`DerivativeOptions`]; `passed` says whether they agree.
+    /// finite differences at `x` (inside the bounds), covering every
+    /// coordinate with the default perturbations and tolerances.
     pub fn check_derivatives(&self, x: &[f64]) -> Result<DerivativeReport> {
         let mut model = self.instance();
         Ok(derivative_check::check_derivatives(
             &self.spec,
             &mut *model,
             x,
-            &DerivativeOptions::default(),
+            &DerivativeOptions {
+                max_directions: self.spec.n(),
+                ..DerivativeOptions::default()
+            },
         )?)
     }
 }
@@ -162,7 +185,7 @@ impl ModelInfo {
             id: id.into(),
             version: version.into(),
             description: description.into(),
-            dimensions: 1..=MAX_DIMENSION,
+            dimensions: 1..=sqp_craft_solver::DENSE_SIZE_CAP,
             config_schema: None,
             inputs: Vec::new(),
             example_dimension: None,
@@ -171,7 +194,7 @@ impl ModelInfo {
             about: Map::new(),
         }
     }
-    /// The dimensions a job may give (within 1..=256).
+    /// The dimensions a job may give (within 1..=[`MAX_DIMENSION`]).
     pub fn dimensions(mut self, range: RangeInclusive<usize>) -> Self {
         self.dimensions = range;
         self
@@ -307,6 +330,7 @@ pub(crate) struct Example {
     pub id: String,
     pub version: String,
     pub dimension: usize,
+    pub can_solve: bool,
     pub config: Option<Value>,
     pub start: Vec<f64>,
     pub inputs: Vec<InputInfo>,
@@ -340,7 +364,7 @@ impl Registry {
     /// # Panics
     ///
     /// On a programming error: an empty id or version, an id registered
-    /// twice, a dimension range outside 1..=256, an input declared twice, a
+    /// twice, a dimension range outside 1..=[`MAX_DIMENSION`], an input declared twice, a
     /// config type that does not serialize to an object, or a config schema
     /// that does not list exactly the config's fields.
     pub fn register<C, F>(&mut self, mut info: ModelInfo, factory: F) -> &mut Self
@@ -357,7 +381,7 @@ impl Registry {
         let (lo, hi) = (*info.dimensions.start(), *info.dimensions.end());
         assert!(
             1 <= lo && lo <= hi && hi <= MAX_DIMENSION,
-            "the dimensions of {id} must lie in 1..=256"
+            "the dimensions of {id} must lie in 1..={MAX_DIMENSION}"
         );
         let default_config = serde_json::to_value(C::default())
             .unwrap_or_else(|e| panic!("the default config of {id} does not serialize: {e}"));
@@ -506,6 +530,14 @@ impl Registry {
             )
             .into());
         }
+        if dimension > sqp_craft_solver::DENSE_SIZE_CAP
+            && model.spec.nnz() > MAX_STRUCTURED_JACOBIAN_ENTRIES
+        {
+            return Err(format!(
+                "structured model {id} has {} Jacobian entries, maximum {MAX_STRUCTURED_JACOBIAN_ENTRIES}",
+                model.spec.nnz()
+            ).into());
+        }
         Ok(Built {
             version: info.version.clone(),
             config: (config.is_some() || entry.has_parameters()).then_some(effective),
@@ -548,6 +580,8 @@ impl Registry {
                 id: id.into(),
                 version: built.version,
                 dimension,
+                can_solve: dimension <= sqp_craft_solver::DENSE_SIZE_CAP
+                    || spec.objective_pattern().is_some(),
                 config: built.config,
                 start,
                 inputs: info.inputs.clone(),

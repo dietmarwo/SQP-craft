@@ -1,0 +1,9 @@
+{
+  "s2mpj_commit": "fea6a70048eaad28b13a08703ddbfdbf65cd9c30",
+  "scope": "Affine-objective, nonlinear sparse constraints, all above 256 variables",
+  "problems": [
+    {"name": "HANGING:10,10", "n": 300, "m": 180, "subset": "structured", "control": false},
+    {"name": "CATENARY:166", "n": 501, "m": 166, "subset": "structured", "control": false},
+    {"name": "UBH5:40", "n": 410, "m": 280, "subset": "structured", "control": false}
+  ]
+}

@@ -53,4 +53,18 @@ pub trait NlpProblem {
     /// Evaluates the objective gradient (length `n`) and the Jacobian values
     /// (length `nnz`, in pattern order).
     fn derivatives(&mut self, x: &[f64], gradient: &mut [f64], jacobian: &mut [f64]) -> Result<()>;
+
+    /// Writes the lower triangle of `∇²f(x) − Σ λᵢ∇²cᵢ(x)` in declared CSR order.
+    /// Called after a full evaluation at the same point, with the constraint
+    /// multipliers in the repository's original-coordinate convention.
+    fn lagrangian_hessian(
+        &mut self,
+        _x: &[f64],
+        _lambda: &[f64],
+        _lower: &mut [f64],
+    ) -> Result<()> {
+        Err(crate::Error::Unsupported(
+            "no Lagrangian Hessian callback".into(),
+        ))
+    }
 }

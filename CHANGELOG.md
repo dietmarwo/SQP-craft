@@ -2,13 +2,53 @@
 
 All notable changes to SQP-craft are documented here. Versions are the
 workspace version in Cargo.toml (Rust crates, Python package sqp-craft and
-the job worker share it). No version has been published to a registry yet;
-dates are those of the commits that set each version.
+the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
 ### Added
 
+- Experimental [structured SQP](docs/structured-sqp.md) above the 256-variable
+  dense limit. `SqpOptions::hessian` / `hessian=` selects `full` (default,
+  unchanged arithmetic), `partitioned` (element-wise damped BFGS on
+  overlapping constraint cliques) or `exact`. `ProblemSpec` gains optional
+  `with_elements`, `with_objective_pattern` and `with_lagrangian_hessian`
+  declarations (`elements`, `objective_pattern`, `hessian_indptr` and
+  `hessian_indices` in Python, preserved by pickling). Restoration builds
+  its Gauss–Newton model in the same sparse pattern. A memory and fill
+  estimate (`structured_memory_limit_bytes`, default 64 MiB, at most
+  128 MiB) is checked before solving, and `RunReport::structure` reports
+  the pattern, fill estimates, Clarabel's factor size and per-element
+  update counts. Above 256 variables only Clarabel without elastic mode is
+  accepted; the full and uniform-block modes keep their cap.
+- Clarabel's large sparse path: dense Hessians stay limited to 256
+  variables; larger sparse Hessians are checked by symbolic analysis and
+  sparse Cholesky before conversion. `QpBackend::supports_large_sparse`
+  (default `false`) lets a backend opt in; `QpReport::factor_nnz` and
+  `RunReport::qp_factor_nnz` report the factor size.
+- Optional exact Lagrangian Hessian: `NlpProblem::lagrangian_hessian`
+  (Python `model.lagrangian_hessian(x, lambda)`) writes `∇²f − Σλᵢ∇²cᵢ` in
+  the declared lower-CSR order. Calls count against `max_callback_calls`.
+  A backend rejection triggers a Gershgorin diagonal shift, at most two per
+  iterate; the count and size are reported. `check_lagrangian_hessian`
+  (Rust and Python) compares it with differences of the analytic
+  Lagrangian gradient, including entries outside the pattern.
+- `sqp.solve/1` accepts optional `hessian` (`full` or `partitioned`),
+  `elements` and `objective_pattern`. Application workers can register
+  models with up to 5,000 variables and 262,144 Jacobian entries
+  (`registry::MAX_DIMENSION`, `MAX_STRUCTURED_JACOBIAN_ENTRIES`); above 256
+  variables a job needs `hessian: "partitioned"`, `backend: "clarabel"` and
+  a declared objective pattern. Results report `details.structure`.
+- SQP5 multiple-shooting scaling study (`bench/trajectory_scale.py`, with
+  pykep-rust 0.1.6's `SimsFlanaganChain`) up to 4,994 variables, its
+  experiment-craft campaign generator (`bench/trajectory_campaign.py`), the
+  [target card](docs/target-card.md), a structured S2MPJ selection
+  (`docs/benchmarks/structured-selection.json`) and exact-Hessian variants
+  of SQP4 and SQP6 (`tutorials/_support/exact_hessian.py`). The raw run
+  records, sealed campaign results and comparator runs are in
+  [`docs/benchmarks/structured/`](docs/benchmarks/structured/README.md).
+  `bench/trajectory_scale.py` defaults to `--scaling none`, the documented
+  configuration; `jacobian` is the adverse case.
 - A link to the nonlinear CRN BDF-sensitivity extension from SQP6, preserving the closed-form identifiability reference.
 - [Application tutorials](tutorials/README.md) SQP1–SQP6 and X2 (constrained calibration, multistart and scaling, hanging chain, collocation, Earth–Mars low thrust with pykep-rust, reaction kinetics, AC power dispatch). Each checks derivatives before solving, reconstructs KKT residuals from the model's own derivatives, compares with an independent reference and keeps recorded smoke and study results. The `structured-tutorials` workflow runs all seven chapters and compares them with the recorded results.
 
@@ -18,6 +58,11 @@ dates are those of the commits that set each version.
 
 ### Changed
 
+- `registry::MAX_DIMENSION` is now 5,000; `ModelInfo::new` still defaults
+  to dimensions 1..=256. `Model::check_derivatives` checks every
+  coordinate instead of the default 256 directions.
+- `QpReport` and `RunReport` have new public fields, so code that builds
+  them with struct literals must add them (`..Default::default()` works).
 - README: links the [overview of the 18 related repositories](https://github.com/dietmarwo/fcmaes-rust/blob/main/docs/repositories.md).
 - The structured-tutorial CI job runs on `ubuntu-24.04` instead of `ubuntu-latest`. Since `ubuntu-latest` moved to Ubuntu 26.04, the SQP3 study and both SQP5 presets differ from their recorded summaries with the same package versions (38 differences in SQP3, 3,285 and 3,880 in the SQP5 presets); on Ubuntu 24.04 all three match again.
 - `docs/api.md` no longer states a version; the workspace version is in

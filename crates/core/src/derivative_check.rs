@@ -174,17 +174,117 @@ pub fn check_derivatives(
         finite(v, &format!("derivative output {k}"))?;
     }
 
-    // Column view of the Jacobian pattern: (row, value) per variable.
-    let mut columns: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
+    // Column view of the combined objective gradient and Jacobian.
+    let mut columns: Vec<Vec<(usize, f64)>> = gradient.into_iter().map(|g| vec![(0, g)]).collect();
     let pattern = spec.jacobian();
     for row in 0..m {
         for k in pattern.indptr[row]..pattern.indptr[row + 1] {
-            columns[pattern.indices[k]].push((row, jacobian[k]));
+            columns[pattern.indices[k]].push((row + 1, jacobian[k]));
         }
     }
 
+    compare_columns(
+        spec,
+        x,
+        options,
+        &base,
+        &columns,
+        report,
+        |point, counts| outputs(spec, model, point, counts),
+    )
+}
+
+/// Checks an exact Lagrangian Hessian against differences of the analytic
+/// Lagrangian gradient, including entries outside the declared sparse pattern.
+/// The report's output indices are Lagrangian gradient coordinates. Fixed
+/// variables can be output rows even though their columns cannot be perturbed.
+pub fn check_lagrangian_hessian(
+    spec: &ProblemSpec,
+    model: &mut dyn NlpProblem,
+    x: &[f64],
+    lambda: &[f64],
+    options: &DerivativeOptions,
+) -> Result<DerivativeReport> {
+    options.validate()?;
+    spec.check_point(x, "Hessian check point")?;
+    if lambda.len() != spec.m() || lambda.iter().any(|v| !v.is_finite()) {
+        return Err(Error::InvalidInput(format!(
+            "Hessian check requires {} finite constraint multipliers",
+            spec.m()
+        )));
+    }
+    let pattern = spec.lagrangian_hessian_pattern().ok_or_else(|| {
+        Error::InvalidInput("Hessian check requires a declared Lagrangian Hessian pattern".into())
+    })?;
+    let mut report = DerivativeReport {
+        passed: false,
+        inconclusive: false,
+        checked: 0,
+        fixed: vec![],
+        skipped: vec![],
+        counts: EvaluationCounts::default(),
+        issues: vec![],
+    };
+    let gradient_at = |model: &mut dyn NlpProblem, point: &[f64], counts: &mut EvaluationCounts| {
+        if outputs(spec, model, point, counts)?.is_none() {
+            return Ok(None);
+        }
+        let mut gradient = vec![f64::NAN; spec.n()];
+        let mut jacobian = vec![f64::NAN; spec.nnz()];
+        counts.derivatives += 1;
+        match model.derivatives(point, &mut gradient, &mut jacobian) {
+            Ok(()) => {}
+            Err(Error::UndefinedPoint(_)) => return Ok(None),
+            Err(e) => return Err(e),
+        }
+        for &v in &jacobian {
+            finite(v, "Hessian check Jacobian")?;
+        }
+        let mut jt = vec![0.0; spec.n()];
+        spec.jacobian()
+            .multiply_transpose(&jacobian, lambda, &mut jt);
+        for (g, v) in gradient.iter_mut().zip(jt) {
+            *g = finite(*g - v, "Hessian check Lagrangian gradient")?;
+        }
+        Ok(Some(gradient))
+    };
+    let base = gradient_at(model, x, &mut report.counts)?
+        .ok_or_else(|| Error::UndefinedPoint("Lagrangian Hessian check base point".into()))?;
+    let mut lower = vec![f64::NAN; pattern.nnz()];
+    model.lagrangian_hessian(x, lambda, &mut lower)?;
+    let mut columns = vec![Vec::new(); spec.n()];
+    for i in 0..spec.n() {
+        let range = pattern.indptr[i]..pattern.indptr[i + 1];
+        for (&j, &v) in pattern.row(i).iter().zip(&lower[range]) {
+            let v = finite(v, "Lagrangian Hessian")?;
+            columns[j].push((i, v));
+            if i != j {
+                columns[i].push((j, v));
+            }
+        }
+    }
+    compare_columns(
+        spec,
+        x,
+        options,
+        &base,
+        &columns,
+        report,
+        |point, counts| gradient_at(model, point, counts),
+    )
+}
+
+fn compare_columns(
+    spec: &ProblemSpec,
+    x: &[f64],
+    options: &DerivativeOptions,
+    base: &[f64],
+    columns: &[Vec<(usize, f64)>],
+    mut report: DerivativeReport,
+    mut evaluate: impl FnMut(&[f64], &mut EvaluationCounts) -> Result<Option<Vec<f64>>>,
+) -> Result<DerivativeReport> {
     let bounds = spec.variables();
-    for j in 0..n {
+    for (j, column) in columns.iter().enumerate() {
         let (lo, up) = (bounds.lower[j], bounds.upper[j]);
         if lo == up {
             report.fixed.push(j);
@@ -194,14 +294,13 @@ pub fn check_derivatives(
             report.skipped.push(j);
             continue;
         }
-        let mut analytic = vec![0.0; m + 1];
-        analytic[0] = gradient[j];
-        for &(row, value) in &columns[j] {
-            analytic[row + 1] = value;
+        let mut analytic = vec![0.0; base.len()];
+        for &(row, value) in column {
+            analytic[row] = value;
         }
 
         // (scaled error, estimate) of the best step per output.
-        let mut best = vec![(f64::INFINITY, 0.0); m + 1];
+        let mut best = vec![(f64::INFINITY, 0.0); base.len()];
         let mut sampled = false;
         for &step in &options.steps {
             let h = step * x[j].abs().max(1.0);
@@ -211,10 +310,10 @@ pub fn check_derivatives(
             let mut point = x.to_vec();
             let mut at = |value: f64, counts: &mut EvaluationCounts| -> Result<Option<Vec<f64>>> {
                 if value == x[j] {
-                    return Ok(Some(base.clone()));
+                    return Ok(Some(base.to_vec()));
                 }
                 point[j] = value;
-                outputs(spec, model, &point, counts)
+                evaluate(&point, counts)
             };
             let Some(minus) = at(left, &mut report.counts)? else {
                 continue;
@@ -223,7 +322,7 @@ pub fn check_derivatives(
                 continue;
             };
             sampled = true;
-            for i in 0..=m {
+            for i in 0..base.len() {
                 let estimate = finite((plus[i] - minus[i]) / (right - left), "finite difference")?;
                 let allowance = options.absolute_tolerance
                     + options.relative_tolerance * analytic[i].abs().max(estimate.abs());
