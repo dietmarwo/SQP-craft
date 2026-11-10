@@ -6,6 +6,8 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-10
+
 ### Added
 
 - Experimental [structured SQP](docs/structured-sqp.md) above the 256-variable
