@@ -1,0 +1,21 @@
+[book]
+title = "SQP-craft"
+description = "Sequential quadratic programming for smooth constrained problems, in Rust with Python bindings: API, methods, tutorials and the job interface"
+language = "en"
+src = "src"
+
+[build]
+# Every SUMMARY.md entry must have a file. Never create pages implicitly.
+create-missing = false
+
+[output.html]
+site-url = "/SQP-craft/"
+git-repository-url = "https://github.com/dietmarwo/SQP-craft"
+mathjax-support = true
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.print]
+enable = false

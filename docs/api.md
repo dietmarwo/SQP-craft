@@ -608,7 +608,7 @@ added to the model trait. See `performance_parallel`'s nonlinear ODE example.
 workers, factory, cancellation)` constructs each model on its owning worker,
 reuses a backend per worker, and returns ordered per-start Results. The
 factory is Send+Sync; model/backend instances need not be. `try_solve_many`
-accepts a factory returning Result<Model>, retaining its errors per start.
+accepts a factory returning `Result<Model>`, retaining its errors per start.
 `workers * options.threads <= 8`; use eight outer workers with inner 1 for
 small NLPs. Compatible resource owners share a private pool per width, so
 nested configurations do not multiply pools. Simultaneous independent callers
