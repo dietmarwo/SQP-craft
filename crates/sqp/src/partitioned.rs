@@ -90,8 +90,9 @@ impl Element {
         let mut sources = Vec::new();
         let mut indptr = vec![0];
         for &i in &rows {
-            for a in j.indptr[i]..j.indptr[i + 1] {
-                indices.push(columns.binary_search(&j.indices[a]).expect("row support"));
+            let range = j.indptr[i]..j.indptr[i + 1];
+            for (a, column) in range.clone().zip(&j.indices[range]) {
+                indices.push(columns.binary_search(column).expect("row support"));
                 sources.push(a);
             }
             indptr.push(indices.len());
