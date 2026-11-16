@@ -217,6 +217,8 @@ fn every_example_is_a_job_that_validates_and_runs() {
                 let structured = expected["hessian"] == "partitioned";
                 expected["backend"] = json!(if structured { "clarabel" } else { "active_set" });
                 expected["elastic_mode"] = json!(!structured);
+                expected["major_step_limit"] = Value::Null;
+                expected["initial_curvature_scaling"] = json!(false);
             }
             assert_eq!(s.payload, expected, "{name}");
             let frozen = s.clone();

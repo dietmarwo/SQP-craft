@@ -1,0 +1,10 @@
+   Compiling sqp-craft-activeset v0.19.0 (/workspace/scratch/06f59a83022f/repos/SQP-craft/crates/activeset)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+     Running tests/dependent_equalities.rs (target/debug/build/sqp-craft-activeset/3a3143ed3ca1b8d6/out/dependent_equalities-3a3143ed3ca1b8d6)
+
+running 1 test
+HS25NE backend outcome: Ok(Infeasible)
+test hs25ne_returns_a_status_or_backend_failure_without_nan ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -6,6 +6,17 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Fixed
+
+- Solver-internal non-finite arithmetic returns `numerical_failure` with the last complete point; malformed or non-finite backend answers return `qp_failure`. Model callback errors, including non-finite output, remain errors. A model undefined at a solver-projected start returns `numerical_failure` with no candidate.
+- Normalize extreme Householder reflector tails before squaring their norm. HS25NE's first QP now reports infeasibility instead of producing a NaN step. Ordinary reflector arithmetic is unchanged.
+
+### Added
+
+- Experimental `major_step_limit` and `initial_curvature_scaling` controls in Rust, Python and `sqp.solve/1`, with frozen resolved payload values and `step_limited_iterations` / `initial_curvature_scale` diagnostics. Uniform blocks and partitioned BFGS share the same scale; exact Hessian values are preserved.
+- Reproducible first-step, backend-panel and stress evidence under `docs/benchmarks/first-step/`. Defaults are selected by the recorded acceptance gates, without relaxing independent checks.
+- Prepared synchronized 0.20.0 package metadata; publication awaits the maintainer's release tag.
+
 ## [0.19.0] - 2026-11-16
 
 ### Changed

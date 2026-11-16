@@ -25,7 +25,7 @@ fn overflowing_kkt_product_does_not_disappear() {
                 variables: vec![0.0]
             }
         ),
-        Err(Error::Evaluation(_))
+        Err(Error::Numerical(_))
     ));
 }
 #[test]

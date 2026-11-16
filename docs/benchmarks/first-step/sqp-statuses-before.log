@@ -1,0 +1,243 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+__________ test_solver_projected_undefined_start_returns_no_candidate __________
+
+    def test_solver_projected_undefined_start_returns_no_candidate():
+        class Projected:
+            def functions(self,x):
+                if x[0]>0.5: raise UndefinedPointError('domain x <= 0.5')
+                return x[0]**2,[x[0]]
+            def derivatives(self,x): return [2*x[0]],[1.0]
+        s=ProblemSpec(lower=[-2],upper=[2],constraint_lower=[1],constraint_upper=[1],
+            jacobian_indptr=[0,1],jacobian_indices=[0],linear_rows=[0])
+>       r=solve(s,Projected(),[0],method='sqp')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_safeguards.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+python/sqp_craft/__init__.py:403: in solve
+    raw = _solve_native(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_safeguards.test_solver_projected_undefined_start_returns_no_candidate.<locals>.Projected object at 0x7f902902f8f0>
+x = [1.0]
+
+    def functions(self,x):
+>       if x[0]>0.5: raise UndefinedPointError('domain x <= 0.5')
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       sqp_craft.UndefinedPointError: domain x <= 0.5
+
+tests/test_safeguards.py:40: UndefinedPointError
+________ test_nonfinite_augmented_trial_returns_the_last_complete_point ________
+
+    def test_nonfinite_augmented_trial_returns_the_last_complete_point():
+        class HugeTrial:
+            def functions(self,x):return -x[0],[x[0]+1e200*(x[0]-1)**2]
+            def derivatives(self,x):return [-1.],[1+2e200*(x[0]-1)]
+        s=ProblemSpec(lower=[-2],upper=[2],constraint_lower=[0],constraint_upper=[0],
+            jacobian_indptr=[0,1],jacobian_indices=[0])
+>       r=solve(s,HugeTrial(),[1],method='sqp',method_options=SqpOptions(merit='augmented-lagrangian'))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_safeguards.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+spec = ProblemSpec(n=1, m=1, nnz=1)
+model = <test_safeguards.test_nonfinite_augmented_trial_returns_the_last_complete_point.<locals>.HugeTrial object at 0x7f902902afc0>
+x0 = [1], method = 'sqp'
+method_options = SqpOptions(max_iterations=100, max_backtracks=25, max_callback_calls=2000, time_limit_seconds=None, stationarity_toler...limit=0, max_restoration_steps=10, restoration_step_limit=1.0, restoration_regularization=0.0001, record_history=False)
+options = Options(feasibility_tolerance=1e-07, threads=1), cancellation = None
+observer = None
+
+    def solve(
+        spec: ProblemSpec,
+        model: Model,
+        x0: Iterable[float],
+        *,
+        method: Literal["dummy", "sqp"] = "dummy",
+        method_options: SqpOptions | None = None,
+        options: Options | None = None,
+        cancellation: Cancellation | None = None,
+        observer: Observer | None = None,
+    ) -> SolveResult:
+        """Solve ``spec`` with ``model`` from ``x0``.
+    
+        ``method="sqp"`` runs the native solver, configured by ``method_options``.
+        ``x0`` must be finite and within the variable bounds; it is never
+        projected. ``observer(progress)`` may return ``True`` to stop the solve
+        (status ``"cancelled"``, last complete point kept); ``None`` or ``False``
+        continue, so a print-only observer works.
+    
+        Raises ``ValueError`` for malformed input, ``EvaluationError`` for failing
+        or malformed model output, ``NotImplementedError`` for unsupported options
+        or a method that was not compiled, and re-raises exceptions from the model
+        or observer unchanged. Solver failures that are not errors (limits, an
+        infeasible linearization, ...) are reported through ``status``.
+        """
+        options = options or Options()
+>       raw = _solve_native(
+            spec,
+            model.functions,
+            model.derivatives,
+            x0,
+            options.feasibility_tolerance,
+            options.threads,
+            cancellation if cancellation is not None else Cancellation(),
+            None if observer is None else _adapt_observer(observer),
+            method,
+            None if method_options is None else asdict(method_options),
+            getattr(model, "lagrangian_hessian", None)
+            if method_options is not None and method_options.hessian == "exact" else None,
+        )
+E       sqp_craft.EvaluationError: augmented-Lagrangian merit became nonfinite
+
+python/sqp_craft/__init__.py:403: EvaluationError
+____________ test_complementarity_overflow_returns_a_status[False] _____________
+
+soc = False
+
+    @pytest.mark.parametrize('soc',[False,True])
+    def test_complementarity_overflow_returns_a_status(soc):
+        class HugeResidual:
+            def functions(self,x):return 1.7e308,[1e308]
+            def derivatives(self,x):return [-1.],[0.]
+        s=ProblemSpec(lower=[-10],upper=[10],constraint_lower=[0],constraint_upper=[0],
+            jacobian_indptr=[0,1],jacobian_indices=[0])
+>       r=solve(s,HugeResidual(),[0],method='sqp',method_options=SqpOptions(second_order_correction=soc))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_safeguards.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+spec = ProblemSpec(n=1, m=1, nnz=1)
+model = <test_safeguards.test_complementarity_overflow_returns_a_status.<locals>.HugeResidual object at 0x7f9029033560>
+x0 = [0], method = 'sqp'
+method_options = SqpOptions(max_iterations=100, max_backtracks=25, max_callback_calls=2000, time_limit_seconds=None, stationarity_toler...limit=0, max_restoration_steps=10, restoration_step_limit=1.0, restoration_regularization=0.0001, record_history=False)
+options = Options(feasibility_tolerance=1e-07, threads=1), cancellation = None
+observer = None
+
+    def solve(
+        spec: ProblemSpec,
+        model: Model,
+        x0: Iterable[float],
+        *,
+        method: Literal["dummy", "sqp"] = "dummy",
+        method_options: SqpOptions | None = None,
+        options: Options | None = None,
+        cancellation: Cancellation | None = None,
+        observer: Observer | None = None,
+    ) -> SolveResult:
+        """Solve ``spec`` with ``model`` from ``x0``.
+    
+        ``method="sqp"`` runs the native solver, configured by ``method_options``.
+        ``x0`` must be finite and within the variable bounds; it is never
+        projected. ``observer(progress)`` may return ``True`` to stop the solve
+        (status ``"cancelled"``, last complete point kept); ``None`` or ``False``
+        continue, so a print-only observer works.
+    
+        Raises ``ValueError`` for malformed input, ``EvaluationError`` for failing
+        or malformed model output, ``NotImplementedError`` for unsupported options
+        or a method that was not compiled, and re-raises exceptions from the model
+        or observer unchanged. Solver failures that are not errors (limits, an
+        infeasible linearization, ...) are reported through ``status``.
+        """
+        options = options or Options()
+>       raw = _solve_native(
+            spec,
+            model.functions,
+            model.derivatives,
+            x0,
+            options.feasibility_tolerance,
+            options.threads,
+            cancellation if cancellation is not None else Cancellation(),
+            None if observer is None else _adapt_observer(observer),
+            method,
+            None if method_options is None else asdict(method_options),
+            getattr(model, "lagrangian_hessian", None)
+            if method_options is not None and method_options.hessian == "exact" else None,
+        )
+E       sqp_craft.EvaluationError: complementarity overflowed or became nonfinite
+
+python/sqp_craft/__init__.py:403: EvaluationError
+_____________ test_complementarity_overflow_returns_a_status[True] _____________
+
+soc = True
+
+    @pytest.mark.parametrize('soc',[False,True])
+    def test_complementarity_overflow_returns_a_status(soc):
+        class HugeResidual:
+            def functions(self,x):return 1.7e308,[1e308]
+            def derivatives(self,x):return [-1.],[0.]
+        s=ProblemSpec(lower=[-10],upper=[10],constraint_lower=[0],constraint_upper=[0],
+            jacobian_indptr=[0,1],jacobian_indices=[0])
+>       r=solve(s,HugeResidual(),[0],method='sqp',method_options=SqpOptions(second_order_correction=soc))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_safeguards.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+spec = ProblemSpec(n=1, m=1, nnz=1)
+model = <test_safeguards.test_complementarity_overflow_returns_a_status.<locals>.HugeResidual object at 0x7f90290339b0>
+x0 = [0], method = 'sqp'
+method_options = SqpOptions(max_iterations=100, max_backtracks=25, max_callback_calls=2000, time_limit_seconds=None, stationarity_toler...limit=0, max_restoration_steps=10, restoration_step_limit=1.0, restoration_regularization=0.0001, record_history=False)
+options = Options(feasibility_tolerance=1e-07, threads=1), cancellation = None
+observer = None
+
+    def solve(
+        spec: ProblemSpec,
+        model: Model,
+        x0: Iterable[float],
+        *,
+        method: Literal["dummy", "sqp"] = "dummy",
+        method_options: SqpOptions | None = None,
+        options: Options | None = None,
+        cancellation: Cancellation | None = None,
+        observer: Observer | None = None,
+    ) -> SolveResult:
+        """Solve ``spec`` with ``model`` from ``x0``.
+    
+        ``method="sqp"`` runs the native solver, configured by ``method_options``.
+        ``x0`` must be finite and within the variable bounds; it is never
+        projected. ``observer(progress)`` may return ``True`` to stop the solve
+        (status ``"cancelled"``, last complete point kept); ``None`` or ``False``
+        continue, so a print-only observer works.
+    
+        Raises ``ValueError`` for malformed input, ``EvaluationError`` for failing
+        or malformed model output, ``NotImplementedError`` for unsupported options
+        or a method that was not compiled, and re-raises exceptions from the model
+        or observer unchanged. Solver failures that are not errors (limits, an
+        infeasible linearization, ...) are reported through ``status``.
+        """
+        options = options or Options()
+>       raw = _solve_native(
+            spec,
+            model.functions,
+            model.derivatives,
+            x0,
+            options.feasibility_tolerance,
+            options.threads,
+            cancellation if cancellation is not None else Cancellation(),
+            None if observer is None else _adapt_observer(observer),
+            method,
+            None if method_options is None else asdict(method_options),
+            getattr(model, "lagrangian_hessian", None)
+            if method_options is not None and method_options.hessian == "exact" else None,
+        )
+E       sqp_craft.EvaluationError: complementarity overflowed or became nonfinite
+
+python/sqp_craft/__init__.py:403: EvaluationError
+=============================== warnings summary ===============================
+../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_safeguards.py::test_solver_projected_undefined_start_returns_no_candidate
+FAILED tests/test_safeguards.py::test_nonfinite_augmented_trial_returns_the_last_complete_point
+FAILED tests/test_safeguards.py::test_complementarity_overflow_returns_a_status[False]
+FAILED tests/test_safeguards.py::test_complementarity_overflow_returns_a_status[True]
+4 failed, 13 deselected, 1 warning in 0.13s

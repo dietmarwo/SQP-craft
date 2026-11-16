@@ -122,7 +122,7 @@ def run_examples(worker_id,description):
         if example['profile']=='sqp.solve/1':
             structured=expected.get('hessian')=='partitioned'
             assert expected['backend']=='auto'
-            expected.update(backend='clarabel' if structured else 'active_set', elastic_mode=not structured)
+            expected.update(backend='clarabel' if structured else 'active_set', elastic_mode=not structured, major_step_limit=None, initial_curvature_scaling=False)
         assert resolved==expected,(example,resolved)
         job=call('run','--spec',path);result=call('result',job['directory'])
         conforms('optimization.result-0.2.schema.json',result)

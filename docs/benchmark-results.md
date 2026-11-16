@@ -436,3 +436,9 @@ python -m bench.report selection.json results.jsonl tables.md
 
 `bench.report` exits with status 1 when a sqp-craft configuration makes a
 false claim. The CI job runs 20 Hock–Schittkowski problems the same way.
+
+## 16 November 2026: numerical failures and first-step safeguards
+
+A fresh 0.19.0 baseline and the 0.20.0 source preparation each accepted 814 of the 1,036 selected problems. The proposed delta-2 limit plus fresh-curvature scaling accepted 824, gaining 23 and losing 13; the bound-constrained subset lost one net problem. That fails the predeclared no-subset-loss gate, so both controls remain disabled by default. No configuration made a false convergence claim. See [complete first-step records, acceptance gates and rejected variants](benchmarks/first-step/README.md).
+
+All 3,000 default stress records match the baseline after removing timings, the backend version and newly added zero diagnostics. The enabled proposed safeguard adds no failed convergence in that stress panel. The six-problem exception panel returns statuses; original callback errors retain their error contract. The stricter error/status and projected-start behavior is tested independently of S2MPJ.

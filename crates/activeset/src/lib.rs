@@ -139,7 +139,16 @@ impl QpBackend for ActiveSetQp {
             changes: 0,
             charged: 0,
         };
-        let outcome = self.run(model, warm.and_then(|w| w.active_set.as_ref()), &mut budget);
+        // Public model/warm-start validation has already succeeded. An
+        // invalid computed answer belongs to the backend, not to the caller.
+        let outcome = self
+            .run(model, warm.and_then(|w| w.active_set.as_ref()), &mut budget)
+            .map_err(|error| match error {
+                Error::InvalidInput(message) => Error::Backend(format!(
+                    "active-set computed solution failed validation: {message}"
+                )),
+                other => other,
+            });
         self.last.iterations = budget.changes;
         self.last.raw_status = Some(
             match &outcome {
@@ -217,6 +226,17 @@ impl ActiveSetQp {
                 Ok(()) => {
                     let t = Instant::now();
                     let solution = self.work.solution(&sources, budget.changes);
+                    if solution
+                        .step
+                        .iter()
+                        .chain(&solution.multipliers.constraints)
+                        .chain(&solution.multipliers.variables)
+                        .any(|v| !v.is_finite())
+                    {
+                        return Err(Error::Backend(
+                            "active-set produced a non-finite step or multiplier".into(),
+                        ));
+                    }
                     let tolerance = self.settings.acceptance_tolerance;
                     let check = match self.settings.elastic_weight {
                         Some(weight) => model.accepts_elastic_with_hard_rows(

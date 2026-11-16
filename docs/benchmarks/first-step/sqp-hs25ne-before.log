@@ -1,0 +1,76 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling autocfg v1.5.1
+   Compiling syn v1.0.109
+   Compiling crossbeam-utils v0.8.23
+   Compiling ident_case v1.0.1
+   Compiling fnv v1.0.7
+   Compiling strsim v0.10.0
+   Compiling crossbeam-epoch v0.9.21
+   Compiling serde_core v1.0.229
+   Compiling crossbeam-deque v0.8.8
+   Compiling either v1.19.0
+   Compiling rayon-core v1.13.0
+   Compiling serde v1.0.229
+   Compiling paste v1.0.15
+   Compiling bytemuck v1.25.2
+   Compiling num-traits v0.2.19
+   Compiling zmij v1.0.23
+   Compiling matrixmultiply v0.3.11
+   Compiling serde_json v1.0.154
+   Compiling thiserror v1.0.69
+   Compiling safe_arch v0.7.4
+   Compiling once_cell v1.21.4
+   Compiling memchr v2.8.3
+   Compiling clarabel v0.11.1
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling wide v0.7.33
+   Compiling rawpointer v0.2.1
+   Compiling num-complex v0.4.6
+   Compiling approx v0.5.1
+   Compiling num-integer v0.1.47
+   Compiling rayon v1.12.0
+   Compiling itoa v1.0.18
+   Compiling num-rational v0.4.2
+   Compiling amd v0.2.2
+   Compiling itertools v0.11.0
+   Compiling typenum v1.20.1
+   Compiling simba v0.9.1
+   Compiling sqp-craft v0.19.0 (/workspace/scratch/06f59a83022f/baseline-SQP/crates/core)
+   Compiling cfg-if v1.0.5
+   Compiling lazy_static v1.5.1
+   Compiling serde_derive v1.0.229
+   Compiling darling_core v0.14.4
+   Compiling sqp-craft-parallel v0.19.0 (/workspace/scratch/06f59a83022f/baseline-SQP/crates/parallel)
+   Compiling sqp-craft-activeset v0.19.0 (/workspace/scratch/06f59a83022f/baseline-SQP/crates/activeset)
+   Compiling darling_macro v0.14.4
+   Compiling thiserror-impl v1.0.69
+   Compiling enum_dispatch v0.3.13
+   Compiling darling v0.14.4
+   Compiling derive_builder_core v0.11.2
+   Compiling derive_builder_macro v0.11.2
+   Compiling derive_builder v0.11.2
+   Compiling serde-big-array v0.5.1
+   Compiling nalgebra v0.33.2
+   Compiling sqp-craft-clarabel v0.19.0 (/workspace/scratch/06f59a83022f/baseline-SQP/crates/clarabel)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.11s
+     Running tests/dependent_equalities.rs (baseline-SQP/target/debug/build/sqp-craft-activeset/3a3143ed3ca1b8d6/out/dependent_equalities-3a3143ed3ca1b8d6)
+
+running 1 test
+HS25NE backend outcome: Err(InvalidInput("QP solution: step entry 0 is NaN"))
+
+thread 'hs25ne_returns_a_status_or_backend_failure_without_nan' (1484) panicked at crates/activeset/tests/dependent_equalities.rs:13:18:
+HS25NE first QP: Err(InvalidInput("QP solution: step entry 0 is NaN"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test hs25ne_returns_a_status_or_backend_failure_without_nan ... FAILED
+
+failures:
+
+failures:
+    hs25ne_returns_a_status_or_backend_failure_without_nan
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p sqp-craft-activeset --test dependent_equalities`

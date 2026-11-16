@@ -225,6 +225,11 @@ pub(super) fn step<B: QpBackend>(
             return Ok(Some(Status::QpFailure));
         }
     };
+    if !usable_qp_output(&q, &solution) {
+        result.message =
+            "restoration QP backend returned a malformed or non-finite solution".into();
+        return Ok(Some(Status::QpFailure));
+    }
     snap_step(
         &mut solution.step,
         &q.variables,
@@ -415,7 +420,7 @@ mod tests {
                 &Scales::identity(1, 1),
                 None,
             ),
-            Err(Error::Evaluation(_))
+            Err(Error::Numerical(_))
         ));
     }
 

@@ -67,6 +67,15 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         json!({"type":["boolean","null"],"default":null,"description":"absent/null: true for auto full/block BFGS, false for explicit backends or auto partitioned; true requires resolved active_set"}),
     );
     p.insert(
+        "major_step_limit".into(),
+        json!({"type":["number","null"],"exclusiveMinimum":0.0,"default":null,
+        "description":"experimental major-step infinity-norm limit; resolved null disables it"}),
+    );
+    p.insert(
+        "initial_curvature_scaling".into(),
+        json!({"type":"boolean","default":false}),
+    );
+    p.insert(
         "hessian".into(),
         json!({"type":["string","null"],"enum":["full","partitioned",null],
         "description":"defaults to full; partitioned with Clarabel required above 256 variables"}),

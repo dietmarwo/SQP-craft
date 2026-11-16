@@ -215,6 +215,11 @@ pub struct SqpOptions {
     pub structured_memory_limit_bytes: usize,
     /// Initial and reset Hessian approximation `B = scale · I`.
     pub initial_hessian_scale: f64,
+    /// Major-step infinity-norm limit relative to max(1, ||x||inf).
+    /// None preserves the legacy line search. Experimental; off by default.
+    pub major_step_limit: Option<f64>,
+    /// Rescale fresh quasi-Newton curvature after a shortened accepted step.
+    pub initial_curvature_scaling: bool,
     /// Contiguous curvature block width; zero keeps full BFGS (default).
     pub hessian_block_size: usize,
     /// Total Hessian resets allowed (failed BFGS updates and non-descent retries).
@@ -282,6 +287,8 @@ impl Default for SqpOptions {
             hessian: Hessian::Full,
             structured_memory_limit_bytes: 64 * 1024 * 1024,
             initial_hessian_scale: 1.0,
+            major_step_limit: None,
+            initial_curvature_scaling: false,
             hessian_block_size: 0,
             max_hessian_resets: 3,
             qp_tolerance: 1e-10,
@@ -325,6 +332,13 @@ impl SqpOptions {
                 return Err(Error::InvalidInput(format!(
                     "{name} must be positive and finite, got {value}"
                 )));
+            }
+        }
+        if let Some(limit) = self.major_step_limit {
+            if !limit.is_finite() || limit <= 0.0 {
+                return Err(Error::InvalidInput(
+                    "major_step_limit must be positive and finite".into(),
+                ));
             }
         }
         if let Some(s) = self.time_limit_seconds {
@@ -395,8 +409,29 @@ fn finite(v: f64, what: &str) -> Result<f64> {
     if v.is_finite() {
         Ok(v)
     } else {
+        Err(Error::Numerical(format!("{what} became nonfinite")))
+    }
+}
+
+// Callback output checks keep the model-error contract, separate from
+// arithmetic performed by the solver with otherwise finite model data.
+fn model_finite(v: f64, what: &str) -> Result<f64> {
+    if v.is_finite() {
+        Ok(v)
+    } else {
         Err(Error::Evaluation(format!("{what} became nonfinite")))
     }
+}
+
+fn usable_qp_output(q: &QpModel, s: &QpSolution) -> bool {
+    s.step.len() == q.n()
+        && s.multipliers.constraints.len() == q.m()
+        && s.multipliers.variables.len() == q.n()
+        && s.step
+            .iter()
+            .chain(&s.multipliers.constraints)
+            .chain(&s.multipliers.variables)
+            .all(|v| v.is_finite())
 }
 
 fn dot(a: &[f64], b: &[f64]) -> Result<f64> {
@@ -510,9 +545,9 @@ impl Calls<'_> {
         let t = Instant::now();
         let f = model.functions(x, &mut c);
         self.seconds += t.elapsed().as_secs_f64();
-        let f = finite(f?, "objective")?;
+        let f = model_finite(f?, "objective")?;
         for &v in &c {
-            finite(v, "constraint value")?;
+            model_finite(v, "constraint value")?;
         }
         Ok((f, c))
     }
@@ -542,7 +577,7 @@ impl Calls<'_> {
             return Err(err);
         }
         for &v in g.iter().chain(&j) {
-            finite(v, "derivative value")?;
+            model_finite(v, "derivative value")?;
         }
         let primal = spec
             .variables()
@@ -947,7 +982,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 options.feasibility_tolerance,
             )
         {
-            status = linear::project(
+            let projected = linear::project(
                 &mut self.qp,
                 spec,
                 model,
@@ -956,7 +991,22 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                 options,
                 qp_acceptance,
                 &scales,
-            )?;
+            );
+            status = match projected {
+                Ok(status) => status,
+                Err(Error::UndefinedPoint(message)) => {
+                    r.candidate = None;
+                    r.evaluation = None;
+                    r.message =
+                        format!("model undefined at the solver's projected start: {message}");
+                    Some(Status::NumericalFailure)
+                }
+                Err(Error::Numerical(message)) => {
+                    r.message = format!("linear projection: {message}; iteration {}", r.iterations);
+                    Some(Status::NumericalFailure)
+                }
+                Err(error) => return Err(error),
+            };
             if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
                 linear::check_constant(spec, reference, e)?;
             }
@@ -1018,186 +1068,863 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         let mut retry_descent = false;
         let mut noise_steps = 0_u32;
         let mut notify = true;
-        while status.is_none() {
-            if let Some(s) = calls.stop() {
-                status = Some(s);
-                break;
-            }
-            if notify {
-                if let Some(obs) = observer.as_deref_mut() {
-                    let e = r.evaluation.as_ref().expect("evaluated");
-                    let progress = Progress {
-                        iteration: r.iterations,
-                        objective: e.objective,
-                        primal_violation: e.primal_violation,
-                    };
-                    if obs.observe(&progress)? == Control::Stop {
-                        status = Some(Status::Cancelled);
-                        r.message = "stopped by the observer".into();
-                        break;
-                    }
-                }
+        let mut fresh_curvature = true;
+        let run: Result<()> = (|| {
+            while status.is_none() {
                 if let Some(s) = calls.stop() {
                     status = Some(s);
                     break;
                 }
-            }
-            if r.iterations >= settings.max_iterations {
-                status = Some(Status::IterationLimit);
-                break;
-            }
-
-            // 1. Step QP.
-            let x = r.candidate.as_ref().expect("evaluated");
-            let e = r.evaluation.as_ref().expect("evaluated");
-            if settings.hessian == Hessian::Exact && exact_at != Some(r.iterations) {
-                if let Some(s) = calls.before_call() {
-                    status = Some(s);
-                    break;
-                }
-                let lambda = r
-                    .multipliers
-                    .as_ref()
-                    .map_or(zero_lambda.as_slice(), |m| m.constraints.as_slice());
-                let t = Instant::now();
-                hessian.exact_at(model, x, lambda, &scales)?;
-                calls.seconds += t.elapsed().as_secs_f64();
-                calls.hessian_calls += 1;
-                exact_at = Some(r.iterations);
-                exact_shift_retries = 0;
-                if let Some(s) = calls.stop() {
-                    status = Some(s);
-                    break;
-                }
-            }
-            if let Some(q) = qp_work.as_mut() {
-                refresh_qp(q, spec, x, e, hessian.as_ref())?;
-            } else {
-                qp_work = Some(qp_model(spec, x, e, hessian.as_ref())?);
-            }
-            if !scaled_identity {
-                // B is kept in scaled coordinates; scale the rest.
-                scales.scale_qp(qp_work.as_mut().expect("QP initialized"), &scales.rows);
-            }
-            let qp = qp_work.as_ref().expect("QP initialized");
-            if r.report.qp_trace.len() < settings.record_qp_limit {
-                r.report.qp_trace.push((*qp).clone());
-            }
-            let remaining = settings
-                .time_limit_seconds
-                .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0));
-            self.qp.configure(&QpOptions {
-                reuse_workspace: settings.qp_reuse_workspace,
-                tolerance: settings.qp_tolerance,
-                acceptance_tolerance: qp_acceptance,
-                max_iterations: settings.qp_max_iterations,
-                time_limit_seconds: remaining,
-                elastic_weight,
-                hard_rows: hard_rows.clone(),
-            })?;
-            let t = Instant::now();
-            r.report.qp_solves += 1;
-            let outcome = self.qp.solve(qp, qp_warm.as_ref(), cancel);
-            r.report.qp_seconds += t.elapsed().as_secs_f64();
-            let report = self.qp.report();
-            record_qp_work(&mut r.report, &report);
-            r.report.qp_backend = report.backend;
-            r.report.qp_status = report.raw_status;
-            r.report.qp_iterations += report.iterations;
-            let qp_iterations = report.iterations;
-            if let Some(s) = calls.stop() {
-                status = Some(s);
-                break;
-            }
-            let mut solution: QpSolution = match outcome {
-                Ok(QpOutcome::Optimal(s)) => s,
-                Ok(QpOutcome::Infeasible) => {
-                    if settings.max_restoration_steps == 0 {
-                        status = Some(Status::LinearizationInfeasible);
-                        break;
-                    }
-                    if r.report.restoration_steps >= settings.max_restoration_steps {
-                        status = Some(Status::RestorationLimit);
-                        break;
-                    }
-                    let began = Instant::now();
-                    let restored = restoration::step(
-                        &mut self.qp,
-                        spec,
-                        model,
-                        &mut calls,
-                        &mut r,
-                        options,
-                        &scales,
-                        hessian.structured_pattern(),
-                    );
-                    r.report.restoration_seconds += began.elapsed().as_secs_f64();
-                    status = restored?;
-                    if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
-                        linear::check_constant(spec, reference, e)?;
-                    }
-                    if status.is_some() {
-                        break;
-                    }
-                    // Feasibility steps do not carry an NLP multiplier estimate.
-                    // Restart curvature/penalties without spending the BFGS failure budget.
-                    hessian.reset();
-                    penalties.fill(0.0);
-                    have_penalties = false;
-                    augmented.reset();
-                    retry_descent = false;
-                    noise_steps = 0;
-                    notify = true;
-                    continue;
-                }
-                Ok(QpOutcome::Cancelled) => {
-                    status = Some(Status::Cancelled);
-                    break;
-                }
-                Ok(QpOutcome::LimitReached(_)) => {
-                    let reason = report.limit_reason.unwrap_or_else(|| "unknown".into());
-                    status = Some(if reason == "time" {
-                        Status::TimeLimit
-                    } else {
-                        Status::QpFailure
-                    });
-                    r.message = format!("QP subproblem stopped at its {reason} limit");
-                    break;
-                }
-                Ok(QpOutcome::Unbounded) => {
-                    status = Some(Status::QpFailure);
-                    r.message = "QP subproblem reported unbounded although B is positive \
-                                 definite; numerical trouble"
-                        .into();
-                    break;
-                }
-                Ok(QpOutcome::NotPositiveDefinite) => {
-                    r.report.qp_not_positive_definite += 1;
-                    if settings.hessian == Hessian::Exact {
-                        if exact_shift_retries >= MAX_EXACT_SHIFT_RETRIES {
-                            status = Some(Status::NumericalFailure);
-                            r.message =
-                                "the exact Hessian remained indefinite after diagonal shifts"
-                                    .into();
+                if notify {
+                    if let Some(obs) = observer.as_deref_mut() {
+                        let e = r.evaluation.as_ref().expect("evaluated");
+                        let progress = Progress {
+                            iteration: r.iterations,
+                            objective: e.objective,
+                            primal_violation: e.primal_violation,
+                        };
+                        if obs.observe(&progress)? == Control::Stop {
+                            status = Some(Status::Cancelled);
+                            r.message = "stopped by the observer".into();
                             break;
                         }
-                        hessian.shift_diagonal()?;
-                        exact_shift_retries += 1;
+                    }
+                    if let Some(s) = calls.stop() {
+                        status = Some(s);
+                        break;
+                    }
+                }
+                if r.iterations >= settings.max_iterations {
+                    status = Some(Status::IterationLimit);
+                    break;
+                }
+
+                // 1. Step QP.
+                let x = r.candidate.as_ref().expect("evaluated");
+                let e = r.evaluation.as_ref().expect("evaluated");
+                if settings.hessian == Hessian::Exact && exact_at != Some(r.iterations) {
+                    if let Some(s) = calls.before_call() {
+                        status = Some(s);
+                        break;
+                    }
+                    let lambda = r
+                        .multipliers
+                        .as_ref()
+                        .map_or(zero_lambda.as_slice(), |m| m.constraints.as_slice());
+                    let t = Instant::now();
+                    hessian.exact_at(model, x, lambda, &scales)?;
+                    calls.seconds += t.elapsed().as_secs_f64();
+                    calls.hessian_calls += 1;
+                    exact_at = Some(r.iterations);
+                    exact_shift_retries = 0;
+                    if let Some(s) = calls.stop() {
+                        status = Some(s);
+                        break;
+                    }
+                }
+                if let Some(q) = qp_work.as_mut() {
+                    refresh_qp(q, spec, x, e, hessian.as_ref())?;
+                } else {
+                    qp_work = Some(qp_model(spec, x, e, hessian.as_ref())?);
+                }
+                if !scaled_identity {
+                    // B is kept in scaled coordinates; scale the rest.
+                    scales.scale_qp(qp_work.as_mut().expect("QP initialized"), &scales.rows);
+                }
+                let qp = qp_work.as_ref().expect("QP initialized");
+                if r.report.qp_trace.len() < settings.record_qp_limit {
+                    r.report.qp_trace.push((*qp).clone());
+                }
+                let remaining = settings
+                    .time_limit_seconds
+                    .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0));
+                self.qp.configure(&QpOptions {
+                    reuse_workspace: settings.qp_reuse_workspace,
+                    tolerance: settings.qp_tolerance,
+                    acceptance_tolerance: qp_acceptance,
+                    max_iterations: settings.qp_max_iterations,
+                    time_limit_seconds: remaining,
+                    elastic_weight,
+                    hard_rows: hard_rows.clone(),
+                })?;
+                let t = Instant::now();
+                r.report.qp_solves += 1;
+                let outcome = self.qp.solve(qp, qp_warm.as_ref(), cancel);
+                r.report.qp_seconds += t.elapsed().as_secs_f64();
+                let report = self.qp.report();
+                record_qp_work(&mut r.report, &report);
+                r.report.qp_backend = report.backend;
+                r.report.qp_status = report.raw_status;
+                r.report.qp_iterations += report.iterations;
+                let qp_iterations = report.iterations;
+                if let Some(s) = calls.stop() {
+                    status = Some(s);
+                    break;
+                }
+                let mut solution: QpSolution = match outcome {
+                    Ok(QpOutcome::Optimal(s)) => s,
+                    Ok(QpOutcome::Infeasible) => {
+                        if settings.max_restoration_steps == 0 {
+                            status = Some(Status::LinearizationInfeasible);
+                            break;
+                        }
+                        if r.report.restoration_steps >= settings.max_restoration_steps {
+                            status = Some(Status::RestorationLimit);
+                            break;
+                        }
+                        let began = Instant::now();
+                        let restored = restoration::step(
+                            &mut self.qp,
+                            spec,
+                            model,
+                            &mut calls,
+                            &mut r,
+                            options,
+                            &scales,
+                            hessian.structured_pattern(),
+                        );
+                        r.report.restoration_seconds += began.elapsed().as_secs_f64();
+                        status = restored?;
+                        if let (Some(reference), Some(e)) = (&linear_reference, &r.evaluation) {
+                            linear::check_constant(spec, reference, e)?;
+                        }
+                        if status.is_some() {
+                            break;
+                        }
+                        // Feasibility steps do not carry an NLP multiplier estimate.
+                        // Restart curvature/penalties without spending the BFGS failure budget.
+                        hessian.reset();
+                        fresh_curvature = true;
+                        penalties.fill(0.0);
+                        have_penalties = false;
+                        augmented.reset();
+                        retry_descent = false;
+                        noise_steps = 0;
+                        notify = true;
+                        continue;
+                    }
+                    Ok(QpOutcome::Cancelled) => {
+                        status = Some(Status::Cancelled);
+                        break;
+                    }
+                    Ok(QpOutcome::LimitReached(_)) => {
+                        let reason = report.limit_reason.unwrap_or_else(|| "unknown".into());
+                        status = Some(if reason == "time" {
+                            Status::TimeLimit
+                        } else {
+                            Status::QpFailure
+                        });
+                        r.message = format!("QP subproblem stopped at its {reason} limit");
+                        break;
+                    }
+                    Ok(QpOutcome::Unbounded) => {
+                        status = Some(Status::QpFailure);
+                        r.message = "QP subproblem reported unbounded although B is positive \
+                                 definite; numerical trouble"
+                            .into();
+                        break;
+                    }
+                    Ok(QpOutcome::NotPositiveDefinite) => {
+                        r.report.qp_not_positive_definite += 1;
+                        if settings.hessian == Hessian::Exact {
+                            if exact_shift_retries >= MAX_EXACT_SHIFT_RETRIES {
+                                status = Some(Status::NumericalFailure);
+                                r.message =
+                                    "the exact Hessian remained indefinite after diagonal shifts"
+                                        .into();
+                                break;
+                            }
+                            hessian.shift_diagonal()?;
+                            exact_shift_retries += 1;
+                            retry_descent = false;
+                            notify = false;
+                            continue;
+                        }
+                        // Damping keeps B positive definite in exact arithmetic,
+                        // but rounding in the explicit update can leave it
+                        // indefinite. The backend's exact check is the only
+                        // positive-definiteness test of B: treat its rejection
+                        // like a failed update (reset, or stop without budget)
+                        // and re-solve this QP without counting an iteration.
+                        if r.report.hessian_resets >= u64::from(settings.max_hessian_resets) {
+                            status = Some(Status::NumericalFailure);
+                            r.message = "the Hessian approximation is not positive definite and \
+                                     the Hessian reset budget is exhausted"
+                                .into();
+                            break;
+                        }
+                        hessian::fallback_to_full(
+                            &mut hessian,
+                            &mut qp_work,
+                            &mut r.report,
+                            n,
+                            settings.initial_hessian_scale,
+                        );
+                        hessian.reset();
+                        fresh_curvature = true;
+                        r.report.hessian_resets += 1;
                         retry_descent = false;
                         notify = false;
                         continue;
                     }
-                    // Damping keeps B positive definite in exact arithmetic,
-                    // but rounding in the explicit update can leave it
-                    // indefinite. The backend's exact check is the only
-                    // positive-definiteness test of B: treat its rejection
-                    // like a failed update (reset, or stop without budget)
-                    // and re-solve this QP without counting an iteration.
+                    Ok(other) => {
+                        status = Some(Status::QpFailure);
+                        r.message = format!("unexpected QP outcome {other:?}");
+                        break;
+                    }
+                    Err(Error::Backend(message)) => {
+                        status = Some(Status::QpFailure);
+                        r.message = message;
+                        break;
+                    }
+                    Err(err) => return Err(err),
+                };
+                if !usable_qp_output(qp, &solution) {
+                    status = Some(Status::QpFailure);
+                    r.message =
+                        "QP backend returned a malformed or non-finite step or multiplier".into();
+                    break;
+                }
+                if settings.qp_warm_start {
+                    if let Some(active_set) = solution.active_set.take() {
+                        qp_warm = Some(QpWarmStart {
+                            active_set: Some(active_set),
+                            ..Default::default()
+                        });
+                    }
+                }
+                // Put tolerance-level overshoots of the step bounds (including the
+                // zero-width bounds of fixed variables) on the bound; recheck below.
+                snap_step(
+                    &mut solution.step,
+                    &qp.variables,
+                    spec.variables(),
+                    options.feasibility_tolerance,
+                    &scales.variables,
+                    &mut r.report,
+                );
+                let check = match elastic_weight {
+                    Some(weight) => qp.accepts_elastic_with_hard_rows(
+                        &solution,
+                        qp_acceptance,
+                        weight,
+                        &hard_rows,
+                        &mut qp_checks,
+                    )?,
+                    None => qp.accepts_with_workspace(&solution, qp_acceptance, &mut qp_checks)?,
+                };
+                if !check.accepted {
+                    status = Some(Status::QpFailure);
+                    r.message = format!(
+                        "QP solution failed the independent check (scale {:.3e}): {:?}",
+                        check.scale, check.residuals
+                    );
+                    break;
+                }
+                if !scaled_identity {
+                    scales.unscale_solution(&mut solution, &scales.rows);
+                }
+
+                // 2. Convergence test at x_k with the fresh multipliers.
+                store_residuals(spec, &mut r, solution.multipliers.clone())?;
+                let e = r.evaluation.as_ref().expect("evaluated");
+                let (stationarity, complementarity) = (
+                    r.stationarity.expect("stored"),
+                    r.complementarity.expect("stored"),
+                );
+                let mut record = IterationRecord {
+                    iteration: r.iterations,
+                    objective: e.objective,
+                    primal_violation: e.primal_violation,
+                    stationarity,
+                    complementarity,
+                    qp_step_norm: norm_inf(&solution.step),
+                    step_length: None,
+                    trials: 0,
+                    max_penalty: 0.0,
+                    qp_iterations,
+                    second_order_correction: false,
+                    curvature: None,
+                };
+                // The residuals must clear their tolerances by their own rounding
+                // level, or the claim rests on rounding noise.
+                let (stationarity_level, complementarity_level) = rounding_levels(
+                    spec,
+                    r.candidate.as_ref().expect("evaluated"),
+                    e,
+                    r.multipliers.as_ref().expect("stored"),
+                );
+                if e.primal_violation <= options.feasibility_tolerance
+                    && stationarity + stationarity_level <= settings.stationarity_tolerance
+                    && complementarity + complementarity_level <= settings.complementarity_tolerance
+                    && r.dual_sign.expect("stored") <= settings.dual_sign_tolerance
+                {
+                    if settings.record_history {
+                        r.report.history.push(record);
+                    }
+                    status = Some(Status::Converged);
+                    break;
+                }
+                let x = r.candidate.as_ref().expect("evaluated");
+                let p = &solution.step;
+                let mut linear = vec![0.0; spec.m()];
+                spec.jacobian().multiply(&e.jacobian_values, p, &mut linear);
+                for (l, &c) in linear.iter_mut().zip(&e.constraints) {
+                    *l = finite(*l + c, "linearized constraints")?;
+                }
+                // Rows the elastic QP leaves violated.
+                let rows = spec.constraints();
+                let elastic_rows: Vec<usize> = match elastic_weight {
+                    Some(_) => (0..spec.m())
+                        .filter(|&i| {
+                            !spec.linear_rows()[i]
+                                && (rows.lower[i] - linear[i] > options.feasibility_tolerance
+                                    || linear[i] - rows.upper[i] > options.feasibility_tolerance)
+                        })
+                        .collect(),
+                    None => Vec::new(),
+                };
+                if let Some(weight) = elastic_weight.filter(|_| {
+                    !elastic_rows.is_empty() && e.primal_violation > options.feasibility_tolerance
+                }) {
+                    // At a stationary point of f + γ·violation with violated rows
+                    // a larger weight may still reach feasibility; past the last
+                    // increase the point is reported as locally infeasible.
+                    let weights: Vec<f64> = scales.rows.iter().map(|&r| weight * r).collect();
+                    let k = sqp_craft::kkt::elastic_residuals_with_row_weights(
+                        &sqp_craft::kkt::KktPoint {
+                            x,
+                            variable_bounds: spec.variables(),
+                            rows: &e.constraints,
+                            row_bounds: rows,
+                            gradient: &e.gradient,
+                            jacobian: spec.jacobian(),
+                            jacobian_values: &e.jacobian_values,
+                        },
+                        &solution.multipliers,
+                        &weights,
+                        &hard_rows,
+                        options.feasibility_tolerance,
+                        &mut relaxed,
+                        &mut transpose,
+                    )?;
+                    // A negligible step says the same as small residuals: the QP
+                    // finds x stationary for the penalty.
+                    let scale = 1.0 + weight * scales.largest_row();
+                    let tiny = norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x));
+                    if tiny
+                        || k.stationarity <= settings.stationarity_tolerance
+                            && k.complementarity <= settings.complementarity_tolerance * scale
+                            && k.dual_sign <= settings.dual_sign_tolerance * scale
+                    {
+                        if r.report.elastic_weight_increases < MAX_ELASTIC_INCREASES {
+                            elastic_weight = Some(10.0 * weight);
+                            r.report.elastic_weight_increases += 1;
+                            retry_descent = false;
+                            notify = false;
+                            continue;
+                        }
+                        if settings.record_history {
+                            r.report.history.push(record);
+                        }
+                        status = Some(Status::LocallyInfeasible);
+                        break;
+                    }
+                }
+
+                // 3. Merit line search.
+                if elastic_phase && elastic_rows.is_empty() {
+                    // The linearization is consistent again. Penalties of γ from
+                    // the elastic phase would shorten every following step (as
+                    // after restoration, start Powell's rule afresh).
+                    have_penalties = false;
+                }
+                elastic_phase = !elastic_rows.is_empty();
+                // The augmented-Lagrangian merit, unless the elastic QP left rows
+                // violated: its step then minimizes the model of f + γ·violation.
+                let search =
+                    if settings.merit == Merit::AugmentedLagrangian && elastic_rows.is_empty() {
+                        Some(augmented.search(
+                            spec.constraints(),
+                            e.objective,
+                            &e.constraints,
+                            &linear,
+                            dot(&e.gradient, p)?,
+                            hessian.curvature_along(&scales.to_scaled(p))?,
+                            &solution.multipliers.constraints,
+                            &skip_rows,
+                        )?)
+                    } else {
+                        None
+                    };
+                let (merit, predicted, sensitivity) = if let Some(search) = &search {
+                    record.max_penalty = search.max_penalty;
+                    (search.value, search.predicted, search.sensitivity)
+                } else {
+                    for (mu, &lambda) in penalties.iter_mut().zip(&solution.multipliers.constraints)
+                    {
+                        let target = PENALTY_MARGIN * lambda.abs();
+                        *mu = if have_penalties {
+                            target.max(0.5 * (*mu + target))
+                        } else {
+                            target
+                        };
+                        finite(*mu, "penalty")?;
+                    }
+                    have_penalties = true;
+                    // Rows declared linear stay satisfied along the step.
+                    for (mu, &linear) in penalties.iter_mut().zip(spec.linear_rows()) {
+                        if linear {
+                            *mu = 0.0;
+                        }
+                    }
+                    if let Some(weight) = elastic_weight {
+                        // The elastic QP minimizes the model of f + γ·violation, so
+                        // its step is a descent direction for that merit: rows it
+                        // leaves violated (|λ_i| = γ) are weighted by exactly γ.
+                        for &i in &elastic_rows {
+                            penalties[i] = weight * scales.rows[i];
+                        }
+                    }
+                    record.max_penalty = norm_inf(&penalties);
+                    let violation =
+                        weighted_violation(spec.constraints(), &e.constraints, &penalties)?;
+                    let linear_violation =
+                        weighted_violation(spec.constraints(), &linear, &penalties)?;
+                    let predicted = finite(
+                        -dot(&e.gradient, p)? + (violation - linear_violation),
+                        "predicted decrease",
+                    )?;
+                    (
+                        finite(e.objective + violation, "merit")?,
+                        predicted,
+                        record.max_penalty,
+                    )
+                };
+                if norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x)) {
+                    if settings.record_history {
+                        r.report.history.push(record);
+                    }
+                    status = Some(Status::Stalled);
+                    break;
+                }
+                // `Some(accuracy)` when this step is taken although its predicted
+                // decrease is non-positive within the QP's accuracy.
+                let mut noise_step = None;
+                if predicted <= 0.0 {
+                    // First retry once from B = scale·I: a badly scaled B (for
+                    // example nearly zero curvature) can make an accurate step tiny.
+                    if !retry_descent
+                        && r.report.hessian_resets < u64::from(settings.max_hessian_resets)
+                    {
+                        hessian.reset();
+                        fresh_curvature = true;
+                        r.report.hessian_resets += 1;
+                        retry_descent = true;
+                        notify = false;
+                        continue;
+                    }
+                    // With exact QP solutions the predicted decrease is at least
+                    // pᵀBp > 0. An interior-point QP leaves active rows a little
+                    // short of their bounds, which costs up to the QP's
+                    // complementarity residual per entry. A non-positive value
+                    // within that accuracy means the step is at the QP's noise
+                    // level. Near a solution the step is then still the right one
+                    // (pᵀBp ~ 1e-12 while stationarity is just above tolerance),
+                    // so take it if the merit does not rise by more than that
+                    // accuracy, a bounded number of times in a row.
+                    let qp = check.residuals;
+                    // The QP residuals are in scaled units.
+                    let noise = (spec.m() + n) as f64 * qp.complementarity
+                        + qp.stationarity
+                            * p.iter()
+                                .zip(&scales.variables)
+                                .map(|(v, d)| (v / d).abs())
+                                .sum::<f64>()
+                        + sensitivity / scales.smallest_row() * spec.m() as f64 * qp.primal;
+                    if -predicted <= noise && noise_steps < MAX_NOISE_STEPS {
+                        noise_step = Some(noise);
+                    } else {
+                        if settings.record_history {
+                            r.report.history.push(record);
+                        }
+                        if -predicted <= noise {
+                            status = Some(Status::Stalled);
+                            r.message = noise_message(predicted, noise);
+                        } else {
+                            status = Some(Status::NoDescent);
+                        }
+                        break;
+                    }
+                }
+                // The augmented Lagrangian changes only to second order in the
+                // violation. Near a solution its predicted decrease can fall below
+                // the rounding of the merit value itself: an interior-point QP
+                // that leaves a violation of 10⁻⁶ predicts 10⁻¹⁴ with f ≈ 20. Such
+                // a step is taken at full length if the merit does not rise by
+                // more than that rounding level, as a noise-level step.
+                if let (Some(search), None) = (&search, noise_step) {
+                    let rounding = MERIT_ROUNDING * f64::EPSILON * search.magnitude;
+                    if predicted <= rounding && noise_steps < MAX_NOISE_STEPS {
+                        noise_step = Some(rounding);
+                    }
+                }
+                if let Some(search) = &search {
+                    augmented.commit(search);
+                }
+                let mut alpha = box_step_limit(spec.variables(), x, p);
+                let step_limit = settings.major_step_limit.map_or(1.0, |delta| {
+                    // Divide first, avoiding an overflowing delta * ||x||inf.
+                    (delta * (norm_inf(x).max(1.0) / norm_inf(p))).min(1.0)
+                });
+                let step_limited = step_limit < alpha;
+                if step_limited {
+                    alpha = step_limit;
+                    r.report.step_limited_iterations += 1;
+                }
+                if !(alpha.is_finite() && alpha > 0.0) {
+                    status = Some(Status::Stalled);
+                    r.message = "the QP step leaves the variable box immediately".into();
+                    break;
+                }
+                let mut accepted = None;
+                let max_backtracks = if noise_step.is_some() {
+                    0
+                } else {
+                    settings.max_backtracks
+                };
+                for _ in 0..=max_backtracks {
+                    if let Some(s) = calls.before_call() {
+                        status = Some(s);
+                        break;
+                    }
+                    let trial = trial_point(spec.variables(), x, p, alpha);
+                    if spec.check_point(&trial, "trial").is_err() {
+                        // Roundoff pushed the trial out of the box: shorten without a call.
+                        alpha *= 0.5;
+                        r.report.rejected_trials += 1;
+                        continue;
+                    }
+                    record.trials += 1;
+                    let values = match calls.functions(spec, model, &trial) {
+                        Ok(v) => v,
+                        Err(Error::UndefinedPoint(_)) => {
+                            r.report.undefined_trials += 1;
+                            r.report.rejected_trials += 1;
+                            alpha *= 0.5;
+                            continue;
+                        }
+                        Err(err) => return Err(err),
+                    };
+                    if limits
+                        .as_ref()
+                        .is_some_and(|l| beyond_limits(spec.constraints(), &values.1, l))
+                    {
+                        r.report.violation_limit_rejections += 1;
+                        r.report.rejected_trials += 1;
+                        alpha *= 0.5;
+                        continue;
+                    }
+                    let trial_merit = match &search {
+                        Some(search) => {
+                            search.value_at(&augmented.pi, alpha, values.0, &values.1)?
+                        }
+                        None => finite(
+                            values.0
+                                + weighted_violation(spec.constraints(), &values.1, &penalties)?,
+                            "trial merit",
+                        )?,
+                    };
+                    let threshold = match noise_step {
+                        Some(noise) => merit + noise,
+                        None => merit - ARMIJO * alpha * predicted,
+                    };
+                    if trial_merit > threshold {
+                        r.report.rejected_trials += 1;
+                        // Second-order correction: once, for a rejected full step
+                        // that increased the constraint violation through the
+                        // curvature of the constraints (for linear rows the
+                        // corrected QP would return the same step).
+                        let try_correction = settings.second_order_correction
+                            && alpha == 1.0
+                            && noise_step.is_none()
+                            && !record.second_order_correction;
+                        let shift: Vec<f64> = if try_correction {
+                            values
+                                .1
+                                .iter()
+                                .zip(&linear)
+                                .zip(spec.linear_rows())
+                                .map(|((c, l), &exact)| if exact { 0.0 } else { c - l })
+                                .collect()
+                        } else {
+                            Vec::new()
+                        };
+                        let corrected = if try_correction
+                            && norm_inf(&shift) > options.feasibility_tolerance
+                            && spec.constraints().checked_violation(&values.1)?
+                                >= e.primal_violation
+                        {
+                            record.second_order_correction = true;
+                            let q = qp_work.as_mut().expect("QP initialized");
+                            let saved = q.rows.clone();
+                            // Replace c(x) + Jp by c(x + p): the step must also
+                            // absorb the curvature of the constraints along p.
+                            for (i, &shift) in shift.iter().enumerate() {
+                                let shift = finite(shift * scales.rows[i], "second-order shift")?;
+                                q.rows.lower[i] -= shift;
+                                q.rows.upper[i] -= shift;
+                            }
+                            let remaining = settings
+                                .time_limit_seconds
+                                .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0));
+                            self.qp.configure(&QpOptions {
+                                reuse_workspace: settings.qp_reuse_workspace,
+                                tolerance: settings.qp_tolerance,
+                                acceptance_tolerance: qp_acceptance,
+                                max_iterations: settings.qp_max_iterations,
+                                time_limit_seconds: remaining,
+                                elastic_weight,
+                                hard_rows: hard_rows.clone(),
+                            })?;
+                            let t = Instant::now();
+                            r.report.qp_solves += 1;
+                            let outcome = self.qp.solve(q, qp_warm.as_ref(), cancel);
+                            r.report.qp_seconds += t.elapsed().as_secs_f64();
+                            let report = self.qp.report();
+                            record_qp_work(&mut r.report, &report);
+                            r.report.qp_iterations += report.iterations;
+                            let step = match outcome {
+                                Ok(QpOutcome::Optimal(s)) if !usable_qp_output(q, &s) => {
+                                    status = Some(Status::QpFailure);
+                                    r.message = "second-order QP backend returned a malformed or non-finite solution".into();
+                                    None
+                                }
+                                Ok(QpOutcome::Optimal(mut s)) => {
+                                    snap_step(
+                                        &mut s.step,
+                                        &q.variables,
+                                        spec.variables(),
+                                        options.feasibility_tolerance,
+                                        &scales.variables,
+                                        &mut r.report,
+                                    );
+                                    let check = match elastic_weight {
+                                        Some(weight) => q.accepts_elastic_with_hard_rows(
+                                            &s,
+                                            qp_acceptance,
+                                            weight,
+                                            &hard_rows,
+                                            &mut qp_checks,
+                                        )?,
+                                        None => q.accepts_with_workspace(
+                                            &s,
+                                            qp_acceptance,
+                                            &mut qp_checks,
+                                        )?,
+                                    };
+                                    if !scaled_identity {
+                                        scales.unscale_solution(&mut s, &scales.rows);
+                                    }
+                                    check.accepted.then_some(s.step)
+                                }
+                                // No correction; a stop is noticed before the
+                                // next call.
+                                Ok(_) | Err(Error::Backend(_)) => None,
+                                Err(err) => return Err(err),
+                            };
+                            q.rows = saved;
+                            step
+                        } else {
+                            None
+                        };
+                        if status.is_some() {
+                            break;
+                        }
+                        if let Some(step) = corrected {
+                            if let Some(s) = calls.before_call() {
+                                status = Some(s);
+                                break;
+                            }
+                            let trial = trial_point(spec.variables(), x, &step, 1.0);
+                            if spec.check_point(&trial, "trial").is_ok() {
+                                record.trials += 1;
+                                r.report.second_order_corrections += 1;
+                                let values = match calls.functions(spec, model, &trial) {
+                                    Ok(v) => Some(v),
+                                    Err(Error::UndefinedPoint(_)) => {
+                                        r.report.undefined_trials += 1;
+                                        None
+                                    }
+                                    Err(err) => return Err(err),
+                                };
+                                let values = values.filter(|v| {
+                                    let beyond = limits.as_ref().is_some_and(|l| {
+                                        beyond_limits(spec.constraints(), &v.1, l)
+                                    });
+                                    r.report.violation_limit_rejections += u64::from(beyond);
+                                    !beyond
+                                });
+                                let mut evaluation = None;
+                                if let Some(values) = values {
+                                    let corrected_merit = finite(
+                                        values.0
+                                            + weighted_violation(
+                                                spec.constraints(),
+                                                &values.1,
+                                                &penalties,
+                                            )?,
+                                        "corrected merit",
+                                    )?;
+                                    if corrected_merit <= threshold {
+                                        if let Some(s) = calls.before_call() {
+                                            status = Some(s);
+                                            break;
+                                        }
+                                        match calls.derivatives(
+                                            spec,
+                                            model,
+                                            &trial,
+                                            values,
+                                            options.feasibility_tolerance,
+                                        ) {
+                                            Ok(e) => evaluation = Some(e),
+                                            Err(Error::UndefinedPoint(_)) => {
+                                                r.report.undefined_trials += 1;
+                                            }
+                                            Err(err) => return Err(err),
+                                        }
+                                    }
+                                }
+                                if let Some(evaluation) = evaluation {
+                                    r.report.second_order_steps += 1;
+                                    accepted = Some((trial, evaluation));
+                                    break;
+                                }
+                                r.report.rejected_trials += 1;
+                            }
+                        }
+                        alpha *= 0.5;
+                        continue;
+                    }
+                    if let Some(s) = calls.before_call() {
+                        status = Some(s);
+                        break;
+                    }
+                    match calls.derivatives(
+                        spec,
+                        model,
+                        &trial,
+                        values,
+                        options.feasibility_tolerance,
+                    ) {
+                        Ok(evaluation) => {
+                            accepted = Some((trial, evaluation));
+                            break;
+                        }
+                        Err(Error::UndefinedPoint(_)) => {
+                            r.report.undefined_trials += 1;
+                            r.report.rejected_trials += 1;
+                            alpha *= 0.5;
+                        }
+                        Err(err) => return Err(err),
+                    }
+                }
+                if status.is_some() {
+                    break;
+                }
+                if let Some(s) = calls.stop() {
+                    status = Some(s);
+                    break;
+                }
+                let Some((next, next_evaluation)) = accepted else {
+                    if settings.record_history {
+                        r.report.history.push(record);
+                    }
+                    if let Some(noise) = noise_step {
+                        status = Some(Status::Stalled);
+                        r.message = noise_message(predicted, noise);
+                    } else {
+                        status = Some(Status::LineSearchFailure);
+                    }
+                    break;
+                };
+                if !elastic_rows.is_empty() {
+                    r.report.elastic_steps += 1;
+                }
+                noise_steps = if noise_step.is_some() {
+                    noise_steps + 1
+                } else {
+                    0
+                };
+                record.step_length = Some(alpha);
+                if settings.merit == Merit::AugmentedLagrangian {
+                    augmented.advance(&solution.multipliers.constraints, alpha);
+                }
+
+                // 4. Accept the step and update B.
+                if let Some(reference) = &linear_reference {
+                    linear::check_constant(spec, reference, &next_evaluation)?;
+                }
+                let s: Vec<f64> = next.iter().zip(x).map(|(&a, &b)| a - b).collect();
+                let t = Instant::now();
+                if fresh_curvature
+                    && step_limited
+                    && settings.initial_curvature_scaling
+                    && settings.hessian != Hessian::Exact
+                {
+                    let before = lagrangian_gradient(spec, e, &solution.multipliers)?;
+                    let after = lagrangian_gradient(spec, &next_evaluation, &solution.multipliers)?;
+                    let y: Vec<f64> = after
+                        .iter()
+                        .zip(&before)
+                        .zip(&scales.variables)
+                        .map(|((&a, &b), &d)| (a - b) * d)
+                        .collect();
+                    let scaled_s = scales.to_scaled(&s);
+                    let sy: f64 = scaled_s.iter().zip(&y).map(|(s, y)| s * y).sum();
+                    let yy: f64 = y.iter().map(|y| y * y).sum();
+                    let scale = yy / sy;
+                    if sy > 0.0 && scale.is_finite() && scale > 0.0 {
+                        hessian.rescale(scale);
+                        r.report.initial_curvature_scale.get_or_insert(scale);
+                    }
+                }
+                fresh_curvature = false;
+                let updated = hessian.update(&hessian::Update {
+                    spec,
+                    previous: e,
+                    next: &next_evaluation,
+                    multipliers: &solution.multipliers,
+                    step: &s,
+                    scales: &scales,
+                    scaled_identity,
+                    strategy: settings.hessian_update,
+                })?;
+                r.report.bfgs_seconds += t.elapsed().as_secs_f64();
+                match updated {
+                    Some(CurvatureUpdate::Damped) => r.report.bfgs_damped_updates += 1,
+                    Some(CurvatureUpdate::Modified) => r.report.bfgs_modified_updates += 1,
+                    _ => {}
+                }
+                if settings.hessian != Hessian::Exact {
+                    record.curvature = Some(updated.unwrap_or(CurvatureUpdate::Reset));
+                }
+                if settings.record_history {
+                    r.report.history.push(record);
+                }
+                r.candidate = Some(next);
+                if let Some(old) = r.evaluation.replace(next_evaluation) {
+                    calls.recycle(old);
+                }
+                r.iterations += 1;
+                r.report.step_norm = Some(norm_inf(&s));
+                store_residuals(spec, &mut r, solution.multipliers)?;
+                if updated.is_none() {
                     if r.report.hessian_resets >= u64::from(settings.max_hessian_resets) {
                         status = Some(Status::NumericalFailure);
-                        r.message = "the Hessian approximation is not positive definite and \
-                                     the Hessian reset budget is exhausted"
-                            .into();
+                        r.message =
+                            "BFGS update failed and the Hessian reset budget is exhausted".into();
                         break;
                     }
                     hessian::fallback_to_full(
@@ -1208,624 +1935,24 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                         settings.initial_hessian_scale,
                     );
                     hessian.reset();
+                    fresh_curvature = true;
                     r.report.hessian_resets += 1;
-                    retry_descent = false;
-                    notify = false;
-                    continue;
                 }
-                Ok(other) => {
-                    status = Some(Status::QpFailure);
-                    r.message = format!("unexpected QP outcome {other:?}");
-                    break;
-                }
-                Err(Error::Backend(message)) => {
-                    status = Some(Status::QpFailure);
-                    r.message = message;
-                    break;
-                }
-                Err(err) => return Err(err),
-            };
-            if settings.qp_warm_start {
-                if let Some(active_set) = solution.active_set.take() {
-                    qp_warm = Some(QpWarmStart {
-                        active_set: Some(active_set),
-                        ..Default::default()
-                    });
-                }
-            }
-            // Put tolerance-level overshoots of the step bounds (including the
-            // zero-width bounds of fixed variables) on the bound; recheck below.
-            snap_step(
-                &mut solution.step,
-                &qp.variables,
-                spec.variables(),
-                options.feasibility_tolerance,
-                &scales.variables,
-                &mut r.report,
-            );
-            let check = match elastic_weight {
-                Some(weight) => qp.accepts_elastic_with_hard_rows(
-                    &solution,
-                    qp_acceptance,
-                    weight,
-                    &hard_rows,
-                    &mut qp_checks,
-                )?,
-                None => qp.accepts_with_workspace(&solution, qp_acceptance, &mut qp_checks)?,
-            };
-            if !check.accepted {
-                status = Some(Status::QpFailure);
-                r.message = format!(
-                    "QP solution failed the independent check (scale {:.3e}): {:?}",
-                    check.scale, check.residuals
-                );
-                break;
-            }
-            if !scaled_identity {
-                scales.unscale_solution(&mut solution, &scales.rows);
+                retry_descent = false;
+                notify = true;
             }
 
-            // 2. Convergence test at x_k with the fresh multipliers.
-            store_residuals(spec, &mut r, solution.multipliers.clone())?;
-            let e = r.evaluation.as_ref().expect("evaluated");
-            let (stationarity, complementarity) = (
-                r.stationarity.expect("stored"),
-                r.complementarity.expect("stored"),
-            );
-            let mut record = IterationRecord {
-                iteration: r.iterations,
-                objective: e.objective,
-                primal_violation: e.primal_violation,
-                stationarity,
-                complementarity,
-                qp_step_norm: norm_inf(&solution.step),
-                step_length: None,
-                trials: 0,
-                max_penalty: 0.0,
-                qp_iterations,
-                second_order_correction: false,
-                curvature: None,
-            };
-            // The residuals must clear their tolerances by their own rounding
-            // level, or the claim rests on rounding noise.
-            let (stationarity_level, complementarity_level) = rounding_levels(
-                spec,
-                r.candidate.as_ref().expect("evaluated"),
-                e,
-                r.multipliers.as_ref().expect("stored"),
-            );
-            if e.primal_violation <= options.feasibility_tolerance
-                && stationarity + stationarity_level <= settings.stationarity_tolerance
-                && complementarity + complementarity_level <= settings.complementarity_tolerance
-                && r.dual_sign.expect("stored") <= settings.dual_sign_tolerance
-            {
-                if settings.record_history {
-                    r.report.history.push(record);
-                }
-                status = Some(Status::Converged);
-                break;
-            }
-            let x = r.candidate.as_ref().expect("evaluated");
-            let p = &solution.step;
-            let mut linear = vec![0.0; spec.m()];
-            spec.jacobian().multiply(&e.jacobian_values, p, &mut linear);
-            for (l, &c) in linear.iter_mut().zip(&e.constraints) {
-                *l = finite(*l + c, "linearized constraints")?;
-            }
-            // Rows the elastic QP leaves violated.
-            let rows = spec.constraints();
-            let elastic_rows: Vec<usize> = match elastic_weight {
-                Some(_) => (0..spec.m())
-                    .filter(|&i| {
-                        !spec.linear_rows()[i]
-                            && (rows.lower[i] - linear[i] > options.feasibility_tolerance
-                                || linear[i] - rows.upper[i] > options.feasibility_tolerance)
-                    })
-                    .collect(),
-                None => Vec::new(),
-            };
-            if let Some(weight) = elastic_weight.filter(|_| {
-                !elastic_rows.is_empty() && e.primal_violation > options.feasibility_tolerance
-            }) {
-                // At a stationary point of f + γ·violation with violated rows
-                // a larger weight may still reach feasibility; past the last
-                // increase the point is reported as locally infeasible.
-                let weights: Vec<f64> = scales.rows.iter().map(|&r| weight * r).collect();
-                let k = sqp_craft::kkt::elastic_residuals_with_row_weights(
-                    &sqp_craft::kkt::KktPoint {
-                        x,
-                        variable_bounds: spec.variables(),
-                        rows: &e.constraints,
-                        row_bounds: rows,
-                        gradient: &e.gradient,
-                        jacobian: spec.jacobian(),
-                        jacobian_values: &e.jacobian_values,
-                    },
-                    &solution.multipliers,
-                    &weights,
-                    &hard_rows,
-                    options.feasibility_tolerance,
-                    &mut relaxed,
-                    &mut transpose,
-                )?;
-                // A negligible step says the same as small residuals: the QP
-                // finds x stationary for the penalty.
-                let scale = 1.0 + weight * scales.largest_row();
-                let tiny = norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x));
-                if tiny
-                    || k.stationarity <= settings.stationarity_tolerance
-                        && k.complementarity <= settings.complementarity_tolerance * scale
-                        && k.dual_sign <= settings.dual_sign_tolerance * scale
-                {
-                    if r.report.elastic_weight_increases < MAX_ELASTIC_INCREASES {
-                        elastic_weight = Some(10.0 * weight);
-                        r.report.elastic_weight_increases += 1;
-                        retry_descent = false;
-                        notify = false;
-                        continue;
-                    }
-                    if settings.record_history {
-                        r.report.history.push(record);
-                    }
-                    status = Some(Status::LocallyInfeasible);
-                    break;
-                }
-            }
-
-            // 3. Merit line search.
-            if elastic_phase && elastic_rows.is_empty() {
-                // The linearization is consistent again. Penalties of γ from
-                // the elastic phase would shorten every following step (as
-                // after restoration, start Powell's rule afresh).
-                have_penalties = false;
-            }
-            elastic_phase = !elastic_rows.is_empty();
-            // The augmented-Lagrangian merit, unless the elastic QP left rows
-            // violated: its step then minimizes the model of f + γ·violation.
-            let search = if settings.merit == Merit::AugmentedLagrangian && elastic_rows.is_empty()
-            {
-                Some(augmented.search(
-                    spec.constraints(),
-                    e.objective,
-                    &e.constraints,
-                    &linear,
-                    dot(&e.gradient, p)?,
-                    hessian.curvature_along(&scales.to_scaled(p))?,
-                    &solution.multipliers.constraints,
-                    &skip_rows,
-                )?)
-            } else {
-                None
-            };
-            let (merit, predicted, sensitivity) = if let Some(search) = &search {
-                record.max_penalty = search.max_penalty;
-                (search.value, search.predicted, search.sensitivity)
-            } else {
-                for (mu, &lambda) in penalties.iter_mut().zip(&solution.multipliers.constraints) {
-                    let target = PENALTY_MARGIN * lambda.abs();
-                    *mu = if have_penalties {
-                        target.max(0.5 * (*mu + target))
-                    } else {
-                        target
-                    };
-                    finite(*mu, "penalty")?;
-                }
-                have_penalties = true;
-                // Rows declared linear stay satisfied along the step.
-                for (mu, &linear) in penalties.iter_mut().zip(spec.linear_rows()) {
-                    if linear {
-                        *mu = 0.0;
-                    }
-                }
-                if let Some(weight) = elastic_weight {
-                    // The elastic QP minimizes the model of f + γ·violation, so
-                    // its step is a descent direction for that merit: rows it
-                    // leaves violated (|λ_i| = γ) are weighted by exactly γ.
-                    for &i in &elastic_rows {
-                        penalties[i] = weight * scales.rows[i];
-                    }
-                }
-                record.max_penalty = norm_inf(&penalties);
-                let violation = weighted_violation(spec.constraints(), &e.constraints, &penalties)?;
-                let linear_violation = weighted_violation(spec.constraints(), &linear, &penalties)?;
-                let predicted = finite(
-                    -dot(&e.gradient, p)? + (violation - linear_violation),
-                    "predicted decrease",
-                )?;
-                (
-                    finite(e.objective + violation, "merit")?,
-                    predicted,
-                    record.max_penalty,
-                )
-            };
-            if norm_inf(p) <= 1e-14 * (1.0 + norm_inf(x)) {
-                if settings.record_history {
-                    r.report.history.push(record);
-                }
-                status = Some(Status::Stalled);
-                break;
-            }
-            // `Some(accuracy)` when this step is taken although its predicted
-            // decrease is non-positive within the QP's accuracy.
-            let mut noise_step = None;
-            if predicted <= 0.0 {
-                // First retry once from B = scale·I: a badly scaled B (for
-                // example nearly zero curvature) can make an accurate step tiny.
-                if !retry_descent
-                    && r.report.hessian_resets < u64::from(settings.max_hessian_resets)
-                {
-                    hessian.reset();
-                    r.report.hessian_resets += 1;
-                    retry_descent = true;
-                    notify = false;
-                    continue;
-                }
-                // With exact QP solutions the predicted decrease is at least
-                // pᵀBp > 0. An interior-point QP leaves active rows a little
-                // short of their bounds, which costs up to the QP's
-                // complementarity residual per entry. A non-positive value
-                // within that accuracy means the step is at the QP's noise
-                // level. Near a solution the step is then still the right one
-                // (pᵀBp ~ 1e-12 while stationarity is just above tolerance),
-                // so take it if the merit does not rise by more than that
-                // accuracy, a bounded number of times in a row.
-                let qp = check.residuals;
-                // The QP residuals are in scaled units.
-                let noise = (spec.m() + n) as f64 * qp.complementarity
-                    + qp.stationarity
-                        * p.iter()
-                            .zip(&scales.variables)
-                            .map(|(v, d)| (v / d).abs())
-                            .sum::<f64>()
-                    + sensitivity / scales.smallest_row() * spec.m() as f64 * qp.primal;
-                if -predicted <= noise && noise_steps < MAX_NOISE_STEPS {
-                    noise_step = Some(noise);
-                } else {
-                    if settings.record_history {
-                        r.report.history.push(record);
-                    }
-                    if -predicted <= noise {
-                        status = Some(Status::Stalled);
-                        r.message = noise_message(predicted, noise);
-                    } else {
-                        status = Some(Status::NoDescent);
-                    }
-                    break;
-                }
-            }
-            // The augmented Lagrangian changes only to second order in the
-            // violation. Near a solution its predicted decrease can fall below
-            // the rounding of the merit value itself: an interior-point QP
-            // that leaves a violation of 10⁻⁶ predicts 10⁻¹⁴ with f ≈ 20. Such
-            // a step is taken at full length if the merit does not rise by
-            // more than that rounding level, as a noise-level step.
-            if let (Some(search), None) = (&search, noise_step) {
-                let rounding = MERIT_ROUNDING * f64::EPSILON * search.magnitude;
-                if predicted <= rounding && noise_steps < MAX_NOISE_STEPS {
-                    noise_step = Some(rounding);
-                }
-            }
-            if let Some(search) = &search {
-                augmented.commit(search);
-            }
-            let mut alpha = box_step_limit(spec.variables(), x, p);
-            if !(alpha.is_finite() && alpha > 0.0) {
-                status = Some(Status::Stalled);
-                r.message = "the QP step leaves the variable box immediately".into();
-                break;
-            }
-            let mut accepted = None;
-            let max_backtracks = if noise_step.is_some() {
-                0
-            } else {
-                settings.max_backtracks
-            };
-            for _ in 0..=max_backtracks {
-                if let Some(s) = calls.before_call() {
-                    status = Some(s);
-                    break;
-                }
-                let trial = trial_point(spec.variables(), x, p, alpha);
-                if spec.check_point(&trial, "trial").is_err() {
-                    // Roundoff pushed the trial out of the box: shorten without a call.
-                    alpha *= 0.5;
-                    r.report.rejected_trials += 1;
-                    continue;
-                }
-                record.trials += 1;
-                let values = match calls.functions(spec, model, &trial) {
-                    Ok(v) => v,
-                    Err(Error::UndefinedPoint(_)) => {
-                        r.report.undefined_trials += 1;
-                        r.report.rejected_trials += 1;
-                        alpha *= 0.5;
-                        continue;
-                    }
-                    Err(err) => return Err(err),
-                };
-                if limits
-                    .as_ref()
-                    .is_some_and(|l| beyond_limits(spec.constraints(), &values.1, l))
-                {
-                    r.report.violation_limit_rejections += 1;
-                    r.report.rejected_trials += 1;
-                    alpha *= 0.5;
-                    continue;
-                }
-                let trial_merit = match &search {
-                    Some(search) => search.value_at(&augmented.pi, alpha, values.0, &values.1)?,
-                    None => finite(
-                        values.0 + weighted_violation(spec.constraints(), &values.1, &penalties)?,
-                        "trial merit",
-                    )?,
-                };
-                let threshold = match noise_step {
-                    Some(noise) => merit + noise,
-                    None => merit - ARMIJO * alpha * predicted,
-                };
-                if trial_merit > threshold {
-                    r.report.rejected_trials += 1;
-                    // Second-order correction: once, for a rejected full step
-                    // that increased the constraint violation through the
-                    // curvature of the constraints (for linear rows the
-                    // corrected QP would return the same step).
-                    let try_correction = settings.second_order_correction
-                        && alpha == 1.0
-                        && noise_step.is_none()
-                        && !record.second_order_correction;
-                    let shift: Vec<f64> = if try_correction {
-                        values
-                            .1
-                            .iter()
-                            .zip(&linear)
-                            .zip(spec.linear_rows())
-                            .map(|((c, l), &exact)| if exact { 0.0 } else { c - l })
-                            .collect()
-                    } else {
-                        Vec::new()
-                    };
-                    let corrected = if try_correction
-                        && norm_inf(&shift) > options.feasibility_tolerance
-                        && spec.constraints().checked_violation(&values.1)? >= e.primal_violation
-                    {
-                        record.second_order_correction = true;
-                        let q = qp_work.as_mut().expect("QP initialized");
-                        let saved = q.rows.clone();
-                        // Replace c(x) + Jp by c(x + p): the step must also
-                        // absorb the curvature of the constraints along p.
-                        for (i, &shift) in shift.iter().enumerate() {
-                            let shift = finite(shift * scales.rows[i], "second-order shift")?;
-                            q.rows.lower[i] -= shift;
-                            q.rows.upper[i] -= shift;
-                        }
-                        let remaining = settings
-                            .time_limit_seconds
-                            .map(|s| (s - calls.began.elapsed().as_secs_f64()).max(0.0));
-                        self.qp.configure(&QpOptions {
-                            reuse_workspace: settings.qp_reuse_workspace,
-                            tolerance: settings.qp_tolerance,
-                            acceptance_tolerance: qp_acceptance,
-                            max_iterations: settings.qp_max_iterations,
-                            time_limit_seconds: remaining,
-                            elastic_weight,
-                            hard_rows: hard_rows.clone(),
-                        })?;
-                        let t = Instant::now();
-                        r.report.qp_solves += 1;
-                        let outcome = self.qp.solve(q, qp_warm.as_ref(), cancel);
-                        r.report.qp_seconds += t.elapsed().as_secs_f64();
-                        let report = self.qp.report();
-                        record_qp_work(&mut r.report, &report);
-                        r.report.qp_iterations += report.iterations;
-                        let step = match outcome {
-                            Ok(QpOutcome::Optimal(mut s)) => {
-                                snap_step(
-                                    &mut s.step,
-                                    &q.variables,
-                                    spec.variables(),
-                                    options.feasibility_tolerance,
-                                    &scales.variables,
-                                    &mut r.report,
-                                );
-                                let check = match elastic_weight {
-                                    Some(weight) => q.accepts_elastic_with_hard_rows(
-                                        &s,
-                                        qp_acceptance,
-                                        weight,
-                                        &hard_rows,
-                                        &mut qp_checks,
-                                    )?,
-                                    None => {
-                                        q.accepts_with_workspace(&s, qp_acceptance, &mut qp_checks)?
-                                    }
-                                };
-                                if !scaled_identity {
-                                    scales.unscale_solution(&mut s, &scales.rows);
-                                }
-                                check.accepted.then_some(s.step)
-                            }
-                            // No correction; a stop is noticed before the
-                            // next call.
-                            Ok(_) | Err(Error::Backend(_)) => None,
-                            Err(err) => return Err(err),
-                        };
-                        q.rows = saved;
-                        step
-                    } else {
-                        None
-                    };
-                    if let Some(step) = corrected {
-                        if let Some(s) = calls.before_call() {
-                            status = Some(s);
-                            break;
-                        }
-                        let trial = trial_point(spec.variables(), x, &step, 1.0);
-                        if spec.check_point(&trial, "trial").is_ok() {
-                            record.trials += 1;
-                            r.report.second_order_corrections += 1;
-                            let values = match calls.functions(spec, model, &trial) {
-                                Ok(v) => Some(v),
-                                Err(Error::UndefinedPoint(_)) => {
-                                    r.report.undefined_trials += 1;
-                                    None
-                                }
-                                Err(err) => return Err(err),
-                            };
-                            let values = values.filter(|v| {
-                                let beyond = limits
-                                    .as_ref()
-                                    .is_some_and(|l| beyond_limits(spec.constraints(), &v.1, l));
-                                r.report.violation_limit_rejections += u64::from(beyond);
-                                !beyond
-                            });
-                            let mut evaluation = None;
-                            if let Some(values) = values {
-                                let corrected_merit = finite(
-                                    values.0
-                                        + weighted_violation(
-                                            spec.constraints(),
-                                            &values.1,
-                                            &penalties,
-                                        )?,
-                                    "corrected merit",
-                                )?;
-                                if corrected_merit <= threshold {
-                                    if let Some(s) = calls.before_call() {
-                                        status = Some(s);
-                                        break;
-                                    }
-                                    match calls.derivatives(
-                                        spec,
-                                        model,
-                                        &trial,
-                                        values,
-                                        options.feasibility_tolerance,
-                                    ) {
-                                        Ok(e) => evaluation = Some(e),
-                                        Err(Error::UndefinedPoint(_)) => {
-                                            r.report.undefined_trials += 1;
-                                        }
-                                        Err(err) => return Err(err),
-                                    }
-                                }
-                            }
-                            if let Some(evaluation) = evaluation {
-                                r.report.second_order_steps += 1;
-                                accepted = Some((trial, evaluation));
-                                break;
-                            }
-                            r.report.rejected_trials += 1;
-                        }
-                    }
-                    alpha *= 0.5;
-                    continue;
-                }
-                if let Some(s) = calls.before_call() {
-                    status = Some(s);
-                    break;
-                }
-                match calls.derivatives(spec, model, &trial, values, options.feasibility_tolerance)
-                {
-                    Ok(evaluation) => {
-                        accepted = Some((trial, evaluation));
-                        break;
-                    }
-                    Err(Error::UndefinedPoint(_)) => {
-                        r.report.undefined_trials += 1;
-                        r.report.rejected_trials += 1;
-                        alpha *= 0.5;
-                    }
-                    Err(err) => return Err(err),
-                }
-            }
-            if status.is_some() {
-                break;
-            }
-            if let Some(s) = calls.stop() {
-                status = Some(s);
-                break;
-            }
-            let Some((next, next_evaluation)) = accepted else {
-                if settings.record_history {
-                    r.report.history.push(record);
-                }
-                if let Some(noise) = noise_step {
-                    status = Some(Status::Stalled);
-                    r.message = noise_message(predicted, noise);
-                } else {
-                    status = Some(Status::LineSearchFailure);
-                }
-                break;
-            };
-            if !elastic_rows.is_empty() {
-                r.report.elastic_steps += 1;
-            }
-            noise_steps = if noise_step.is_some() {
-                noise_steps + 1
-            } else {
-                0
-            };
-            record.step_length = Some(alpha);
-            if settings.merit == Merit::AugmentedLagrangian {
-                augmented.advance(&solution.multipliers.constraints, alpha);
-            }
-
-            // 4. Accept the step and update B.
-            if let Some(reference) = &linear_reference {
-                linear::check_constant(spec, reference, &next_evaluation)?;
-            }
-            let s: Vec<f64> = next.iter().zip(x).map(|(&a, &b)| a - b).collect();
-            let t = Instant::now();
-            let updated = hessian.update(&hessian::Update {
-                spec,
-                previous: e,
-                next: &next_evaluation,
-                multipliers: &solution.multipliers,
-                step: &s,
-                scales: &scales,
-                scaled_identity,
-                strategy: settings.hessian_update,
-            })?;
-            r.report.bfgs_seconds += t.elapsed().as_secs_f64();
-            match updated {
-                Some(CurvatureUpdate::Damped) => r.report.bfgs_damped_updates += 1,
-                Some(CurvatureUpdate::Modified) => r.report.bfgs_modified_updates += 1,
-                _ => {}
-            }
-            if settings.hessian != Hessian::Exact {
-                record.curvature = Some(updated.unwrap_or(CurvatureUpdate::Reset));
-            }
-            if settings.record_history {
-                r.report.history.push(record);
-            }
-            r.candidate = Some(next);
-            if let Some(old) = r.evaluation.replace(next_evaluation) {
-                calls.recycle(old);
-            }
-            r.iterations += 1;
-            r.report.step_norm = Some(norm_inf(&s));
-            store_residuals(spec, &mut r, solution.multipliers)?;
-            if updated.is_none() {
-                if r.report.hessian_resets >= u64::from(settings.max_hessian_resets) {
+            Ok(())
+        })();
+        if let Err(error) = run {
+            match error {
+                Error::Numerical(message) => {
                     status = Some(Status::NumericalFailure);
-                    r.message =
-                        "BFGS update failed and the Hessian reset budget is exhausted".into();
-                    break;
+                    r.message = format!("{message}; iteration {}", r.iterations);
                 }
-                hessian::fallback_to_full(
-                    &mut hessian,
-                    &mut qp_work,
-                    &mut r.report,
-                    n,
-                    settings.initial_hessian_scale,
-                );
-                hessian.reset();
-                r.report.hessian_resets += 1;
+                error => return Err(error),
             }
-            retry_descent = false;
-            notify = true;
         }
-
         if r.report.structure.is_none() {
             r.report.structure = hessian.structure_report();
         }

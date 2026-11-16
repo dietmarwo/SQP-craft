@@ -25,6 +25,7 @@ pub(super) trait HessianModel {
     }
     fn update(&mut self, data: &Update<'_>) -> Result<Option<CurvatureUpdate>>;
     fn reset(&mut self);
+    fn rescale(&mut self, _scale: f64) {}
     fn can_fallback(&self) -> bool;
     fn exact_at(
         &mut self,
@@ -164,6 +165,10 @@ impl HessianModel for Legacy {
     fn reset(&mut self) {
         let n = self.matrix.nrows();
         self.matrix = DMatrix::identity(n, n) * self.scale;
+    }
+
+    fn rescale(&mut self, scale: f64) {
+        self.matrix = DMatrix::identity(self.matrix.nrows(), self.matrix.ncols()) * scale;
     }
 
     fn can_fallback(&self) -> bool {

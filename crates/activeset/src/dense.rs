@@ -166,8 +166,23 @@ pub(crate) fn reflect_parallel(
     let used = tail.iter().rposition(|&v| v != 0.0).map_or(1, |i| i + 1);
     let columns = &mut columns[..used * n];
     if used > 1 {
-        let size = norm(tail);
+        let original_size = norm(tail);
         let tail = &mut tail[..used];
+        // Tiny HS25NE normals made size^2 underflow and tau infinite.
+        // Normalize only outside the safe product range, preserving all
+        // ordinary-path arithmetic and parallel accumulation order.
+        let product = original_size * (original_size + tail[0].abs());
+        let normalized = !product.is_finite() || product < f64::MIN_POSITIVE;
+        if normalized {
+            for value in tail.iter_mut() {
+                *value /= original_size;
+            }
+        }
+        let size = if normalized {
+            norm(tail)
+        } else {
+            original_size
+        };
         let alpha = tail[0];
         let beta = if alpha >= 0.0 { -size } else { size };
         // H = I − τ v vᵀ with v = tail − β e₁ and vᵀv = 2‖tail‖(‖tail‖ + |α|).
@@ -194,7 +209,11 @@ pub(crate) fn reflect_parallel(
             }
         }
 
-        tail[0] = beta;
+        tail[0] = if normalized {
+            beta * original_size
+        } else {
+            beta
+        };
         tail[1..].fill(0.0);
     }
     if tail[0] < 0.0 {
