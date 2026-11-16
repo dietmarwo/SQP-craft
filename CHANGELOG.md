@@ -8,6 +8,7 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ### Added
 
+- README: links the [documentation site](https://dietmarwo.github.io/SQP-craft/), now that it is published.
 - A documentation site of the user pages: this overview, the API contract, the crate and Python package pages, the method notes, the benchmark results, the seven application tutorials, the AI context and the job interface. `book/SUMMARY.md` lists the pages; plans, iteration logs and evidence are linked to GitHub, and no file moved. The workflow shared through optimization-jobs builds it with mdBook, checks the relative links of all Markdown files and the links of the built pages, and deploys to GitHub Pages only when the repository variable `PUBLISH_DOCS_SITE` is `true`.
 
 ### Fixed
