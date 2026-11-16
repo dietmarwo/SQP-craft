@@ -730,7 +730,9 @@
             "restoration_attempts": 0,
             "restoration_steps": 0,
             "restoration_seconds": 0.0,
-            "restoration_history": []
+            "restoration_history": [],
+            "qp_solver": "active-set",
+            "elastic_mode": false
           }
         },
         "independent": {
@@ -1799,7 +1801,9 @@
             "restoration_attempts": 0,
             "restoration_steps": 0,
             "restoration_seconds": 0.0,
-            "restoration_history": []
+            "restoration_history": [],
+            "qp_solver": "active-set",
+            "elastic_mode": false
           }
         },
         "independent": {
@@ -2778,7 +2782,9 @@
             "restoration_attempts": 0,
             "restoration_steps": 0,
             "restoration_seconds": 0.0,
-            "restoration_history": []
+            "restoration_history": [],
+            "qp_solver": "active-set",
+            "elastic_mode": false
           }
         },
         "independent": {

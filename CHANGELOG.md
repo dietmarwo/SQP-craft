@@ -18,7 +18,8 @@ the job worker share it). Dates are those of the commits that set each version.
   Validation freezes the selected backend and elastic boolean in the resolved
   job; generated examples use automatic selection. Existing explicit jobs
   retain their behavior. Python reports expose resolved `qp_solver` and
-  `elastic_mode`, even when no QP ran.
+  `elastic_mode`, even when no QP ran; the recorded tutorial summaries
+  (SQP1–SQP6, X2) gain these two fields and are otherwise unchanged.
 - Named benchmark variants explicitly pin their backends and elastic settings;
   a separate `auto` variant exercises the public default. Native Rust
   `NativeSqp<B>` stays explicit; `QpSolver::resolve` exposes the frontend policy.
