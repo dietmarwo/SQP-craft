@@ -3,7 +3,7 @@
 Version 0.14.0, 16 October 2026. Item 2 of the [order of work](gaps.md#order-of-work),
 for gap 4 (inconsistent linearizations handled by a separate restoration
 mode). It needs the active-set backend. Originally opt-in, it is now enabled
-by the unreleased automatic dense policy; explicit backend selections keep it
+by the automatic dense policy of 0.19.0; explicit backend selections keep it
 off unless requested. See [backend selection](backend-selection.md):
 
 ```python

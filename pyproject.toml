@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "sqp-craft"
-version = "0.18.0"
+version = "0.19.0"
 description = "SQP solver in Rust with automatic active-set/Clarabel selection and Python bindings"
 readme = "python/README.md"
 license = "MIT"

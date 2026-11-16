@@ -2,8 +2,8 @@
 
 Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0; released
 unchanged in its solver code as 0.17.0); updated 2026-11-10 for 0.18.0's
-experimental [structured modes](docs/structured-sqp.md). Updated 2026-11-15
-for the unreleased [automatic backend policy](docs/backend-selection.md). That
+experimental [structured modes](docs/structured-sqp.md); updated 2026-11-16
+for 0.19.0's [automatic backend policy](docs/backend-selection.md). That
 state includes the result contract 0.2 (claims with evidence,
 `sqp.evaluate/1`, error codes, JSON Schemas, #15); the shared job crates taken
 from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
@@ -71,12 +71,13 @@ Rust dependencies.
 
 Release 0.17.0 was the first on PyPI (`python -m pip install sqp-craft`);
 the five library crates go to crates.io with the same version. 0.18.0 adds
-the experimental structured modes. Check the
+the experimental structured modes; 0.19.0 selects the QP backend
+automatically. Check the
 registries for the latest version before relying on it
 ([RELEASING.md](RELEASING.md)); the worker and the benchmarks stay
 source-only. For Rust, the job worker or changes after the latest release,
 use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace
-version is 0.18.0;
+version is 0.19.0;
 the shared job crates are 0.4.0, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol
 identifier, independent of both.
@@ -336,7 +337,7 @@ then-default Clarabel backend, 799 with `qp_solver="active-set"` and 813 with th
 active-set backend plus `elastic_mode=True`, with no false convergence claim
 in any configuration. It was measured with 0.14; the 0.16 review reran it
 (Clarabel and elastic mode unchanged, active-set 801). The results recommend
-active-set with elastic mode. The unreleased automatic policy now selects
+active-set with elastic mode. Since 0.19.0 the automatic policy selects
 that combination for dense curvature and Clarabel for structured curvature.
 On a [53-problem panel](docs/benchmarks/backend-selection/README.md) of
 backend disagreements, `auto` and plain active-set both have 41 accepted

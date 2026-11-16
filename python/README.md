@@ -7,7 +7,7 @@
 Sequential quadratic programming (SQP) for smooth constrained nonlinear
 problems, with a native Rust solver: damped BFGS updates of a dense Hessian
 approximation, step QPs solved by active-set or Clarabel, and an ℓ1 merit
-line search. The unreleased `qp_solver="auto"` default uses active-set with
+line search. Since 0.19.0 the `qp_solver="auto"` default uses active-set with
 elastic steps for full/block BFGS and Clarabel for partitioned/exact curvature. Results report
 stationarity, complementarity and dual-sign residuals of the KKT conditions,
 and `kkt_residuals` and `check_derivatives` check points and derivatives
