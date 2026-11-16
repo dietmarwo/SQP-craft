@@ -323,7 +323,9 @@ mod tests {
         let mut s = job(PROFILE, simplex(json!({})), 1);
         let p = Adapter::default().prepare(&mut s, Path::new(".")).unwrap();
         assert_eq!(p.tasks(), 1);
-        let mut expected = simplex(json!({"problem_version":"1","elastic_mode":false}));
+        let mut expected = simplex(
+            json!({"problem_version":"1","elastic_mode":false,"major_step_limit":null,"initial_curvature_scaling":false}),
+        );
         assert_eq!(s.payload, expected);
         // Preparing the resolved job again changes nothing (the runner checks).
         let mut again = s.clone();
@@ -486,6 +488,27 @@ mod tests {
                 .check_derivatives(&[0.2, 0.3, 0.1, 0.4])
                 .unwrap();
             assert!(report.passed, "{id}: {report:?}");
+        }
+    }
+    #[test]
+    fn safeguard_values_are_validated_and_frozen_in_resolved_jobs() {
+        let mut s = job(
+            PROFILE,
+            simplex(json!({"major_step_limit":2.0,"initial_curvature_scaling":true})),
+            1,
+        );
+        let prepared = Adapter::default().prepare(&mut s, Path::new(".")).unwrap();
+        assert_eq!(s.payload["major_step_limit"], 2.0);
+        assert_eq!(s.payload["initial_curvature_scaling"], true);
+        let result = prepared.solve(0, 30.0).unwrap();
+        assert_eq!(result.outcome.details["options"]["major_step_limit"], 2.0);
+        assert_eq!(
+            result.outcome.details["options"]["initial_curvature_scaling"],
+            true
+        );
+        for invalid in [0.0, -1.0] {
+            let mut bad = job(PROFILE, simplex(json!({"major_step_limit":invalid})), 1);
+            assert!(error(&mut bad).contains("major_step_limit"));
         }
     }
 }

@@ -63,7 +63,16 @@ and the other structured solver, then explains library, shell and MCP use.
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
 > conventions).
 
-**Version 0.19.0: automatic QP backend selection.** Python's
+**Version 0.20.0: statuses instead of exceptions.** Solver arithmetic that
+overflows ends a solve with `numerical_failure`, and an unusable QP answer
+with `qp_failure`, instead of raising; model errors still raise. A
+Householder fix removes the NaN step on HS25NE. The experimental
+`major_step_limit` and `initial_curvature_scaling` controls are off by
+default: on the CUTEst benchmark they gained 10 problems net but lost one
+bound-constrained problem. See [CHANGELOG.md](CHANGELOG.md) and the
+[first-step evidence](docs/benchmarks/first-step/README.md).
+
+**Previous version 0.19.0: automatic QP backend selection.** Python's
 `qp_solver="auto"` is the new default: active-set with elastic steps for
 full and block BFGS, Clarabel for partitioned or exact curvature. Explicit
 choices keep their previous behavior; `SqpOptions(qp_solver="clarabel",
@@ -74,7 +83,7 @@ row to relax now runs the plain QP. See
 [evidence](docs/benchmarks/backend-selection/README.md) and
 [CHANGELOG.md](CHANGELOG.md).
 
-**Previous version 0.18.0: experimental structured SQP above 256 variables.** Opt-in
+**Version 0.18.0: experimental structured SQP above 256 variables.** Opt-in
 [partitioned BFGS](docs/structured-sqp.md) on overlapping constraint cliques
 and an optional exact sparse Lagrangian Hessian, with sparse Clarabel QPs,
 sparse restoration, a memory and fill budget checked before solving, and

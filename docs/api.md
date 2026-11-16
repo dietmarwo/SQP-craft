@@ -561,7 +561,8 @@ design, measurements and validation. It depends only on the core crate and
 | Rust `Error` | Python exception | When |
 | --- | --- | --- |
 | `InvalidInput` | `ValueError` | Malformed spec, start point or options |
-| `Evaluation` | `sqp_craft.EvaluationError` (a `RuntimeError`) | Non-finite or wrongly sized model output, arithmetic overflow |
+| `Evaluation` | `sqp_craft.EvaluationError` (a `RuntimeError`) | Non-finite or wrongly sized model output |
+| `Numerical` | `RuntimeError` | Arithmetic overflow in an independent check such as `kkt_residuals`; inside a solve the driver returns `numerical_failure` instead |
 | `UndefinedPoint` | `sqp_craft.UndefinedPointError` (an `EvaluationError`) | Model not defined at the start point |
 | `Unsupported` | `NotImplementedError` | Valid but unimplemented request |
 | `Backend` | `RuntimeError` | Backend failure outside the driver's status handling |
@@ -791,3 +792,16 @@ through git, at the revision `Cargo.toml` pins; their build also makes
 Dummy reports use `None` and `False`. `qp_backend` keeps the actual backend's
 versioned diagnostic. See [backend selection](backend-selection.md) for jobs,
 Rust frontends and compatibility with explicit choices.
+
+## Numerical failure handling and experimental step safeguards (since 0.20.0)
+
+Callback `Evaluation` errors, malformed lengths and non-finite callback values remain errors. `UndefinedPoint` at the user's own start remains an error; undefined trial points still backtrack. Arithmetic overflow inside the driver returns `numerical_failure`, naming the quantity and iteration, with the last complete point. An undefined solver-projected start returns that status without a candidate. Malformed/non-finite QP backend answers return `qp_failure`. These statuses make no convergence claim.
+
+| Option or report field | Meaning |
+| --- | --- |
+| `major_step_limit: float | None` | Before each line search, cap its first length by `delta * max(1, norm_inf(x)) / norm_inf(p)`, also respecting the box. Positive finite values only; `None` disables it. |
+| `initial_curvature_scaling: bool` | After a shortened accepted step with fresh BFGS curvature, initialize all blocks by `y.T@y / s.T@y` when positive and finite, then apply the usual BFGS update. Coordinates follow the configured scaling. Exact Hessians are untouched. |
+| `report.step_limited_iterations` | Count of line searches shortened by the major-step limit. |
+| `report.initial_curvature_scale` | First applied Shanno–Phua scale, or `None`. |
+
+For the exact 0.19.0 line-search behavior use `SqpOptions(major_step_limit=None, initial_curvature_scaling=False)`. Solver-internal error-to-status fixes still apply. The benchmark acceptance decision and unsuccessful variants are in [first-step evidence](benchmarks/first-step/README.md). Jobs accept both options and serialize their effective values, including disabled values, in the resolved payload.

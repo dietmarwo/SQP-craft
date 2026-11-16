@@ -325,6 +325,10 @@ pub struct RunReport {
     pub qp_status: Option<String>,
     /// Number of QP calls including retries.
     pub qp_solves: u64,
+    /// Iterations whose line-search starting length was shortened by the major-step limit.
+    pub step_limited_iterations: u64,
+    /// First Shanno-Phua diagonal curvature scale applied during this solve.
+    pub initial_curvature_scale: Option<f64>,
     /// Total iterations of all QP calls.
     pub qp_iterations: u64,
     /// Number of rejected merit/domain trials.

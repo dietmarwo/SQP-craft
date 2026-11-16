@@ -590,6 +590,10 @@ fn solve_native<'py>(
                             "structured_memory_limit_bytes" => {
                                 settings.structured_memory_limit_bytes = value.extract()?
                             }
+                            "major_step_limit" => settings.major_step_limit = value.extract()?,
+                            "initial_curvature_scaling" => {
+                                settings.initial_curvature_scaling = value.extract()?
+                            }
                             "initial_hessian_scale" => {
                                 settings.initial_hessian_scale = value.extract()?
                             }
@@ -693,6 +697,8 @@ fn solve_native<'py>(
     report.set_item("elastic_mode", selected_qp_options.1)?;
     report.set_item("qp_status", &r.report.qp_status)?;
     report.set_item("qp_solves", r.report.qp_solves)?;
+    report.set_item("step_limited_iterations", r.report.step_limited_iterations)?;
+    report.set_item("initial_curvature_scale", r.report.initial_curvature_scale)?;
     report.set_item("qp_iterations", r.report.qp_iterations)?;
     report.set_item("rejected_trials", r.report.rejected_trials)?;
     report.set_item("undefined_trials", r.report.undefined_trials)?;

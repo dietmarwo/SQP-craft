@@ -54,10 +54,14 @@ SQP_VARIANTS: dict[str, tuple[dict, bool]] = {
 # first step is at most of unit length (a stand-in for a first-step scaling or
 # step limit; resets use the same matrix).
 EXPERIMENTS: dict[str, tuple[dict, bool]] = {
+    "auto+step": ({"major_step_limit": 2.0}, False),
+    "auto+safeguard": ({"major_step_limit": 2.0, "initial_curvature_scaling": True}, False),
+    "auto+safeguard10": ({"major_step_limit": 10.0, "initial_curvature_scaling": True}, False),
+    "active-set+safeguard": ({**ACTIVE, "major_step_limit": 2.0, "initial_curvature_scaling": True}, False),
     "clarabel+partitioned": ({**CLARABEL, "hessian": "partitioned", "qp_reuse_workspace": True}, True),
     "active-set+b0-gradient": (ACTIVE, False),
 }
-REPORT_FIELDS = ["qp_solves", "qp_iterations", "rejected_trials", "undefined_trials",
+REPORT_FIELDS = ["step_limited_iterations", "initial_curvature_scale", "qp_solves", "qp_iterations", "rejected_trials", "undefined_trials",
                  "hessian_resets", "bfgs_damped_updates", "bfgs_modified_updates",
                  "elastic_steps", "second_order_steps", "violation_limit_rejections",
                  "linear_projection", "restoration_attempts", "restoration_steps",
@@ -160,7 +164,9 @@ def _sqp_craft(name: str, problem) -> dict:
                 constraint_multipliers=list(m.constraints) if m else None,
                 variable_multipliers=list(m.variables) if m else None,
                 iterations=r.iterations, message=r.message[:300],
-                report={key: getattr(r.report, key) for key in REPORT_FIELDS})
+                callback_calls=r.counts.functions + r.counts.derivatives,
+                actual_functions=r.counts.functions, actual_derivatives=r.counts.derivatives,
+                report={key: getattr(r.report, key, None) for key in REPORT_FIELDS})
 
 
 # --- SciPy SLSQP ----------------------------------------------------------------

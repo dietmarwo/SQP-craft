@@ -25,6 +25,8 @@ pub enum Error {
     Unsupported(String),
     /// Native backend setup or execution failed.
     Backend(String),
+    /// Non-finite arithmetic inside a solver or independent residual check.
+    Numerical(String),
 }
 
 impl fmt::Display for Error {
@@ -35,6 +37,7 @@ impl fmt::Display for Error {
             Error::UndefinedPoint(m) => write!(f, "model undefined at point: {m}"),
             Error::Unsupported(m) => write!(f, "unsupported: {m}"),
             Error::Backend(m) => write!(f, "backend failed: {m}"),
+            Error::Numerical(m) => write!(f, "numerical arithmetic failed: {m}"),
         }
     }
 }
@@ -49,7 +52,8 @@ impl Error {
             | Error::Evaluation(m)
             | Error::UndefinedPoint(m)
             | Error::Unsupported(m)
-            | Error::Backend(m) => m,
+            | Error::Backend(m)
+            | Error::Numerical(m) => m,
         }
     }
 }
@@ -80,7 +84,7 @@ pub(crate) fn finite(value: f64, what: &str) -> Result<f64> {
     if value.is_finite() {
         Ok(value)
     } else {
-        Err(Error::Evaluation(format!(
+        Err(Error::Numerical(format!(
             "{what} overflowed or became nonfinite"
         )))
     }

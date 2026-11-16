@@ -36,6 +36,10 @@ pub(crate) struct Payload {
     pub backend: String,
     #[serde(default)]
     pub elastic_mode: Option<bool>,
+    #[serde(default)]
+    pub major_step_limit: Option<f64>,
+    #[serde(default)]
+    pub initial_curvature_scaling: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hessian: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -109,6 +113,8 @@ pub(crate) fn prepare(
     };
     options.validate()?;
     SqpOptions {
+        major_step_limit: p.major_step_limit,
+        initial_curvature_scaling: p.initial_curvature_scaling,
         stationarity_tolerance: p.stationarity_tolerance,
         elastic_mode: selected.elastic_mode,
         hessian,
@@ -180,6 +186,7 @@ impl Run {
     /// The options the task ran with, as the result reports them.
     fn effective_options(&self) -> Value {
         let mut options = json!({"backend":self.payload.backend,"elastic_mode":self.payload.elastic_mode,
+            "major_step_limit":self.payload.major_step_limit,"initial_curvature_scaling":self.payload.initial_curvature_scaling,
             "max_iterations":self.payload.max_iterations,"max_callback_calls":self.payload.max_callback_calls,
             "threads":self.options.threads});
         if let Some(hessian) = &self.payload.hessian {
@@ -426,6 +433,8 @@ impl Prepared for Run {
         // Each task owns its model instance and its QP backend.
         let mut model = self.model.instance();
         let settings = SqpOptions {
+            major_step_limit: self.payload.major_step_limit,
+            initial_curvature_scaling: self.payload.initial_curvature_scaling,
             max_iterations: self.payload.max_iterations,
             max_callback_calls: self.payload.max_callback_calls,
             time_limit_seconds: Some(remaining),
@@ -490,6 +499,8 @@ mod tests {
                 starts: vec![vec![0.5; dimension]],
                 backend: "active_set".into(),
                 elastic_mode: Some(false),
+                major_step_limit: None,
+                initial_curvature_scaling: false,
                 hessian: None,
                 elements: None,
                 objective_pattern: None,

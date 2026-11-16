@@ -224,3 +224,9 @@ The benchmark orders what follows:
    131 problems no solver solves are probably infeasible (gap 4).
 10. Second-order information (gap 2): exact Hessians cut Uno's callbacks by
     54%, and by 70% against sqp-craft on the control problems.
+
+## 16 November 2026: follow-up on benchmark findings 1 and 2
+
+The exceptions in the six-problem panel are addressed with solver statuses; callback errors remain errors. HS25NE exposed underflow in the Householder reflector's squared tail norm, now normalized only outside its safe range. Backend outputs are checked before independent QP acceptance; overflow during the driver is distinguished from a model's own failure.
+
+First-step controls and curvature initialization are implemented. Their full benchmark, callback-cost gate, stress comparison and default decision are recorded in [first-step evidence](benchmarks/first-step/README.md). Large gradients and local convergence failures remain measured limitations; no tolerance was loosened.

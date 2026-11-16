@@ -77,7 +77,7 @@ registries for the latest version before relying on it
 ([RELEASING.md](RELEASING.md)); the worker and the benchmarks stay
 source-only. For Rust, the job worker or changes after the latest release,
 use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace
-version is 0.19.0;
+version is 0.20.0;
 the shared job crates are 0.4.1, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol
 identifier, independent of both.
@@ -385,6 +385,8 @@ that point from above.
 
 Errors: `InvalidInput` (`ValueError`) for malformed specs, starts or options;
 `Evaluation` (`EvaluationError`) for non-finite or wrongly sized model output;
+`Numerical` (`RuntimeError`) for arithmetic overflow in an independent check
+such as `kkt_residuals`, while a solve reports it as `numerical_failure`;
 `UndefinedPoint` (`UndefinedPointError`) at the start; `Unsupported`
 (`NotImplementedError`) for valid but unimplemented requests, such as
 dense mode above its limit, `threads > 8` or elastic mode with Clarabel; `Backend`
@@ -715,7 +717,8 @@ registration. `describe` reports the shared version as
 | `restoration_failed` / `restoration_limit` / `locally_infeasible` | Probably an infeasible start region or an infeasible model; try other starts, check the constraint formulation |
 | `iteration_limit` | Slow BFGS convergence; raise the budget, improve scaling or the start |
 | `stalled` / `no_descent` | Noise-level steps or inaccurate derivatives; rerun `check_derivatives`, tighten `qp_tolerance` only with evidence |
-| `numerical_failure` | BFGS reset budget spent; check derivatives and scaling |
+| `numerical_failure` | BFGS reset budget spent, solver arithmetic overflowed (the message names the quantity and iteration), or the model is undefined at the start projected onto the linear rows; check derivatives, scaling and the start |
+| `qp_failure` with "malformed or non-finite" | The QP backend returned an unusable answer; try the other backend or rescaling |
 | `EvaluationError` | Non-finite or wrongly sized model output; fix the model or signal undefined points |
 | `NotImplementedError` | dense mode above its limit, `threads > 8`, elastic mode with Clarabel, or a solver not compiled in |
 | A converged run is far from the expected solution | A different local solution; use more starts |
@@ -786,3 +789,9 @@ optimization-jobs' CI does that with all three workers.
 ## Structured application tutorials
 
 [tutorials/README.md](tutorials/README.md) lists seven application chapters (SQP1–SQP6 and X2). Each writes its model as Python callbacks, runs `check_derivatives` before solving, solves with `solve(..., method="sqp")`, and reconstructs the KKT residuals from the model's own derivatives and the returned multipliers (`tutorials/_support/numerics.py`). A `first_order` tutorial claim needs both a converged solve and a passed derivative check. Run a chapter with `python tutorials/<chapter>/run.py --output DIR`. The cross-repository driver in optimization-jobs (`tutorials/structured/`) runs all twenty chapters of the series directly or as trusted command jobs; the chapters add no job profile or registered model.
+
+## Numerical statuses and step safeguards (since 0.20.0)
+
+Model callback failures keep their error contract. Driver arithmetic overflow returns `numerical_failure` with a quantity/iteration message; invalid QP backend output returns `qp_failure`. A model undefined at a solver-projected start returns `numerical_failure` without a candidate. No convergence or feasibility certificate follows from these failure statuses.
+
+Experimental `major_step_limit` and `initial_curvature_scaling` are available in Rust, Python and `sqp.solve/1`; resolved jobs freeze both values. `None` and `False` reproduce 0.19.0's step policy. An enabled relative infinity-norm limit applies before every line search; fresh BFGS curvature may be rescaled after the first limited accepted step, including after resets. Check `step_limited_iterations`, `initial_curvature_scale`, and the [measured acceptance decision](docs/benchmarks/first-step/README.md) before recommending them. Never infer that a safeguard makes scaling unnecessary.

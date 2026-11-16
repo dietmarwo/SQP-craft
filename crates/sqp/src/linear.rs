@@ -139,6 +139,11 @@ pub(super) fn project<B: QpBackend>(
             return Ok(Some(Status::QpFailure));
         }
     };
+    if !usable_qp_output(&q, &solution) {
+        result.message =
+            "proximal-point QP backend returned a malformed or non-finite solution".into();
+        return Ok(Some(Status::QpFailure));
+    }
     snap_step(
         &mut solution.step,
         &q.variables,

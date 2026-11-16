@@ -391,6 +391,28 @@ impl HessianModel for Partitioned {
         self.assemble();
     }
 
+    fn rescale(&mut self, scale: f64) {
+        // Sum each variable's initial diagonal across overlapping elements.
+        let mut total = vec![0.0; self.lower.pattern.rows];
+        for element in &self.elements {
+            for (&j, &v) in element.columns.iter().zip(&element.initial_diagonal) {
+                total[j] += v;
+            }
+        }
+        for element in &mut self.elements {
+            element.matrix.fill(0.0);
+            for (i, (&j, &v)) in element
+                .columns
+                .iter()
+                .zip(&element.initial_diagonal)
+                .enumerate()
+            {
+                element.matrix[(i, i)] = scale * (v / total[j]);
+            }
+        }
+        self.assemble();
+    }
+
     fn can_fallback(&self) -> bool {
         self.fallback
     }

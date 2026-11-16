@@ -36,7 +36,7 @@ from ._native import check_lagrangian_hessian as _check_lagrangian_hessian
 from ._native import kkt_residuals as _kkt_residuals
 from ._native import solve_native as _solve_native
 
-__version__ = "0.19.0"
+__version__ = "0.20.0"
 
 __all__ = [
     "Cancellation",
@@ -141,6 +141,10 @@ class SqpOptions:
     """Opt in to element BFGS (``"partitioned"``) or a callback (``"exact"``)."""
     structured_memory_limit_bytes: int = 64 * 1024 * 1024
     """Budget for estimated structured curvature and QP storage, in bytes."""
+    major_step_limit: Optional[float] = None
+    """Experimental relative infinity-norm step limit; None preserves 0.19.0."""
+    initial_curvature_scaling: bool = False
+    """Rescale fresh BFGS curvature after a limited accepted step."""
     initial_hessian_scale: float = 1.0
     """Initial and reset Hessian approximation ``scale · I``."""
     hessian_block_size: int = 0
@@ -335,6 +339,8 @@ class RunReport:
     restoration_history: list[RestorationRecord]
     structure: Optional[dict[str, Any]] = None
     """Structured Hessian pattern, fill estimates and curvature diagnostics."""
+    step_limited_iterations: int = 0
+    initial_curvature_scale: Optional[float] = None
     qp_solver: Optional[str] = None
     """Resolved backend choice, even before a QP runs; ``None`` for dummy."""
     elastic_mode: bool = False
