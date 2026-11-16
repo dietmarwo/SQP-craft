@@ -41,7 +41,8 @@ the job worker share it). Dates are those of the commits that set each version.
   `initial_curvature_scaling` (Shanno–Phua rescaling of fresh BFGS curvature
   after a limited step), in Rust, Python and `sqp.solve/1`, whose resolved
   payload freezes both values. Reports add `step_limited_iterations` and
-  `initial_curvature_scale`. On the 1,036-problem benchmark the proposed
+  `initial_curvature_scale`; the recorded tutorial summaries (SQP1–SQP6, X2)
+  gain these two fields and are otherwise unchanged. On the 1,036-problem benchmark the proposed
   setting (limit 2 with scaling) accepted 824 problems against 814, but lost
   one net bound-constrained problem, so the predeclared gates keep it off.
 - [First-step evidence](docs/benchmarks/first-step/README.md): the benchmark,
