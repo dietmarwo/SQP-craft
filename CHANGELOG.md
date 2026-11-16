@@ -33,6 +33,11 @@ the job worker share it). Dates are those of the commits that set each version.
   elastic QP is the same problem there, but it had bypassed that step: on
   the backend-selection panel the automatic default lost three unconstrained
   problems (BROWNDEN, HIMMELBF, PENALTY2) that explicit active-set solves.
+- optimization-jobs pin `78970a2` (tag `v0.4.1`; the job crates are 0.4.1)
+  in the manifest and the lockfile. That release documents every public
+  item and updates the guide that `get_guide` serves; the CLI, the MCP
+  tools, the job envelope, the worker protocol and the result contract are
+  unchanged.
 
 ### Added
 
