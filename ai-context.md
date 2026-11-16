@@ -337,7 +337,12 @@ active-set backend plus `elastic_mode=True`, with no false convergence claim
 in any configuration. It was measured with 0.14; the 0.16 review reran it
 (Clarabel and elastic mode unchanged, active-set 801). The results recommend
 active-set with elastic mode. The unreleased automatic policy now selects
-that combination for dense curvature and Clarabel for structured curvature. For a new problem, try both backends and report which one ran. On
+that combination for dense curvature and Clarabel for structured curvature.
+On a [53-problem panel](docs/benchmarks/backend-selection/README.md) of
+backend disagreements, `auto` and plain active-set both have 41 accepted
+results, but different ones (8 gains, 8 losses). Elastic mode without a row
+to relax (no rows, or only rows declared linear) runs the plain QP. For a new
+problem, try both backends and report which one ran. On
 the four performance fixtures of [docs/active-set-qp.md](docs/active-set-qp.md)
 (orbit transfers with 84 and 164 variables, a separable and a restoration
 case), the active-set backend takes the same steps as Clarabel and makes the

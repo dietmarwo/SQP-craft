@@ -63,7 +63,10 @@ An omitted or null `elastic_mode` follows the same table. Validation replaces
 payload, and outcomes report them in `details.options`. Revalidating a resolved
 job leaves those choices unchanged. Old jobs with an explicit backend and
 no elastic setting retain their nonelastic behavior. Generated examples use
-`auto`; large examples also explicitly request partitioned curvature.
+`auto`; large examples also explicitly request partitioned curvature. A
+comparison that varies only `backend` between `auto` and an explicit backend,
+as an experiment-craft design may, also changes the elastic setting; set
+`elastic_mode` in every arm to compare the backends alone.
 
 `NativeSqp<B>` remains generic: Rust callers choose the backend type and
 `SqpOptions::default()` keeps `elastic_mode=false`. No new backend dependency
@@ -78,8 +81,25 @@ The historical [CUTEst report](benchmark-results.md) motivates this policy:
 754 independently accepted problems with Clarabel, 799 with active-set and
 813 with active-set plus elastic mode in 0.14; the 0.16 active-set rerun
 reached 801. These counts are not a new full-suite benchmark of this change.
-The tests and targeted campaign for this patch are described in the delivery
-log. Backend selection changes neither numerical tolerances nor KKT checks.
+Backend selection changes neither numerical tolerances nor KKT checks.
+
+A targeted [53-problem panel](benchmarks/backend-selection/README.md) of
+backend disagreements and regressions checks the change; it does not
+estimate success rates:
+
+| Configuration | Accepted | Converged and accepted | False claims |
+| --- | --- | --- | --- |
+| Clarabel, explicit | 37 | 34 | 0 |
+| active-set, explicit | 41 | 38 | 0 |
+| `auto` (active-set with elastic mode) | 41 | 40 | 0 |
+
+Explicit Clarabel and active-set records equal those of 0.18.0. Against plain
+active-set, `auto` gains eight problems and loses eight. In elastic mode,
+problems without a row to relax now run the plain QP (see
+[elastic mode](elastic-mode.md#the-driver)); before, `auto` lost three
+unconstrained problems there and accepted 38. A stress campaign of 3,000
+automatic runs on the random and complementarity families made no false
+claims.
 
 Elastic mode can change the iteration path, callback counts and failure
 status. An inconsistent problem may now finish `locally_infeasible` instead
