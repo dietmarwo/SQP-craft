@@ -1,7 +1,10 @@
 """Exercise automatic selection through the compiled API, with independent KKT checks."""
+import math
+
 import pytest
 
 from sqp_craft import Cancellation, SqpOptions, kkt_residuals, solve
+from test_snopt_lessons import line
 from test_sqp import Quadratic, free, load_example
 from test_structured import Chain, chain_spec
 
@@ -57,6 +60,51 @@ def test_default_elastic_replaces_restoration_and_matches_explicit_configuration
     assert default.report.restoration_steps == 0
     assert default.report.elastic_steps > 0
     assert_kkt(spec, hs.Hs071(), default)
+
+
+class BrownDennis:
+    """Brown and Dennis's function (CUTEst BROWNDEN), unconstrained."""
+
+    T = [i / 5 for i in range(1, 21)]
+
+    def terms(self, x, t):
+        return (x[0] + t * x[1] - math.exp(t), x[2] + x[3] * math.sin(t) - math.cos(t))
+
+    def functions(self, x):
+        return sum((a * a + b * b) ** 2 for a, b in (self.terms(x, t) for t in self.T)), []
+
+    def derivatives(self, x):
+        g = [0.0] * 4
+        for t in self.T:
+            a, b = self.terms(x, t)
+            s = 4 * (a * a + b * b)
+            for i, d in enumerate((a, a * t, b, b * math.sin(t))):
+                g[i] += s * d
+        return g, []
+
+
+@pytest.mark.parametrize("spec,model,x0", [
+    (free(4), BrownDennis(), [25.0, 5.0, -5.0, -1.0]),
+    (line([0]), Quadratic(True), [3.0, -1.0]),
+], ids=["no-rows", "linear-rows"])
+def test_elastic_mode_without_relaxable_rows_runs_the_plain_qp(spec, model, x0):
+    # Before 0.19.0 the elastic QP skipped the checked direct step here; on
+    # Brown-Dennis the noise-level steps near the minimum then diverged.
+    runs = [solve(spec, model, x0, method="sqp", method_options=SqpOptions(
+        qp_solver=backend, elastic_mode=elastic, record_history=True))
+        for backend, elastic in (("active-set", False), ("active-set", True), ("auto", None))]
+    plain = runs[0]
+    for r in runs[1:]:
+        assert r.report.elastic_mode and r.report.elastic_weight is None
+        assert (r.status, r.candidate, r.counts, r.iterations) == \
+            (plain.status, plain.candidate, plain.counts, plain.iterations)
+        assert r.report.history == plain.report.history
+
+
+def test_elastic_mode_keeps_its_weight_when_a_row_can_be_relaxed():
+    r = solve(line(), Quadratic(True), [3.0, -1.0], method="sqp",
+              method_options=SqpOptions(qp_solver="active-set", elastic_mode=True))
+    assert r.status == "converged" and r.report.elastic_weight is not None
 
 
 @pytest.mark.parametrize("n", [8, 256, 257, 300])

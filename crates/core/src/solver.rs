@@ -348,7 +348,8 @@ pub struct RunReport {
     pub qp_not_positive_definite: u64,
     /// Accepted steps whose elastic QP left at least one row violated.
     pub elastic_steps: u64,
-    /// Elastic weight at the end of an elastic-mode solve, `None` otherwise.
+    /// Elastic weight at the end of an elastic-mode solve, `None` otherwise,
+    /// including elastic mode without a row to relax.
     pub elastic_weight: Option<f64>,
     /// Times the elastic weight was multiplied by ten at a stationary point of
     /// the ℓ1 penalty with violated constraints.

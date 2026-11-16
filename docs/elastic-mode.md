@@ -147,9 +147,17 @@ is convex.
   stops as `locally_infeasible`.
 - **Restoration** stays in place for an `Infeasible` QP outcome, which
   elastic QPs do not produce.
+- **No row to relax.** Rows declared linear stay hard. Without any other
+  row (no constraints, or every row declared linear) the elastic QP is the
+  plain QP, so the driver solves the plain QP and the backend's checked
+  direct step applies, as without elastic mode. Before 0.19.0 the elastic
+  QP still ran there; on the 53-problem
+  [backend-selection panel](benchmarks/backend-selection/README.md) its
+  noise-level steps near the minimum lost three unconstrained problems
+  (BROWNDEN, HIMMELBF, PENALTY2) that the plain QP solves.
 - **Reports:** `elastic_steps` (accepted steps with violated QP rows),
-  `elastic_weight` (the final γ, `None` without elastic mode) and
-  `elastic_weight_increases`.
+  `elastic_weight` (the final γ, `None` without elastic mode or without a
+  row to relax) and `elastic_weight_increases`.
 
 ## Validation
 
@@ -177,6 +185,8 @@ is convex.
   - an infeasible problem, which ends `locally_infeasible` after six
     increases, at the expected point and multipliers;
   - the orbit path, bit for bit;
+  - Brown–Dennis without rows and with a row declared linear: the plain
+    path, bit for bit, and no weight; with a soft row the weight is kept;
   - backend and option validation before any model call.
 - **Python** (`tests/test_elastic.py`):
   - the same cases;

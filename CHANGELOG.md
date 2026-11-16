@@ -23,6 +23,12 @@ the job worker share it). Dates are those of the commits that set each version.
   a separate `auto` variant exercises the public default. Native Rust
   `NativeSqp<B>` stays explicit; `QpSolver::resolve` exposes the frontend policy.
   See [backend selection](docs/backend-selection.md).
+- Elastic mode without a row to relax (no constraint rows, or every row
+  declared linear) solves the plain step QP, so the active-set backend's
+  checked direct step applies and `report.elastic_weight` stays `None`. The
+  elastic QP is the same problem there, but it had bypassed that step: on
+  the backend-selection panel the automatic default lost three unconstrained
+  problems (BROWNDEN, HIMMELBF, PENALTY2) that explicit active-set solves.
 
 ### Added
 

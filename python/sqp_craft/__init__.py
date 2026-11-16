@@ -164,7 +164,10 @@ class SqpOptions:
     the QP is always feasible and restoration is not used. Needs
     the active-set backend. ``None`` enables it only for automatic dense
     selection; explicit backends retain their nonelastic default. An explicit
-    boolean overrides this policy; ``True`` with Clarabel is rejected."""
+    boolean overrides this policy; ``True`` with Clarabel is rejected. Rows
+    declared linear stay hard; without any other row (unconstrained or
+    bound-only problems) the plain QP runs and ``report.elastic_weight`` is
+    ``None``."""
     second_order_correction: bool = False
     """When the full step fails the merit test and increases the constraint
     violation, re-solve the step QP with the constraints shifted by their

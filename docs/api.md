@@ -145,7 +145,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `qp_max_iterations` | `200` | Per QP, shared across an attempt and its cold retry. Clarabel: interior-point iterations. Active set: drops and re-entries of constraints (first entries are not charged) |
 | `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below. No effect on the active-set backend |
 | `qp_warm_start` | `true` | Pass the last step QP's working set to the next QP; only backends that report one (the active-set backend) receive it |
-| `elastic_mode` | Python `None`; Rust `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; Python `None` enables it only for automatic dense selection. Explicit booleans override the policy; needs a backend with elastic support, otherwise `Unsupported` / `NotImplementedError` before any model call. See [elastic-mode.md](elastic-mode.md) |
+| `elastic_mode` | Python `None`; Rust `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; Python `None` enables it only for automatic dense selection. Explicit booleans override the policy; needs a backend with elastic support, otherwise `Unsupported` / `NotImplementedError` before any model call. Rows declared linear stay hard; without any other row the plain QP runs. See [elastic-mode.md](elastic-mode.md) |
 | `second_order_correction` | `false` | After a rejected full step that increased the constraint violation through curved constraints, re-solve the step QP with the rows shifted by their second-order change and try that step once before backtracking. See [second-order-correction.md](second-order-correction.md) |
 | `elastic_weight` | `1e4` | Initial elastic weight relative to `max(1, ‖∇f(x₀)‖∞)`; multiplied by 10, at most six times, at a stationary point of the ℓ1 penalty with violated rows |
 | `hessian_update` | `"damped"` | What to do below the curvature threshold `sᵀy < 0.2·sᵀBs`. `"damped"` uses Powell's damping. `"augmented"` uses SNOPT's repair: it adds `(J(x⁺) − J(x))ᵀ Ω d_L`, built from the departure from linearity `d_L`, with minimum-norm weights, and damps when no repair exists. See [snopt-lessons.md](snopt-lessons.md) |
@@ -303,7 +303,8 @@ candidate does not show that the problem is infeasible.
 `RunReport` holds the method, QP backend and its last raw status, QP solves and
 iterations, rejected and undefined trials, Hessian resets, the elastic-mode
 counters (`elastic_steps`: accepted steps whose QP left rows violated;
-`elastic_weight`: the final γ, `None` without elastic mode;
+`elastic_weight`: the final γ, `None` without elastic mode or without a row
+to relax;
 `elastic_weight_increases`), the second-order counters
 (`second_order_corrections` evaluated, `second_order_steps` accepted), the
 BFGS counters (`bfgs_damped_updates`, `bfgs_modified_updates`),
