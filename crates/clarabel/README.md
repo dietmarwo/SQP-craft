@@ -3,7 +3,7 @@
 [Optimization ecosystem](https://dietmarwo.github.io/optimization-jobs/) ·
 [Shared solver-selection and agent guide](https://github.com/dietmarwo/optimization-jobs/blob/main/ai-context.md)
 
-The Clarabel QP backend for the SQP-craft QP seam, the default backend of
+The Clarabel QP backend for the SQP-craft QP seam, the automatic structured backend of
 [`sqp-craft-solver`](https://crates.io/crates/sqp-craft-solver), with optional
 reuse of allocations and symbolic structure between QPs.
 

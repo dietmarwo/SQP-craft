@@ -7,7 +7,7 @@ The native SQP driver for the [`sqp-craft`](https://crates.io/crates/sqp-craft)
 contracts: damped BFGS, an L1 merit line search, feasibility restoration,
 elastic mode, second-order correction and batch solves of many starts. QP
 backends: [`sqp-craft-clarabel`](https://crates.io/crates/sqp-craft-clarabel)
-(default) and [`sqp-craft-activeset`](https://crates.io/crates/sqp-craft-activeset).
+and [`sqp-craft-activeset`](https://crates.io/crates/sqp-craft-activeset).
 
 ```sh
 cargo add sqp-craft sqp-craft-solver sqp-craft-clarabel
@@ -77,3 +77,10 @@ cargo test -p sqp-craft-solver --locked
 ```
 
 MIT license.
+
+Native Rust callers choose `NativeSqp<B>` explicitly; `SqpOptions::default()`
+keeps elastic mode off. Frontends can share the Python/job selection policy
+with `QpSolver::Auto.resolve(hessian, elastic_override)`: full/block BFGS
+selects active-set with elastic steps, partitioned/exact curvature selects
+Clarabel. The returned solver choice and elastic boolean must both be applied
+when constructing the driver. See [backend selection](../../docs/backend-selection.md).

@@ -38,7 +38,7 @@ class Inconsistent:
 
 def run(model=None, **settings):
     return solve(inconsistent_spec(), model or Inconsistent(), [0., 4.], method='sqp',
-                 method_options=SqpOptions(**settings))
+                 method_options=SqpOptions(qp_solver="clarabel", **settings))
 
 
 def test_hs071_recovery_and_independent_residuals():
@@ -49,7 +49,7 @@ def test_hs071_recovery_and_independent_residuals():
     spec = module.specification()
     events = []
     result = solve(spec, module.Hs071(), [1.]*4, method='sqp', observer=lambda p: events.append(p.iteration),
-                   method_options=SqpOptions(record_history=True))
+                   method_options=SqpOptions(qp_solver="clarabel", record_history=True))
     assert result.status == 'converged'
     assert abs(result.evaluation.objective - 17.0140173) < 1e-6
     residual = kkt_residuals(spec, result.candidate, result.evaluation, result.multipliers)
@@ -60,7 +60,7 @@ def test_hs071_recovery_and_independent_residuals():
     assert len(result.report.restoration_history) == result.report.restoration_steps
     assert all(h.merit_after < h.merit_before for h in result.report.restoration_history)
     disabled = solve(spec, module.Hs071(), [1.]*4, method='sqp',
-                     method_options=SqpOptions(max_restoration_steps=0))
+                     method_options=SqpOptions(qp_solver="clarabel", max_restoration_steps=0))
     assert disabled.status == 'linearization_infeasible'
 
 
@@ -89,7 +89,7 @@ def test_fatal_exception_identity_and_cancellation_during_restoration():
         run(RecoveredThenFatal(fatal=fatal))
     assert caught.value is fatal
     token = Cancellation()
-    result = solve(inconsistent_spec(), Inconsistent(cancel=token), [0., 4.], method='sqp', cancellation=token)
+    result = solve(inconsistent_spec(), Inconsistent(cancel=token), [0., 4.], method='sqp', cancellation=token, method_options=SqpOptions(qp_solver="clarabel"))
     assert result.status == 'cancelled'
     assert result.candidate == [0., 4.]
     assert result.report.restoration_steps == 0

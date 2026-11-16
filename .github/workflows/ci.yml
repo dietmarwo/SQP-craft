@@ -131,7 +131,7 @@ jobs:
       - name: Twenty HS problems (fails on a sqp-craft false claim)
         run: |
           python -m bench.run docs/benchmarks/selection.json hs.jsonl --jobs 2 \
-            --solvers clarabel,active-set,active-set+al,slsqp,uno-filtersqp \
+            --solvers auto,clarabel,active-set,active-set+elastic,active-set+al,slsqp,uno-filtersqp \
             --problems HS6,HS7,HS10,HS14,HS21,HS26,HS27,HS35,HS39,HS40,HS43,HS44,HS46,HS71,HS76,HS77,HS78,HS79,HS100,HS113
           python -m bench.report docs/benchmarks/selection.json hs.jsonl hs.md
           cat hs.md >> "$GITHUB_STEP_SUMMARY"

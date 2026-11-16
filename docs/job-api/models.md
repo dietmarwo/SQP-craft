@@ -125,7 +125,11 @@ version matches; the dimension is in range; the config deserializes and has
 no unknown field; the inputs are exactly the declared ones and match their
 hashes; the factory succeeds (it rejects malformed data with its own message)
 and builds a spec of the job's dimension; every start lies inside the bounds;
-`elastic_mode` comes with `backend: "active_set"`. At execution, every
+`elastic_mode=true` requires resolved backend `active_set`. `backend: "auto"`
+selects active-set with elastic steps for full/block BFGS, Clarabel for
+partitioned curvature. Validation freezes both choices; existing explicit
+backend requests keep elastic mode off unless enabled explicitly. See
+[backend selection](../backend-selection.md). At execution, every
 `converged` result is rechecked with a fresh instance: the objective,
 bounds, constraints and the KKT residuals with the solver's multipliers.
 Only a result that passes is claimed `first_order`.

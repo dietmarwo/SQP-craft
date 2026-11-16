@@ -20,7 +20,7 @@ import math
 import pathlib
 
 TAUS = [1, 2, 4, 8, 16, 32, math.inf]
-DEFAULT = "clarabel"
+DEFAULT = "clarabel"  # Historical comparison reference; not the API default.
 BEST_TOLERANCE = 1e-6
 
 # The decisions: (question, current choice, alternative).
@@ -36,7 +36,7 @@ DECISIONS = [
     ("Q6 elastic mode", "active-set", "active-set+elastic"),
     ("SNOPT-like combination", "active-set", "active-set+snopt"),
 ]
-SQP_CRAFT = ["clarabel", "active-set", "active-set+soc", "active-set+al",
+SQP_CRAFT = ["auto", "clarabel", "active-set", "active-set+soc", "active-set+al",
              "active-set+augmented", "active-set+scale-jacobian", "active-set+linear",
              "active-set+linear+scale-linear", "active-set+elastic", "active-set+snopt",
              "clarabel+al"]

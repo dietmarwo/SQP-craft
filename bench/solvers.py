@@ -30,9 +30,11 @@ TIME_LIMIT = 60.0
 MAX_CALLBACKS = 5000
 
 # sqp-craft variants: name -> (SqpOptions fields, declare the linear rows).
-ACTIVE = dict(qp_solver="active-set")
+ACTIVE = dict(qp_solver="active-set", elastic_mode=False)
+CLARABEL = dict(qp_solver="clarabel", elastic_mode=False)
 SQP_VARIANTS: dict[str, tuple[dict, bool]] = {
-    "clarabel": ({}, False),  # the current default
+    "auto": ({}, False),  # exercise the public default separately
+    "clarabel": (CLARABEL, False),
     "active-set": (ACTIVE, False),
     "active-set+soc": ({**ACTIVE, "second_order_correction": True}, False),
     "active-set+al": ({**ACTIVE, "merit": "augmented-lagrangian"}, False),
@@ -45,14 +47,14 @@ SQP_VARIANTS: dict[str, tuple[dict, bool]] = {
     "active-set+snopt": ({**ACTIVE, "merit": "augmented-lagrangian",
                           "hessian_update": "augmented", "scaling": "linear",
                           "elastic_mode": True, "violation_limit": 10.0}, True),
-    "clarabel+al": ({"merit": "augmented-lagrangian"}, False),
+    "clarabel+al": ({**CLARABEL, "merit": "augmented-lagrangian"}, False),
 }
 # Experiments: candidate rules not (yet) in sqp-craft, emulated with options.
 # "b0-gradient" starts BFGS from max(1, ‖∇f(x₀)‖∞)·I instead of I, so the
 # first step is at most of unit length (a stand-in for a first-step scaling or
 # step limit; resets use the same matrix).
 EXPERIMENTS: dict[str, tuple[dict, bool]] = {
-    "clarabel+partitioned": ({"hessian": "partitioned", "qp_reuse_workspace": True}, True),
+    "clarabel+partitioned": ({**CLARABEL, "hessian": "partitioned", "qp_reuse_workspace": True}, True),
     "active-set+b0-gradient": (ACTIVE, False),
 }
 REPORT_FIELDS = ["qp_solves", "qp_iterations", "rejected_trials", "undefined_trials",

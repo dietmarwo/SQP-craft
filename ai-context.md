@@ -2,7 +2,8 @@
 
 Last reviewed 2026-10-20 against `main` at `d916290` (workspace 0.16.0; released
 unchanged in its solver code as 0.17.0); updated 2026-11-10 for 0.18.0's
-experimental [structured modes](docs/structured-sqp.md). That
+experimental [structured modes](docs/structured-sqp.md). Updated 2026-11-15
+for the unreleased [automatic backend policy](docs/backend-selection.md). That
 state includes the result contract 0.2 (claims with evidence,
 `sqp.evaluate/1`, error codes, JSON Schemas, #15); the shared job crates taken
 from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs) at
@@ -49,10 +50,11 @@ server.
 SQP-craft is a sequential quadratic programming solver in Rust with Python
 bindings, aimed at smooth constrained problems such as trajectory
 transcriptions. It defaults to dense damped BFGS for at most 256 variables,
-with Clarabel (interior point) or a dense Goldfarb–Idnani active-set backend.
+with automatic dense Goldfarb–Idnani active-set QPs and elastic steps in Python.
+Explicit backend choices preserve their previous nonelastic default.
 The experimental [structured modes](docs/structured-sqp.md) use sparse
 curvature and Clarabel above that limit. All paths use a merit line search,
-bounded feasibility restoration and independent first-order KKT checks. No external
+elastic steps or bounded feasibility restoration, and independent first-order KKT checks. No external
 optimizer, BLAS or CMake is needed; Clarabel, nalgebra and Rayon are pinned
 Rust dependencies.
 
@@ -60,7 +62,7 @@ Rust dependencies.
 |---|---|---|
 | `sqp-craft` | `crates/core` | `sqp_craft`: problem spec, `NlpProblem` callbacks, solver trait, results, KKT residuals, QP seam, derivative checker, dummy method; no dependencies |
 | `sqp-craft-solver` | `crates/sqp` | `sqp_craft_solver`: `NativeSqp<B>`, `SqpOptions`, `batch::solve_many` |
-| `sqp-craft-clarabel` | `crates/clarabel` | `ClarabelQp`, the default QP backend |
+| `sqp-craft-clarabel` | `crates/clarabel` | `ClarabelQp`, automatic choice for structured curvature |
 | `sqp-craft-activeset` | `crates/activeset` | `ActiveSetQp`, the dense active-set backend |
 | `sqp-craft-parallel` | `crates/parallel` | Explicit bounded execution resources (Rayon pools) for kernels and native models |
 | `sqp-craft-python` / `sqp-craft` | `crates/python`, `python/sqp_craft` | `import sqp_craft`: PyO3 package |
@@ -280,7 +282,7 @@ let r = solver.solve(&spec, &mut Toy, &[0.2, 0.4], &Options::default(),
 assert_eq!(r.status, Status::Converged);
 ```
 
-`NativeSqp::<ClarabelQp>::default()` selects the default backend. A sparse
+`NativeSqp::<ClarabelQp>::default()` explicitly selects Clarabel; Rust has no implicit backend type. A sparse
 pattern is `CsrPattern { rows, cols, indptr, indices }`.
 `ProblemSpec::with_linear_rows(&rows)` (Python:
 `ProblemSpec(..., linear_rows=[...])`) declares rows with a constant Jacobian.
@@ -320,8 +322,8 @@ matter most:
 | `time_limit_seconds` | `None` | Cooperative whole-solve budget |
 | `stationarity_tolerance`, `complementarity_tolerance` | 1e-6 | Absolute, original units |
 | `dual_sign_tolerance` | 1e-8 | Multipliers whose sign selects an infinite bound |
-| `qp_solver` | `"clarabel"` | Python only; `"active-set"` for the dense active-set backend (Rust: the type `B`) |
-| `elastic_mode` | false | ℓ1-elastic step QPs instead of restoration; needs `"active-set"` |
+| `qp_solver` | `"auto"` | Full/block BFGS: active-set; partitioned/exact: Clarabel. Explicit choices are preserved (Rust: the type `B`). |
+| `elastic_mode` | Python `None`; Rust false | Python `None`: enabled only for automatic dense selection. Explicit backends default off; booleans override. Requires active-set. |
 | `max_restoration_steps` | 10 | Feasibility restoration budget; 0 disables restoration |
 | `initial_hessian_scale` | 1 | `B = scale·I` at the start and after resets |
 | `second_order_correction`, `merit="augmented-lagrangian"`, `hessian_update="augmented"`, `scaling`, `violation_limit`, `hessian_block_size` | off | Opt-in mechanisms; each helps on its own mechanism and costs elsewhere |
@@ -330,12 +332,17 @@ matter most:
 
 Backend choice: the CUTEst benchmark of 1,036 problems
 ([docs/benchmark-results.md](docs/benchmark-results.md)) solved 754 with the
-default Clarabel backend, 799 with `qp_solver="active-set"` and 813 with the
+then-default Clarabel backend, 799 with `qp_solver="active-set"` and 813 with the
 active-set backend plus `elastic_mode=True`, with no false convergence claim
 in any configuration. It was measured with 0.14; the 0.16 review reran it
 (Clarabel and elastic mode unchanged, active-set 801). The results recommend
-active-set with elastic mode, but the defaults are unchanged until that is
-decided. For a new problem, try both backends and report which one ran. On
+active-set with elastic mode. The unreleased automatic policy now selects
+that combination for dense curvature and Clarabel for structured curvature.
+On a [53-problem panel](docs/benchmarks/backend-selection/README.md) of
+backend disagreements, `auto` and plain active-set both have 41 accepted
+results, but different ones (8 gains, 8 losses). Elastic mode without a row
+to relax (no rows, or only rows declared linear) runs the plain QP. For a new
+problem, try both backends and report which one ran. On
 the four performance fixtures of [docs/active-set-qp.md](docs/active-set-qp.md)
 (orbit transfers with 84 and 164 variables, a separable and a restoration
 case), the active-set backend takes the same steps as Clarabel and makes the
@@ -530,7 +537,7 @@ Never deserialize executable callbacks.
 |---|---|
 | `problem`, `dimension` | Registered problem ID and its dimension |
 | `starts` | One complete finite start per task, inside the model box (never projected) |
-| `backend` | `active_set` or `clarabel` (with an underscore, unlike Python's `"active-set"`) |
+| `backend` | `auto`, `active_set` or `clarabel` (with an underscore, unlike Python's `"active-set"`) |
 | `max_iterations` | Accepted steps per task; 0 permits only the initial evaluation |
 | `max_callback_calls` | Positive per-task function plus derivative calls |
 | `feasibility_tolerance`, `stationarity_tolerance` | Positive finite values |
@@ -541,12 +548,12 @@ Optional:
 |---|---|
 | `problem_version` | Must equal the registered version (default) |
 | `config` | The model's parameters (`problems[].config` schema); default: the model's defaults; `{}` for a model without parameters |
-| `elastic_mode` | `true`: ℓ1-elastic step QPs instead of restoration; needs `backend: "active_set"` (rejected at validation with Clarabel); default `false` |
+| `elastic_mode` | `true`: ℓ1-elastic step QPs instead of restoration; needs resolved backend `active_set`; omitted/null enables it only for automatic dense selection, while explicit backends default to `false` |
 
 The envelope's `inputs` must be exactly the inputs the model declares
 (`problems[].inputs`), none for the benchmarks. The resolved job records
-`problem_version`, `elastic_mode` and, for a model with parameters, the
-effective `config`. The CUTEst results recommend `active_set` with
+`problem_version`, the concrete `backend`, `elastic_mode` and, for a model
+with parameters, the effective `config`. Resolved choices survive revalidation. The CUTEst results recommend `active_set` with
 `elastic_mode: true` ([Options](#options)). All other `SqpOptions` keep their
 defaults. The remaining wall time is each task's cooperative time limit,
 and `inner_threads` (1–8) maps to `Options::threads`. For the benchmarks

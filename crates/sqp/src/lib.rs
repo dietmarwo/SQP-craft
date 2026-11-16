@@ -32,6 +32,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod backend;
 pub mod batch;
 mod bfgs;
 mod exact;
@@ -42,6 +43,7 @@ mod partitioned;
 mod restoration;
 mod scaling;
 
+pub use backend::{QpSolver, ResolvedQpOptions};
 use scaling::Scales;
 pub use scaling::Scaling;
 
@@ -230,7 +232,9 @@ pub struct SqpOptions {
     /// Solve every step QP as an ℓ1-elastic QP (`QpOptions::elastic_weight`):
     /// constraint rows may be violated at a cost, so the QP is always
     /// feasible and feasibility restoration is not used. Requires a backend
-    /// with elastic support (`ActiveSetQp`).
+    /// with elastic support (`ActiveSetQp`). Rows declared linear stay hard;
+    /// without any other row the elastic QP is the plain QP, which then runs
+    /// (`RunReport::elastic_weight` stays `None`).
     pub elastic_mode: bool,
     /// Initial elastic weight, relative to `max(1, ‖∇f(x₀)‖∞)`.
     pub elastic_weight: f64,
@@ -984,10 +988,12 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         let mut qp_work: Option<QpModel> = None;
         // The last step QP's working set, if the backend reports one.
         let mut qp_warm: Option<QpWarmStart> = None;
-        // Elastic mode: the weight γ, scaled by the start gradient.
+        // Elastic mode: the weight γ, scaled by the start gradient. Without a
+        // row to relax (no rows, or every row declared linear and kept hard)
+        // the elastic QP is the plain QP, so the plain QP runs instead.
+        let relaxable = spec.linear_rows().iter().any(|&linear| !linear);
         let mut elastic_weight = r.evaluation.as_ref().and_then(|e| {
-            settings
-                .elastic_mode
+            (settings.elastic_mode && relaxable)
                 .then(|| settings.elastic_weight * norm_inf(&e.gradient).max(1.0))
         });
         let mut relaxed = Bounds::free(0);

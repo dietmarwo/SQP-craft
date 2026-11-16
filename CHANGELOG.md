@@ -6,8 +6,37 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Changed
+
+- Python `SqpOptions.qp_solver` now defaults to `"auto"`: full/block BFGS
+  selects active-set with elastic steps; partitioned/exact curvature selects
+  Clarabel without elastic steps. `elastic_mode=None` follows this policy;
+  explicit booleans override it. Explicit backend choices keep their previous
+  nonelastic default and are never silently replaced. Dense size limits and
+  all numerical tolerances are unchanged.
+- `sqp.solve/1` accepts `backend: "auto"` (the field remains required).
+  Validation freezes the selected backend and elastic boolean in the resolved
+  job; generated examples use automatic selection. Existing explicit jobs
+  retain their behavior. Python reports expose resolved `qp_solver` and
+  `elastic_mode`, even when no QP ran; the recorded tutorial summaries
+  (SQP1–SQP6, X2) gain these two fields and are otherwise unchanged.
+- Named benchmark variants explicitly pin their backends and elastic settings;
+  a separate `auto` variant exercises the public default. Native Rust
+  `NativeSqp<B>` stays explicit; `QpSolver::resolve` exposes the frontend policy.
+  See [backend selection](docs/backend-selection.md).
+- Elastic mode without a row to relax (no constraint rows, or every row
+  declared linear) solves the plain step QP, so the active-set backend's
+  checked direct step applies and `report.elastic_weight` stays `None`. The
+  elastic QP is the same problem there, but it had bypassed that step: on
+  the backend-selection panel the automatic default lost three unconstrained
+  problems (BROWNDEN, HIMMELBF, PENALTY2) that explicit active-set solves.
+
 ### Added
 
+- [Backend-selection evidence](docs/benchmarks/backend-selection/README.md):
+  the 53-problem panel of backend disagreements with its records for this
+  release and 0.18.0, the generated tables and the 3,000-run stress tallies
+  of the automatic default.
 - README: links the [documentation site](https://dietmarwo.github.io/SQP-craft/), now that it is published.
 - A documentation site of the user pages: this overview, the API contract, the crate and Python package pages, the method notes, the benchmark results, the seven application tutorials, the AI context and the job interface. `book/SUMMARY.md` lists the pages; plans, iteration logs and evidence are linked to GitHub, and no file moved. The workflow shared through optimization-jobs builds it with mdBook, checks the relative links of all Markdown files and the links of the built pages, and deploys to GitHub Pages only when the repository variable `PUBLISH_DOCS_SITE` is `true`.
 

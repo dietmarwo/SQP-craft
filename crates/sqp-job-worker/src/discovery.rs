@@ -45,7 +45,7 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
     let mut solve = json!({
         "$schema": DRAFT,
         "$id": format!("urn:optimization-jobs:payload:{}", solve::PROFILE),
-        "$comment": format!("Cross-field rules: every start has `dimension` entries inside the model's variable bounds (a start may violate constraint rows; it is never projected); elastic_mode needs backend active_set; the envelope's inputs are exactly the model's declared inputs (problems[].inputs; none for the benchmarks); resources.inner_threads is 1..{} with outer_workers * inner_threads <= cpu_slots. The resolved job records problem_version, elastic_mode and, for a model with parameters, the effective config.", MAX_INNER_THREADS),
+        "$comment": format!("Cross-field rules: every start has `dimension` entries inside the model's variable bounds (a start may violate constraint rows; it is never projected); elastic_mode=true needs resolved backend active_set; the envelope's inputs are exactly the model's declared inputs (problems[].inputs; none for the benchmarks); resources.inner_threads is 1..{} with outer_workers * inner_threads <= cpu_slots. The resolved job records problem_version, the resolved backend, elastic_mode and, for a model with parameters, the effective config.", MAX_INNER_THREADS),
         "type": "object",
         "additionalProperties": false,
         "required": ["problem","dimension","starts","backend","max_iterations","max_callback_calls","feasibility_tolerance","stationarity_tolerance"],
@@ -60,11 +60,11 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
     );
     p.insert(
         "backend".into(),
-        json!({"enum":solve::BACKENDS,"description":"QP backend: dense active-set or Clarabel interior point"}),
+        json!({"enum":solve::BACKENDS,"description":"auto selects active_set for full/block BFGS and clarabel for partitioned curvature; explicit choices are preserved"}),
     );
     p.insert(
         "elastic_mode".into(),
-        json!({"type":"boolean","default":false,"description":"l1-elastic step QPs instead of feasibility restoration; needs backend active_set"}),
+        json!({"type":["boolean","null"],"default":null,"description":"absent/null: true for auto full/block BFGS, false for explicit backends or auto partitioned; true requires resolved active_set"}),
     );
     p.insert(
         "hessian".into(),
@@ -100,12 +100,17 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
     );
     solve["allOf"].as_array_mut().expect("array").push(json!({
         "if":{"properties":{"elastic_mode":{"const":true}},"required":["elastic_mode"]},
-        "then":{"properties":{"backend":{"const":"active_set"}}}
+        "then":{"properties":{"backend":{"enum":["active_set","auto"]}}}
     }));
     solve["allOf"].as_array_mut().expect("array").push(json!({
         "if":{"properties":{"dimension":{"minimum":257}},"required":["dimension"]},
-        "then":{"properties":{"backend":{"const":"clarabel"},"hessian":{"const":"partitioned"}},
+        "then":{"properties":{"backend":{"enum":["clarabel","auto"]},"hessian":{"const":"partitioned"},"elastic_mode":{"enum":[false,null]}},
             "required":["hessian"]}
+    }));
+    solve["allOf"].as_array_mut().expect("array").push(json!({
+        "if":{"properties":{"backend":{"const":"auto"},"hessian":{"const":"partitioned"}},
+            "required":["backend","hessian"]},
+        "then":{"properties":{"elastic_mode":{"enum":[false,null]}}}
     }));
     let mut evaluate = json!({
         "$schema": DRAFT,
@@ -139,17 +144,16 @@ fn inputs(example: &Example) -> Value {
 }
 
 /// `examples`: for every model whose example builds, one job per profile,
-/// in resolved form (the payload `validate` returns), on one CPU slot.
+/// on one CPU slot. Validation resolves the automatic backend and elastic policy.
 pub(crate) fn examples(examples: &[Example]) -> Value {
     let one = json!({"cpu_slots":1,"outer_workers":1,"inner_threads":1});
     let limits = json!({"wall_time_seconds":30.0,"grace_seconds":1.0});
     let mut out = Vec::new();
     for e in examples {
         let mut solve = json!({"problem":e.id,"problem_version":e.version,"dimension":e.dimension,
-            "starts":[e.start],"backend":"active_set","elastic_mode":false,"max_iterations":200,
+            "starts":[e.start],"backend":"auto","max_iterations":200,
             "max_callback_calls":4000,"feasibility_tolerance":1e-7,"stationarity_tolerance":1e-6});
         let backend = if e.dimension > sqp_craft_solver::DENSE_SIZE_CAP {
-            solve["backend"] = json!("clarabel");
             solve["hessian"] = json!("partitioned");
             "Clarabel"
         } else {

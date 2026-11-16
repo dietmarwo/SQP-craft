@@ -180,3 +180,89 @@ fn elastic_mode_needs_a_backend_with_elastic_support() {
         Err(Error::InvalidInput(_))
     ));
 }
+
+/// Brown and Dennis's function (CUTEst BROWNDEN), with the row x₀ + x₁ when
+/// `row` is set.
+struct BrownDennis {
+    row: bool,
+}
+
+impl BrownDennis {
+    fn terms(x: &[f64], t: f64) -> (f64, f64) {
+        (x[0] + t * x[1] - t.exp(), x[2] + x[3] * t.sin() - t.cos())
+    }
+}
+
+impl NlpProblem for BrownDennis {
+    fn functions(&mut self, x: &[f64], c: &mut [f64]) -> Result<f64> {
+        if self.row {
+            c[0] = x[0] + x[1];
+        }
+        Ok((1..=20)
+            .map(|i| {
+                let (a, b) = Self::terms(x, f64::from(i) / 5.0);
+                (a * a + b * b).powi(2)
+            })
+            .sum())
+    }
+    fn derivatives(&mut self, x: &[f64], g: &mut [f64], j: &mut [f64]) -> Result<()> {
+        g.fill(0.0);
+        for i in 1..=20 {
+            let t = f64::from(i) / 5.0;
+            let (a, b) = Self::terms(x, t);
+            let s = 4.0 * (a * a + b * b);
+            for (gi, d) in g.iter_mut().zip([a, a * t, b, b * t.sin()]) {
+                *gi += s * d;
+            }
+        }
+        if self.row {
+            j.copy_from_slice(&[1.0, 1.0]);
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn without_a_row_to_relax_elastic_mode_runs_the_plain_qp() {
+    // The elastic QP with every row hard is the plain QP. Before 0.19.0 it
+    // still bypassed the backend's checked direct step, and on Brown–Dennis
+    // the noise-level steps near the minimum could take another path.
+    let x0 = [25.0, 5.0, -5.0, -1.0];
+    let free = ProblemSpec::new(Bounds::free(4), Bounds::free(0), CsrPattern::dense(0, 4)).unwrap();
+    let row = |linear: bool| {
+        let spec = ProblemSpec::new(
+            Bounds::free(4),
+            Bounds::new(vec![-100.0], vec![100.0]),
+            CsrPattern {
+                rows: 1,
+                cols: 4,
+                indptr: vec![0, 2],
+                indices: vec![0, 1],
+            },
+        )
+        .unwrap();
+        if linear {
+            spec.with_linear_rows(&[0]).unwrap()
+        } else {
+            spec
+        }
+    };
+    let settings = |elastic_mode| SqpOptions {
+        elastic_mode,
+        ..SqpOptions::default()
+    };
+    for (spec, has_row) in [(free, false), (row(true), true)] {
+        let mut model = BrownDennis { row: has_row };
+        let plain = run::<ActiveSetQp>(&spec, &mut model, &x0, settings(false)).unwrap();
+        let r = run::<ActiveSetQp>(&spec, &mut model, &x0, settings(true)).unwrap();
+        assert_eq!(r.report.elastic_weight, None);
+        assert_eq!(r.status, plain.status, "{}", r.message);
+        assert_eq!(r.candidate, plain.candidate);
+        assert_eq!(r.iterations, plain.iterations);
+        assert_eq!(r.counts, plain.counts);
+    }
+    // A row that is not declared linear can be relaxed and keeps the weight.
+    let mut model = BrownDennis { row: true };
+    let r = run::<ActiveSetQp>(&row(false), &mut model, &x0, settings(true)).unwrap();
+    assert!(r.report.elastic_weight.is_some());
+}

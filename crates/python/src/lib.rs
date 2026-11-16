@@ -532,6 +532,10 @@ fn solve_native<'py>(
     });
     let inner = &spec.get().inner;
     let token = cancellation.get().inner.clone();
+    #[cfg(feature = "sqp")]
+    let mut selected_qp_options = (None, false);
+    #[cfg(not(feature = "sqp"))]
+    let selected_qp_options: (Option<&str>, bool) = (None, false);
     let result = match method {
         "dummy" => {
             if method_options.is_some_and(|d| !d.is_empty()) {
@@ -554,7 +558,8 @@ fn solve_native<'py>(
             #[cfg(feature = "sqp")]
             {
                 let mut settings = sqp_craft_solver::SqpOptions::default();
-                let mut qp_solver = String::from("clarabel");
+                let mut qp_solver = String::from("auto");
+                let mut elastic_mode: Option<bool> = None;
                 if let Some(d) = method_options {
                     for (key, value) in d.iter() {
                         let key: String = key.extract()?;
@@ -600,7 +605,7 @@ fn solve_native<'py>(
                                 settings.qp_reuse_workspace = value.extract()?
                             }
                             "qp_warm_start" => settings.qp_warm_start = value.extract()?,
-                            "elastic_mode" => settings.elastic_mode = value.extract()?,
+                            "elastic_mode" => elastic_mode = value.extract()?,
                             "elastic_weight" => settings.elastic_weight = value.extract()?,
                             "second_order_correction" => {
                                 settings.second_order_correction = value.extract()?
@@ -642,14 +647,14 @@ fn solve_native<'py>(
                         }
                     }
                 }
-                if !matches!(qp_solver.as_str(), "clarabel" | "active-set") {
-                    return Err(PyValueError::new_err(format!(
-                        "qp_solver must be \"clarabel\" or \"active-set\", got {qp_solver:?}"
-                    )));
-                }
+                let selected = sqp_craft_solver::QpSolver::parse(&qp_solver)
+                    .and_then(|choice| choice.resolve(settings.hessian, elastic_mode))
+                    .map_err(to_py_err)?;
+                settings.elastic_mode = selected.elastic_mode;
+                selected_qp_options = (Some(selected.solver.as_str()), selected.elastic_mode);
                 py.detach(|| {
                     let observer = monitor.as_mut().map(|m| m as &mut dyn Observer);
-                    if qp_solver == "active-set" {
+                    if selected.solver == sqp_craft_solver::QpSolver::ActiveSet {
                         sqp_craft_solver::NativeSqp {
                             qp: sqp_craft_activeset::ActiveSetQp::default(),
                             settings,
@@ -684,6 +689,8 @@ fn solve_native<'py>(
     let report = PyDict::new(py);
     report.set_item("method", &r.report.method)?;
     report.set_item("qp_backend", &r.report.qp_backend)?;
+    report.set_item("qp_solver", selected_qp_options.0)?;
+    report.set_item("elastic_mode", selected_qp_options.1)?;
     report.set_item("qp_status", &r.report.qp_status)?;
     report.set_item("qp_solves", r.report.qp_solves)?;
     report.set_item("qp_iterations", r.report.qp_iterations)?;

@@ -210,8 +210,18 @@ fn every_example_is_a_job_that_validates_and_runs() {
             let prepared = adapter
                 .prepare(&mut s, dir.path())
                 .unwrap_or_else(|e| panic!("{name}: {example}: {e}"));
-            // Examples are in resolved form: validation changes nothing.
-            assert_eq!(s.payload, example["payload"], "{name}");
+            // Validation freezes the automatic policy, preserving every other field.
+            let mut expected = example["payload"].clone();
+            if example["profile"] == sqp_job_worker::PROFILE {
+                assert_eq!(expected["backend"], "auto");
+                let structured = expected["hessian"] == "partitioned";
+                expected["backend"] = json!(if structured { "clarabel" } else { "active_set" });
+                expected["elastic_mode"] = json!(!structured);
+            }
+            assert_eq!(s.payload, expected, "{name}");
+            let frozen = s.clone();
+            adapter.prepare(&mut s, dir.path()).unwrap();
+            assert_eq!(s, frozen, "{name}: resolved choices must be stable");
             assert!(prepared.tasks() >= 1);
             s.task_count = Some(prepared.tasks());
             fs::write(

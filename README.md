@@ -14,6 +14,12 @@ Clarabel for larger models. Partitioned BFGS passed the independent
 first-order check on the 4,994-variable SQP5 transfer with an extended time
 budget.
 
+**Unreleased backend policy:** Python defaults to `qp_solver="auto"`:
+active-set with elastic steps for full/block BFGS, Clarabel for partitioned
+or exact curvature. Explicit choices are preserved. Jobs can request
+`backend: "auto"`; validation records the concrete choices. See
+[backend selection and migration](docs/backend-selection.md).
+
 Seven [application tutorials](tutorials/README.md) (SQP1–SQP6, X2) cover
 constrained calibration, multistart and scaling, a hanging chain, collocation
 from the brachistochrone to a low-thrust transfer, an Earth–Mars Sims–Flanagan
@@ -123,13 +129,16 @@ from the previous working set) is available with
 `SqpOptions(qp_solver="active-set")`. On the benchmark fixtures it takes the
 same SQP steps as Clarabel and makes the whole solve 5.4 to 6.4 times faster
 (the 164-variable orbit transfer: 2.99 s → 0.55 s). It gave the same status
-as Clarabel in all 4,500 paired stress runs. Clarabel remains the default.
+as Clarabel in all 4,500 paired stress runs. These are historical 0.14
+measurements; current defaults follow the
+[backend selection policy](docs/backend-selection.md).
 See [active-set-qp.md](docs/active-set-qp.md), and
 [gaps.md](docs/gaps.md) for the ranked weaknesses that motivated it. With
 that backend, `SqpOptions(qp_solver="active-set", elastic_mode=True)` solves
 every step QP as an ℓ1-elastic QP instead of entering feasibility
-restoration ([elastic-mode.md](docs/elastic-mode.md)); it is an option, not
-the default, because it does not reduce the local failures.
+restoration ([elastic-mode.md](docs/elastic-mode.md)); the original local
+stress families did not show fewer failures.
+The broader CUTEst results below motivated enabling it for automatic dense selection.
 `SqpOptions(second_order_correction=True)` tries one corrected step before
 backtracking when a curved constraint makes the merit reject the full step
 ([second-order-correction.md](docs/second-order-correction.md)): 21% fewer
@@ -152,13 +161,14 @@ On well-scaled problems it takes 2–24% more iterations.
 **A CUTEst benchmark** ([benchmark-results.md](docs/benchmark-results.md))
 runs 1,036 problems from S2MPJ against SciPy SLSQP and Uno, with one
 independent first-order check for every solver:
-- **sqp-craft:** the default (Clarabel) solves 754 problems, the active-set
+- **sqp-craft:** the then-default Clarabel configuration solves 754 problems, the active-set
   backend 799, and 813 with elastic mode. It made no false claim.
 - **The comparators:** Uno's filterSQP preset solves 760 with L-BFGS and 845
   with exact Hessians; SLSQP solves 631.
 
 The results recommend the active-set backend with elastic mode as the
-default; the defaults stay unchanged until that is decided. They were measured
+dense default. The unreleased automatic policy implements that recommendation
+while retaining Clarabel for structured curvature. These results were measured
 with 0.14; the [0.16 review](docs/performance-60/REVIEW.md) reran the harness:
 Clarabel and elastic mode give the same results, and the active-set backend
 solves 801.
@@ -202,12 +212,14 @@ collocation problem; `examples/compare_baseline.py` compares the solver with
 SciPy's SLSQP under one independent evaluator, and `examples/stress_random.py`
 does the same on random feasible problems from random starts.
 
-To use the dense active-set QP backend, set
-`SqpOptions(qp_solver="active-set")`; `qp_warm_start=True` (the default)
-starts each QP from the previous working set.
+`SqpOptions()` selects active-set with elastic steps for full/block BFGS.
+Use `SqpOptions(qp_solver="active-set")` for its previous nonelastic behavior,
+or `SqpOptions(qp_solver="clarabel")` for the previous Python default.
+`qp_warm_start=True` starts active-set QPs from the previous working set.
+`report.qp_solver` and `report.elastic_mode` record the resolved options.
 
 To reuse compatible Clarabel allocations and symbolic structure, set
-`SqpOptions(qp_reuse_workspace=True)`. The default is `False`; every QP still
+`SqpOptions(qp_solver="clarabel", qp_reuse_workspace=True)`. The reuse default is `False`; every QP still
 starts its primal/dual iterates cold. `result.report` exposes `qp_setups`,
 `qp_updates`, `qp_cold_retries` and separate conversion, setup, update, solve
 and check times. See the [API](docs/api.md#qp-workspace-reuse).
@@ -218,7 +230,7 @@ and check times. See the [API](docs/api.md#qp-workspace-reuse).
 | --- | --- |
 | `crates/core` (`sqp-craft`) | Dependency-free contracts: problem spec, callbacks, solver traits, results, KKT residuals, QP seam, derivative checker, dummy method |
 | `crates/sqp` (`sqp-craft-solver`) | The native SQP driver and damped BFGS |
-| `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter (default backend) |
+| `crates/clarabel` (`sqp-craft-clarabel`) | Clarabel 0.11.1 QP adapter (automatic structured backend) |
 | `crates/activeset` (`sqp-craft-activeset`) | Dense dual active-set (Goldfarb–Idnani) QP backend; depends only on the core crate and `sqp-craft-parallel` |
 | `crates/parallel` (`sqp-craft-parallel`) | Explicit bounded execution resources (Rayon pools) for the large QP kernels and native models |
 | `crates/sqp-job-worker` | Job worker library (`Registry` of application models, `Adapter`) and the stock binary for the profiles `sqp.solve/1` and `sqp.evaluate/1` of the shared job API; `examples/custom_worker.rs` is an application worker ([models guide](docs/job-api/models.md)) |
@@ -287,7 +299,7 @@ For changes after the latest release, use git dependencies instead:
 [dependencies]
 sqp-craft = { git = "https://github.com/dietmarwo/SQP-craft" }
 sqp-craft-solver = { git = "https://github.com/dietmarwo/SQP-craft" }
-sqp-craft-clarabel = { git = "https://github.com/dietmarwo/SQP-craft" }    # ClarabelQp, the default
+sqp-craft-clarabel = { git = "https://github.com/dietmarwo/SQP-craft" }    # ClarabelQp, explicit backend
 sqp-craft-activeset = { git = "https://github.com/dietmarwo/SQP-craft" }   # ActiveSetQp, optional
 ```
 

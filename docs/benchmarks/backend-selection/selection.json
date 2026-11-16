@@ -1,0 +1,561 @@
+{
+  "s2mpj_commit": "fea6a70048eaad28b13a08703ddbfdbf65cd9c30",
+  "rules": {
+    "max_n": 256,
+    "max_m": 512,
+    "smooth": true,
+    "defined": true,
+    "max_setup_seconds": 30.0,
+    "max_evaluation_seconds": 0.2
+  },
+  "problems": [
+    {
+      "name": "ACOPP30",
+      "n": 72,
+      "m": 142,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQOR2-AY-72-142"
+    },
+    {
+      "name": "AGG",
+      "n": 163,
+      "m": 488,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 488,
+      "pbclass": "C-CLLR2-AN-163-488"
+    },
+    {
+      "name": "ALJAZZAF",
+      "n": 10,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQQR2-AN-V-V"
+    },
+    {
+      "name": "ALLINIT",
+      "n": 4,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COBR2-AY-4-0"
+    },
+    {
+      "name": "ALLINITA",
+      "n": 4,
+      "m": 4,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 2,
+      "pbclass": "C-COOR2-AY-4-4"
+    },
+    {
+      "name": "ALLINITC",
+      "n": 4,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-4-1"
+    },
+    {
+      "name": "AVION2",
+      "n": 49,
+      "m": 15,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 15,
+      "pbclass": "C-COLR2-RN-49-15"
+    },
+    {
+      "name": "BEALENE",
+      "n": 2,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNOR2-AN-2-3"
+    },
+    {
+      "name": "BIGGS6NE",
+      "n": 6,
+      "m": 13,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNOR2-AN-6-13"
+    },
+    {
+      "name": "BROWNBSNE",
+      "n": 2,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 2,
+      "pbclass": "C-CNOR2-AN-2-3"
+    },
+    {
+      "name": "BROWNDEN",
+      "n": 4,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSUR2-AN-4-0"
+    },
+    {
+      "name": "BYRDSPHR",
+      "n": 3,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CLQR2-AN-3-2"
+    },
+    {
+      "name": "CATENARY",
+      "n": 15,
+      "m": 4,
+      "subset": "nonlinear",
+      "control": true,
+      "linear_rows": 0,
+      "pbclass": "C-CLQR2-AY-V-V"
+    },
+    {
+      "name": "CHARDIS1",
+      "n": 40,
+      "m": 19,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COQR2-AY-V-V"
+    },
+    {
+      "name": "CYCLOOCF",
+      "n": 20,
+      "m": 16,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNQR2-MN-V-V"
+    },
+    {
+      "name": "CYCLOOCT",
+      "n": 24,
+      "m": 16,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNQR2-MN-V-V"
+    },
+    {
+      "name": "DEVGLA2B",
+      "n": 5,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSBR2-MN-5-0"
+    },
+    {
+      "name": "DEVGLA2NE",
+      "n": 5,
+      "m": 16,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNOR2-MN-5-16"
+    },
+    {
+      "name": "DISCS",
+      "n": 36,
+      "m": 66,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CLQR2-MY-36-66"
+    },
+    {
+      "name": "ENGVAL2NE",
+      "n": 3,
+      "m": 5,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 2,
+      "pbclass": "C-CNOR2-AN-3-5"
+    },
+    {
+      "name": "EXTROSNBNE",
+      "n": 10,
+      "m": 10,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CNOR2-AN-V-V"
+    },
+    {
+      "name": "FLETCHER",
+      "n": 4,
+      "m": 4,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 3,
+      "pbclass": "C-CQOR2-AN-4-4"
+    },
+    {
+      "name": "HADAMARD",
+      "n": 101,
+      "m": 255,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 200,
+      "pbclass": "C-CLQR2-RN-V-V"
+    },
+    {
+      "name": "HIMMELBF",
+      "n": 4,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSUR2-AN-4-0"
+    },
+    {
+      "name": "HS10",
+      "n": 2,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CLQR2-AN-2-1"
+    },
+    {
+      "name": "HS100",
+      "n": 7,
+      "m": 4,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-7-4"
+    },
+    {
+      "name": "HS113",
+      "n": 10,
+      "m": 8,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 3,
+      "pbclass": "C-CQQR2-AN-10-8"
+    },
+    {
+      "name": "HS14",
+      "n": 2,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CSQR2-AN-2-2"
+    },
+    {
+      "name": "HS21",
+      "n": 2,
+      "m": 1,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CQLR2-AN-2-1"
+    },
+    {
+      "name": "HS26",
+      "n": 3,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-3-1"
+    },
+    {
+      "name": "HS27",
+      "n": 3,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSQR2-AN-3-1"
+    },
+    {
+      "name": "HS35",
+      "n": 3,
+      "m": 1,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CQLR2-AN-3-1"
+    },
+    {
+      "name": "HS39",
+      "n": 4,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CLOR2-AN-4-2"
+    },
+    {
+      "name": "HS40",
+      "n": 4,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-4-3"
+    },
+    {
+      "name": "HS43",
+      "n": 4,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQQR2-AN-4-3"
+    },
+    {
+      "name": "HS44",
+      "n": 4,
+      "m": 6,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 6,
+      "pbclass": "C-CQLR2-AN-4-6"
+    },
+    {
+      "name": "HS46",
+      "n": 5,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-5-2"
+    },
+    {
+      "name": "HS6",
+      "n": 2,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQQR2-AN-2-1"
+    },
+    {
+      "name": "HS7",
+      "n": 2,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-2-1"
+    },
+    {
+      "name": "HS71",
+      "n": 4,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-4-2"
+    },
+    {
+      "name": "HS76",
+      "n": 4,
+      "m": 3,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 3,
+      "pbclass": "C-CQLR2-AN-4-3"
+    },
+    {
+      "name": "HS77",
+      "n": 5,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-5-2"
+    },
+    {
+      "name": "HS78",
+      "n": 5,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-5-3"
+    },
+    {
+      "name": "HS79",
+      "n": 5,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-5-3"
+    },
+    {
+      "name": "MODBEALENE",
+      "n": 10,
+      "m": 19,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 4,
+      "pbclass": "C-CNOR2-AN-V-V"
+    },
+    {
+      "name": "PENALTY2",
+      "n": 10,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSUR2-AN-V-0"
+    },
+    {
+      "name": "PFIT2LS",
+      "n": 3,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSBR2-AN-3-0"
+    },
+    {
+      "name": "POWELLSQ",
+      "n": 2,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNOR2-AN-2-2"
+    },
+    {
+      "name": "SPANHYD",
+      "n": 97,
+      "m": 33,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 33,
+      "pbclass": "C-CONR2-RN-97-33"
+    },
+    {
+      "name": "SPINOP",
+      "n": 7,
+      "m": 5,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQOR2-AN-V-V"
+    },
+    {
+      "name": "TENBARS1",
+      "n": 18,
+      "m": 9,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CLOR2-MY-18-9"
+    },
+    {
+      "name": "TENBARS3",
+      "n": 18,
+      "m": 8,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CLOR2-MY-18-8"
+    },
+    {
+      "name": "TRO6X2",
+      "n": 45,
+      "m": 21,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CLOR2-RN-45-21"
+    }
+  ],
+  "excluded": {
+    "AIRPORT": "evaluation over 0.2 s",
+    "CHANDHEU": "undefined at the start: setup or evaluation over 60 s",
+    "CHANDHEULS": "undefined at the start: setup or evaluation over 60 s",
+    "CONCON": "not smooth",
+    "CORE1": "not smooth",
+    "CORE2": "not smooth",
+    "CmRELOAD": "n > 256",
+    "DIAMON2D": "undefined at the start: setup or evaluation over 60 s",
+    "DIAMON2DLS": "undefined at the start: setup or evaluation over 60 s",
+    "DIAMON3D": "undefined at the start: setup or evaluation over 60 s",
+    "DIAMON3DLS": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15102": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15102LS": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15103": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15103LS": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15332": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15332LS": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15333": "undefined at the start: setup or evaluation over 60 s",
+    "DMN15333LS": "undefined at the start: setup or evaluation over 60 s",
+    "DMN37142": "undefined at the start: setup or evaluation over 60 s",
+    "DMN37142LS": "undefined at the start: setup or evaluation over 60 s",
+    "DMN37143": "undefined at the start: setup or evaluation over 60 s",
+    "DMN37143LS": "undefined at the start: setup or evaluation over 60 s",
+    "FBRAIN2LS": "evaluation over 0.2 s",
+    "FBRAIN3LS": "evaluation over 0.2 s",
+    "GASOIL": "n > 256",
+    "GPP": "evaluation over 0.2 s",
+    "HETmZ": "m > 512",
+    "HS67": "not smooth",
+    "HS85": "not smooth",
+    "HS87": "not smooth",
+    "KISSING2": "m > 512",
+    "LEVYM": "undefined at the start: ModuleNotFoundError: No module named 's2xlib'",
+    "LEVYMONT8C": "undefined at the start: ModuleNotFoundError: No module named 's2xlib'",
+    "MCONCON": "not smooth",
+    "NET1": "not smooth",
+    "OET1": "m > 512",
+    "OET2": "m > 512",
+    "OET3": "m > 512",
+    "OET4": "m > 512",
+    "OET5": "m > 512",
+    "OET6": "m > 512",
+    "OET7": "m > 512",
+    "ROTDISC": "n > 256",
+    "SIPOW1": "m > 512",
+    "SIPOW2": "m > 512",
+    "SIPOW2M": "m > 512",
+    "SIPOW3": "m > 512",
+    "SIPOW4": "m > 512",
+    "SPECAN": "evaluation over 0.2 s",
+    "SPECANNE": "m > 512",
+    "SPMSRTLS": "n > 256",
+    "STANCMIN": "not smooth",
+    "TAX13322": "m > 512",
+    "TWIRIBG1": "n > 256",
+    "TWIRIMD1": "n > 256",
+    "VESUVIA": "m > 512",
+    "VESUVIALS": "evaluation over 0.2 s",
+    "VESUVIO": "m > 512",
+    "VESUVIOLS": "evaluation over 0.2 s",
+    "VESUVIOU": "m > 512",
+    "VESUVIOULS": "evaluation over 0.2 s",
+    "WOODS": "n > 256",
+    "YORKNET": "n > 256",
+    "ZAMB2": "n > 256",
+    "ZAMB211": "undefined at the start: AttributeError: module 'ZAMB211' has no attribute 'ZAMB211'",
+    "ZAMB2m10": "n > 256",
+    "ZAMB2m11": "n > 256"
+  },
+  "frozen_from": "the first catalog run (17 October 2026)"
+}

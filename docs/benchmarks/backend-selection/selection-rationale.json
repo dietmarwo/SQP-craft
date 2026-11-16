@@ -1,0 +1,42 @@
+{
+  "clarabel_only": [
+    "BROWNDEN",
+    "CYCLOOCT",
+    "DEVGLA2B",
+    "ENGVAL2NE",
+    "HADAMARD",
+    "HIMMELBF",
+    "PENALTY2",
+    "PFIT2LS",
+    "POWELLSQ",
+    "TENBARS1"
+  ],
+  "elastic_losses": [
+    "FLETCHER",
+    "MODBEALENE",
+    "SPANHYD",
+    "SPINOP",
+    "TENBARS3",
+    "TRO6X2"
+  ],
+  "elastic_gains": [
+    "BIGGS6NE",
+    "BROWNBSNE",
+    "BYRDSPHR",
+    "CYCLOOCF",
+    "DEVGLA2NE",
+    "DISCS",
+    "ENGVAL2NE",
+    "EXTROSNBNE"
+  ],
+  "active_set_gains": [
+    "ACOPP30",
+    "AGG",
+    "ALJAZZAF",
+    "ALLINIT",
+    "AVION2",
+    "BEALENE",
+    "CATENARY",
+    "CHARDIS1"
+  ]
+}

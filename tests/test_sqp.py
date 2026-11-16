@@ -116,7 +116,8 @@ def test_analytic_solution_and_independent_residuals(start, equality):
     residuals = kkt_residuals(spec, r.candidate, r.evaluation, r.multipliers)
     assert max(vars(residuals).values()) < 1e-6
     assert 0 < len(r.report.qp_trace) <= 2
-    assert r.report.qp_backend == "clarabel 0.11.1"
+    assert r.report.qp_backend.startswith("goldfarb-idnani")
+    assert r.report.qp_solver == "active-set" and r.report.elastic_mode
 
 
 def test_nonlinear_inequality_with_signed_multiplier():
@@ -157,7 +158,8 @@ def test_inconsistent_linearization_is_not_reported_as_infeasibility():
         def derivatives(self, x):
             return [2 * (x[0] - 2)], [2 * x[0]]
 
-    r = solve(free(1, [1.0], [1.0]), Square(), [0.0], method="sqp")
+    r = solve(free(1, [1.0], [1.0]), Square(), [0.0], method="sqp",
+              method_options=SqpOptions(qp_solver="clarabel"))
     assert r.status == "restoration_failed"
     assert "infeasibility is not established" in r.message
     assert r.candidate == [0.0]

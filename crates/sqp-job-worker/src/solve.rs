@@ -14,15 +14,15 @@ use sqp_craft::{
 };
 use sqp_craft_activeset::ActiveSetQp;
 use sqp_craft_clarabel::ClarabelQp;
-use sqp_craft_solver::{DENSE_SIZE_CAP, Hessian, NativeSqp, SqpOptions};
+use sqp_craft_solver::{DENSE_SIZE_CAP, Hessian, NativeSqp, QpSolver, SqpOptions};
 
 pub const PROFILE: &str = "sqp.solve/1";
 /// The QP backends a job can choose.
-pub const BACKENDS: [&str; 2] = ["active_set", "clarabel"];
+pub const BACKENDS: [&str; 3] = ["auto", "active_set", "clarabel"];
 
 /// The `sqp.solve/1` payload. The optional fields default to the
-/// registered model version, the model's default config and elastic mode
-/// off; the resolved job records all three.
+/// registered model version, the model's default config and the backend policy
+/// for elastic mode; resolved jobs record concrete backend and elastic choices.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Payload {
@@ -35,7 +35,7 @@ pub(crate) struct Payload {
     pub starts: Vec<Vec<f64>>,
     pub backend: String,
     #[serde(default)]
-    pub elastic_mode: bool,
+    pub elastic_mode: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hessian: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -69,12 +69,19 @@ pub(crate) fn prepare(
     {
         return Err("invalid backend, starts or callback budget".into());
     }
-    if p.elastic_mode && p.backend != "active_set" {
-        return Err(
-            "elastic_mode needs backend active_set: the Clarabel backend has no elastic QP".into(),
-        );
-    }
     let hessian = Hessian::parse(p.hessian.as_deref().unwrap_or("full"))?;
+    let requested = if p.backend == "active_set" {
+        "active-set"
+    } else {
+        &p.backend
+    };
+    let selected = QpSolver::parse(requested)?.resolve(hessian, p.elastic_mode)?;
+    p.backend = if selected.solver == QpSolver::ActiveSet {
+        "active_set".into()
+    } else {
+        selected.solver.as_str().into()
+    };
+    p.elastic_mode = Some(selected.elastic_mode);
     if hessian == Hessian::Exact {
         return Err("sqp.solve/1 supports full and partitioned Hessians".into());
     }
@@ -103,7 +110,7 @@ pub(crate) fn prepare(
     options.validate()?;
     SqpOptions {
         stationarity_tolerance: p.stationarity_tolerance,
-        elastic_mode: p.elastic_mode,
+        elastic_mode: selected.elastic_mode,
         hessian,
         ..Default::default()
     }
@@ -361,7 +368,7 @@ impl Run {
             _ => ("none", Evidence::claimed(point)),
         };
         let mut details = json!({"kkt":residuals,"primal_violation":recomputed.as_ref().map(|p| p.primal),"qp_backend":r.report.qp_backend,"qp_status":r.report.qp_status,"message":r.message,"global_optimum_certified":false,"acceptance":{"primal":tolerance,"stationarity":self.payload.stationarity_tolerance,"complementarity":COMPLEMENTARITY,"dual_sign":DUAL_SIGN},"options":self.effective_options()});
-        if self.payload.elastic_mode {
+        if self.payload.elastic_mode.unwrap_or(false) {
             details["elastic"] = json!({"steps":r.report.elastic_steps,"weight":r.report.elastic_weight,
                 "weight_increases":r.report.elastic_weight_increases});
         }
@@ -423,7 +430,7 @@ impl Prepared for Run {
             max_callback_calls: self.payload.max_callback_calls,
             time_limit_seconds: Some(remaining),
             stationarity_tolerance: self.payload.stationarity_tolerance,
-            elastic_mode: self.payload.elastic_mode,
+            elastic_mode: self.payload.elastic_mode.unwrap_or(false),
             hessian: self.hessian,
             qp_reuse_workspace: self.hessian == Hessian::Partitioned
                 && self.payload.backend == "clarabel",
@@ -482,7 +489,7 @@ mod tests {
                 config: built.config,
                 starts: vec![vec![0.5; dimension]],
                 backend: "active_set".into(),
-                elastic_mode: false,
+                elastic_mode: Some(false),
                 hessian: None,
                 elements: None,
                 objective_pattern: None,

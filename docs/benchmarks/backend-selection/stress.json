@@ -1,0 +1,256 @@
+[
+  {
+    "family": "random",
+    "seed": 1,
+    "problems": 300,
+    "false_claims": [],
+    "tally": [
+      {
+        "key": [
+          "scipy-SLSQP",
+          "accepted",
+          null
+        ],
+        "count": 291
+      },
+      {
+        "key": [
+          "scipy-SLSQP",
+          "not accepted",
+          null
+        ],
+        "count": 9
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "converged",
+          true
+        ],
+        "count": 297
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "locally_infeasible",
+          false
+        ],
+        "count": 3
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "converged",
+          true
+        ],
+        "count": 297
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "locally_infeasible",
+          false
+        ],
+        "count": 3
+      }
+    ]
+  },
+  {
+    "family": "random",
+    "seed": 2,
+    "problems": 300,
+    "false_claims": [],
+    "tally": [
+      {
+        "key": [
+          "scipy-SLSQP",
+          "accepted",
+          null
+        ],
+        "count": 286
+      },
+      {
+        "key": [
+          "scipy-SLSQP",
+          "not accepted",
+          null
+        ],
+        "count": 14
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "converged",
+          true
+        ],
+        "count": 297
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "locally_infeasible",
+          false
+        ],
+        "count": 3
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "converged",
+          true
+        ],
+        "count": 297
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "locally_infeasible",
+          false
+        ],
+        "count": 3
+      }
+    ]
+  },
+  {
+    "family": "random",
+    "seed": 3,
+    "problems": 300,
+    "false_claims": [],
+    "tally": [
+      {
+        "key": [
+          "scipy-SLSQP",
+          "accepted",
+          null
+        ],
+        "count": 292
+      },
+      {
+        "key": [
+          "scipy-SLSQP",
+          "not accepted",
+          null
+        ],
+        "count": 8
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "converged",
+          true
+        ],
+        "count": 295
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "locally_infeasible",
+          false
+        ],
+        "count": 5
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "converged",
+          true
+        ],
+        "count": 295
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "locally_infeasible",
+          false
+        ],
+        "count": 5
+      }
+    ]
+  },
+  {
+    "family": "random",
+    "seed": 4,
+    "problems": 300,
+    "false_claims": [],
+    "tally": [
+      {
+        "key": [
+          "scipy-SLSQP",
+          "accepted",
+          null
+        ],
+        "count": 294
+      },
+      {
+        "key": [
+          "scipy-SLSQP",
+          "not accepted",
+          null
+        ],
+        "count": 6
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "converged",
+          true
+        ],
+        "count": 298
+      },
+      {
+        "key": [
+          "sqp-craft",
+          "locally_infeasible",
+          false
+        ],
+        "count": 2
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "converged",
+          true
+        ],
+        "count": 298
+      },
+      {
+        "key": [
+          "sqp-craft, restoration off",
+          "locally_infeasible",
+          false
+        ],
+        "count": 2
+      }
+    ]
+  },
+  {
+    "family": "mpcc",
+    "seed": 1,
+    "problems": 300,
+    "false_claims": [],
+    "tally": [
+      {
+        "key": [
+          "converged",
+          true
+        ],
+        "count": 300
+      }
+    ]
+  },
+  {
+    "family": "mpcc",
+    "seed": 2,
+    "problems": 300,
+    "false_claims": [],
+    "tally": [
+      {
+        "key": [
+          "converged",
+          true
+        ],
+        "count": 300
+      }
+    ]
+  }
+]
