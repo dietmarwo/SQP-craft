@@ -6,16 +6,47 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-16
+
 ### Fixed
 
-- Solver-internal non-finite arithmetic returns `numerical_failure` with the last complete point; malformed or non-finite backend answers return `qp_failure`. Model callback errors, including non-finite output, remain errors. A model undefined at a solver-projected start returns `numerical_failure` with no candidate.
-- Normalize extreme Householder reflector tails before squaring their norm. HS25NE's first QP now reports infeasibility instead of producing a NaN step. Ordinary reflector arithmetic is unchanged.
+- Solver-internal non-finite arithmetic (merit, complementarity, violation,
+  curvature) ends a solve with `numerical_failure`, naming the quantity and
+  the iteration, and returns the last complete point. Before, it raised an
+  exception: 20 runs on six CUTEst problems did, HS25NE under the default
+  configuration. Model callback errors, including non-finite callback values,
+  stay errors, and a model undefined at the user's own start still raises.
+- A model undefined at the start projected onto the declared linear rows
+  returns `numerical_failure` without a candidate instead of raising.
+- A malformed or non-finite answer of a QP backend returns `qp_failure`, also
+  in the projection, restoration and second-order-correction QPs. The
+  active-set backend reports such an answer as a backend failure, not as an
+  input error.
+- The active-set Householder reflector divides tails whose squared norm would
+  underflow or overflow by their largest entry first. HS25NE's first QP (row
+  normals of order 1e-290) now ends `Infeasible` instead of a NaN step; the
+  ordinary path's arithmetic is unchanged.
+
+### Changed
+
+- New Rust error variant `Error::Numerical` (the enum is `#[non_exhaustive]`)
+  for arithmetic overflow in solver arithmetic and independent checks. Python
+  maps it to `RuntimeError`, so an overflowing `kkt_residuals` raises
+  `RuntimeError` instead of `EvaluationError`.
 
 ### Added
 
-- Experimental `major_step_limit` and `initial_curvature_scaling` controls in Rust, Python and `sqp.solve/1`, with frozen resolved payload values and `step_limited_iterations` / `initial_curvature_scale` diagnostics. Uniform blocks and partitioned BFGS share the same scale; exact Hessian values are preserved.
-- Reproducible first-step, backend-panel and stress evidence under `docs/benchmarks/first-step/`. Defaults are selected by the recorded acceptance gates, without relaxing independent checks.
-- Prepared synchronized 0.20.0 package metadata; publication awaits the maintainer's release tag.
+- Experimental, off by default: `major_step_limit` (a relative
+  infinity-norm limit on each line search's first trial length) and
+  `initial_curvature_scaling` (Shanno–Phua rescaling of fresh BFGS curvature
+  after a limited step), in Rust, Python and `sqp.solve/1`, whose resolved
+  payload freezes both values. Reports add `step_limited_iterations` and
+  `initial_curvature_scale`. On the 1,036-problem benchmark the proposed
+  setting (limit 2 with scaling) accepted 824 problems against 814, but lost
+  one net bound-constrained problem, so the predeclared gates keep it off.
+- [First-step evidence](docs/benchmarks/first-step/README.md): the benchmark,
+  callback, panel, stress and tutorial records behind that decision, the
+  exception panel before and after, and the rejected first-pass guards.
 
 ## [0.19.0] - 2026-11-16
 

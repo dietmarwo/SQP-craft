@@ -1,6 +1,6 @@
 # SQP numerical failures and first-step experiments
 
-This evidence accompanies the 0.20.0 source preparation. All convergence claims use the unchanged independent benchmark check. The full selection, budgets and pinned S2MPJ source remain those of `bench/`.
+This evidence accompanies the 0.20.0 changes. All convergence claims use the unchanged independent benchmark check. The full selection, budgets and pinned S2MPJ source remain those of `bench/`.
 
 The campaign reruns 0.19.0 as its baseline and compares automatic selection with the step limit alone, the limit with fresh-curvature scaling at delta 2 and delta 10, and explicit active-set with both. The experiment names are in `bench/solvers.py`. Both new controls can be disabled to retain the legacy step policy.
 

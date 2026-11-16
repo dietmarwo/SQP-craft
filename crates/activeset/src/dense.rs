@@ -168,14 +168,21 @@ pub(crate) fn reflect_parallel(
     if used > 1 {
         let original_size = norm(tail);
         let tail = &mut tail[..used];
-        // Tiny HS25NE normals made size^2 underflow and tau infinite.
-        // Normalize only outside the safe product range, preserving all
-        // ordinary-path arithmetic and parallel accumulation order.
+        // Tiny HS25NE normals made size^2 underflow and tau infinite. Outside
+        // the safe product range, divide by the largest magnitude: unlike the
+        // plain norm, it neither underflows to zero nor overflows (`used > 1`
+        // means a nonzero entry). The ordinary path keeps its arithmetic and
+        // its parallel accumulation order.
         let product = original_size * (original_size + tail[0].abs());
         let normalized = !product.is_finite() || product < f64::MIN_POSITIVE;
+        let scale = if normalized {
+            tail.iter().fold(0.0_f64, |m, v| m.max(v.abs()))
+        } else {
+            1.0
+        };
         if normalized {
             for value in tail.iter_mut() {
-                *value /= original_size;
+                *value /= scale;
             }
         }
         let size = if normalized {
@@ -209,11 +216,7 @@ pub(crate) fn reflect_parallel(
             }
         }
 
-        tail[0] = if normalized {
-            beta * original_size
-        } else {
-            beta
-        };
+        tail[0] = if normalized { beta * scale } else { beta };
         tail[1..].fill(0.0);
     }
     if tail[0] < 0.0 {
@@ -317,6 +320,40 @@ mod tests {
             assert_eq!(m[..q * n], j[..q * n]);
         }
         j.fill(0.0);
+    }
+
+    #[test]
+    fn reflect_handles_tails_whose_squared_norm_underflows_or_overflows() {
+        // The reflector depends only on the tail's direction: a tail scaled
+        // by c rotates the columns exactly as the unscaled one and keeps c
+        // times its norm. At 1e-170 every square underflows to zero, at
+        // 1e170 the squared norm overflows; a plain norm divides by 0 or ∞.
+        let n = 4;
+        let j = spd(n);
+        let unit = [0.6, -0.25, 0.5, 0.75];
+        let mut expected = j.clone();
+        let mut d = unit;
+        let mut w = vec![0.0; n];
+        reflect(&mut expected, n, 0, &mut d, &mut w);
+        let size = d[0];
+        for c in [1e-170, 1e-300, 1e170, 1e300] {
+            let mut m = j.clone();
+            let mut tail: Vec<f64> = unit.iter().map(|v| v * c).collect();
+            reflect(&mut m, n, 0, &mut tail, &mut w);
+            assert!(m.iter().all(|v| v.is_finite()), "c={c}");
+            for (a, b) in m.iter().zip(&expected) {
+                assert!(
+                    (a - b).abs() <= 1e-12 * b.abs().max(1.0),
+                    "c={c}: {a} vs {b}"
+                );
+            }
+            assert!(
+                (tail[0] / c - size).abs() <= 1e-12 * size,
+                "c={c}: {}",
+                tail[0]
+            );
+            assert!(tail[1..].iter().all(|&v| v == 0.0));
+        }
     }
 
     #[test]

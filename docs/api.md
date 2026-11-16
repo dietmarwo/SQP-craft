@@ -561,7 +561,8 @@ design, measurements and validation. It depends only on the core crate and
 | Rust `Error` | Python exception | When |
 | --- | --- | --- |
 | `InvalidInput` | `ValueError` | Malformed spec, start point or options |
-| `Evaluation` | `sqp_craft.EvaluationError` (a `RuntimeError`) | Non-finite or wrongly sized model output, arithmetic overflow |
+| `Evaluation` | `sqp_craft.EvaluationError` (a `RuntimeError`) | Non-finite or wrongly sized model output |
+| `Numerical` | `RuntimeError` | Arithmetic overflow in an independent check such as `kkt_residuals`; inside a solve the driver returns `numerical_failure` instead |
 | `UndefinedPoint` | `sqp_craft.UndefinedPointError` (an `EvaluationError`) | Model not defined at the start point |
 | `Unsupported` | `NotImplementedError` | Valid but unimplemented request |
 | `Backend` | `RuntimeError` | Backend failure outside the driver's status handling |
@@ -792,7 +793,7 @@ Dummy reports use `None` and `False`. `qp_backend` keeps the actual backend's
 versioned diagnostic. See [backend selection](backend-selection.md) for jobs,
 Rust frontends and compatibility with explicit choices.
 
-## Numerical failure handling and experimental step safeguards (0.20.0 source)
+## Numerical failure handling and experimental step safeguards (since 0.20.0)
 
 Callback `Evaluation` errors, malformed lengths and non-finite callback values remain errors. `UndefinedPoint` at the user's own start remains an error; undefined trial points still backtrack. Arithmetic overflow inside the driver returns `numerical_failure`, naming the quantity and iteration, with the last complete point. An undefined solver-projected start returns that status without a candidate. Malformed/non-finite QP backend answers return `qp_failure`. These statuses make no convergence claim.
 

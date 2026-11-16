@@ -100,7 +100,3 @@ Package descriptions and README links reach registries only with a new
 release. Check the rendered package page after publishing and update the
 shared catalog when installation availability changes. Repository topics
 and About text are GitHub settings, not fields a commit changes.
-
-## Prepared 0.20.0 numerical-failure and safeguard release
-
-The source metadata is synchronized at 0.20.0. Review the [implementation and measurements](docs/benchmarks/first-step/README.md) before tagging. Numerical statuses and projected-start handling are user-visible changes; callback errors retain their contract. The experimental step controls stay off unless every recorded acceptance gate passes. `major_step_limit=None, initial_curvature_scaling=False` retains the 0.19.0 step policy. The maintainer creates the tag and runs the existing publication workflows.
