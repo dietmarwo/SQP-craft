@@ -3,7 +3,10 @@
 This experimental feature targets smooth problems with bounded-size
 overlapping elements. Full BFGS remains the default, with the existing
 256-variable limit for full and uniform-block modes. For a structured solve
-above that limit, use Clarabel. The native active-set SQP and its elastic
+above that limit, use Clarabel. The unreleased Python `qp_solver="auto"`
+selects Clarabel without elastic steps for both structured modes at every
+dimension; explicit backend choices remain unchanged. See
+[backend selection](backend-selection.md). The native active-set SQP and its elastic
 mode remain limited to the dense regime.
 
 ## Partitioned BFGS

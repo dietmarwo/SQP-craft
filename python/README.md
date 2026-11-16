@@ -6,8 +6,9 @@
 
 Sequential quadratic programming (SQP) for smooth constrained nonlinear
 problems, with a native Rust solver: damped BFGS updates of a dense Hessian
-approximation, step QPs solved by Clarabel (interior point, the default) or a
-dense active-set backend, and an ℓ1 merit line search. Results report
+approximation, step QPs solved by active-set or Clarabel, and an ℓ1 merit
+line search. The unreleased `qp_solver="auto"` default uses active-set with
+elastic steps for full/block BFGS and Clarabel for partitioned/exact curvature. Results report
 stationarity, complementarity and dual-sign residuals of the KKT conditions,
 and `kkt_residuals` and `check_derivatives` check points and derivatives
 independently.
@@ -48,8 +49,8 @@ print(result.status, result.candidate, result.evaluation.objective)
 
 Pass `method="sqp"`: the default `method="dummy"` only evaluates the start
 point. `SqpOptions` configures the solver (iteration, callback and time
-limits, KKT tolerances, `qp_solver="clarabel"` or `"active-set"`,
-`elastic_mode` with the active-set backend for infeasible linearizations);
+limits, KKT tolerances, `qp_solver="auto"`, `"clarabel"` or `"active-set"`,
+`elastic_mode=None` for the policy default or an explicit boolean);
 invalid values raise `ValueError`. Callbacks run serially on the calling
 thread.
 
@@ -77,3 +78,8 @@ thread.
   and durable shell/MCP jobs through the `sqp-job-worker` (built from source)
 
 MIT license.
+
+See [backend selection](../docs/backend-selection.md) for migration. Explicit
+backends retain nonelastic behavior unless `elastic_mode=True` is requested.
+Reports expose the resolved `qp_solver` and `elastic_mode`, including before
+the first QP on cancelled or limited runs.

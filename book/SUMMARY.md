@@ -6,6 +6,7 @@
 # Using the solver
 
 - [API contract](docs/api.md)
+- [Backend selection](docs/backend-selection.md)
 - [Rust crate: problem contract](crates/core/README.md)
 - [Rust crate: solver](crates/sqp/README.md)
 - [Rust crate: Clarabel backend](crates/clarabel/README.md)

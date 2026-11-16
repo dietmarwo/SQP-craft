@@ -67,7 +67,7 @@ def test_updates_that_round_indefinite_reset_the_hessian(extra):
     # solve raised NotImplementedError from the QP adapter's gate.
     spec, model, start = padded_regression(extra)
     r = solve(spec, model, start, method="sqp",
-              method_options=SqpOptions(max_iterations=300, qp_reuse_workspace=True))
+              method_options=SqpOptions(qp_solver="clarabel", max_iterations=300, qp_reuse_workspace=True))
     assert r.status == "converged", r.message
     assert r.report.qp_not_positive_definite >= 1
     assert r.report.hessian_resets >= r.report.qp_not_positive_definite

@@ -87,7 +87,8 @@ Copy a JSON example and choose a new `request_key` for a new experiment.
 `dimension` controls the registered model. `starts` contains one complete vector
 per task; every vector must be finite, have that dimension and lie in the model
 box. A start may violate the nonlinear/row constraints. It is never projected
-silently. `backend` is `active_set` or `clarabel`; both are built into this worker.
+silently. `backend` is `auto`, `active_set` or `clarabel`. Automatic selection uses
+active-set for full/block BFGS and Clarabel for partitioned curvature.
 The worker's `describe` lists a JSON Schema of each payload (`payload_schemas`)
 and runnable examples (`examples`).
 
@@ -97,14 +98,16 @@ The job wall-time limit applies to the batch after admission and is passed as
 remaining cooperative time to each solve. `feasibility_tolerance` and
 `stationarity_tolerance` are positive finite values. Independent acceptance also
 uses complementarity <=1e-6 and dual-sign residual <=1e-8 in original units.
-Optional fields: `elastic_mode` (default `false`) solves every step QP as an
+Optional fields: `elastic_mode` (omitted/null follows the backend policy) solves every step QP as an
 l1-elastic QP instead of entering feasibility restoration; it needs
-`backend: "active_set"`, is rejected at validation with Clarabel, and appears
+resolved backend `active_set`, is rejected at validation with Clarabel, and appears
 with the other effective options in each outcome's `details.options`.
 `problem_version` must equal the registered version (the default), and
 `config` holds a model's parameters (`{}` or omitted for the benchmarks).
-The resolved job records the version, `elastic_mode` and the effective
-config. Other native SQP options keep their defaults.
+Automatic dense selection enables elastic mode; explicit backend requests
+keep it off unless enabled. The resolved job freezes the concrete backend,
+version, elastic boolean and effective config; revalidation preserves them.
+See [backend selection](../../docs/backend-selection.md). Other native SQP options keep their defaults.
 
 ## Interpret convergence correctly
 

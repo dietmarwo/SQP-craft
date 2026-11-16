@@ -24,7 +24,11 @@ class Square:
 
 def test_a_zero_jacobian_start_converges_in_elastic_mode():
     spec = free(1, [1.0], [1.0])
-    assert solve(spec, Square(), [0.0], method="sqp").status == "restoration_failed"
+    assert solve(spec, Square(), [0.0], method="sqp",
+                 method_options=SqpOptions(qp_solver="clarabel")).status == "restoration_failed"
+    automatic = solve(spec, Square(), [0.0], method="sqp")
+    assert automatic.status == "converged"
+    assert automatic.report.elastic_mode and automatic.report.restoration_steps == 0
     r = solve(spec, Square(), [0.0], method="sqp", method_options=ELASTIC)
     assert r.status == "converged", r.message
     assert r.candidate == pytest.approx([1.0], abs=1e-9)
@@ -68,7 +72,7 @@ def test_options_are_checked_before_model_calls():
 
     with pytest.raises(NotImplementedError, match="elastic"):
         solve(free(1, [1.0], [1.0]), Untouchable(), [0.0], method="sqp",
-              method_options=SqpOptions(elastic_mode=True))
+              method_options=SqpOptions(qp_solver="clarabel", elastic_mode=True))
     for weight in (0.0, -1.0, math.inf):
         with pytest.raises(ValueError, match="elastic_weight"):
             solve(free(1, [1.0], [1.0]), Untouchable(), [0.0], method="sqp",

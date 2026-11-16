@@ -4,8 +4,8 @@ Version 0.14.0, 16 October 2026. Item 1 of the [order of work](gaps.md#order-of-
 a dense, warm-startable dual active-set QP solver for the step QPs, in the new
 crate `crates/activeset` (`sqp-craft-activeset`). It has no dependencies
 beyond the core crate; since 0.16 it also uses `sqp-craft-parallel` for the
-bounded Rayon execution of its large kernels. Clarabel stays the default
-backend.
+bounded Rayon execution of its large kernels. Clarabel was the default in 0.14; the unreleased
+[automatic policy](backend-selection.md) selects active-set for dense BFGS.
 
 ```python
 result = solve(spec, model, x0, method="sqp",
@@ -196,10 +196,9 @@ the first QP (`tests/test_active_set.py`, `crates/sqp/tests/active_set_backend.r
   changes by rank two.
 - On QPs with `κ(H)` around 10¹⁰ the accuracy can fall short of the
   acceptance rule. Clarabel fails on these QPs as well.
-- Clarabel stays the default until there is more evidence, for example on
-  the target application's models. Switching the Python default changes one
-  line in `SqpOptions` and one in the binding; Rust callers choose the
-  backend type themselves.
+- The original release retained Clarabel as its default pending more evidence.
+  The later CUTEst results motivate the unreleased [automatic policy](backend-selection.md).
+  Rust callers still choose the backend type themselves.
 - The next item in the order of work, elastic mode (gap 4), can be built on
   this backend: an ℓ1 penalty on the constraints inside the QP keeps it
   feasible and uses the same factors.

@@ -6,6 +6,24 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Changed
+
+- Python `SqpOptions.qp_solver` now defaults to `"auto"`: full/block BFGS
+  selects active-set with elastic steps; partitioned/exact curvature selects
+  Clarabel without elastic steps. `elastic_mode=None` follows this policy;
+  explicit booleans override it. Explicit backend choices keep their previous
+  nonelastic default and are never silently replaced. Dense size limits and
+  all numerical tolerances are unchanged.
+- `sqp.solve/1` accepts `backend: "auto"` (the field remains required).
+  Validation freezes the selected backend and elastic boolean in the resolved
+  job; generated examples use automatic selection. Existing explicit jobs
+  retain their behavior. Python reports expose resolved `qp_solver` and
+  `elastic_mode`, even when no QP ran.
+- Named benchmark variants explicitly pin their backends and elastic settings;
+  a separate `auto` variant exercises the public default. Native Rust
+  `NativeSqp<B>` stays explicit; `QpSolver::resolve` exposes the frontend policy.
+  See [backend selection](docs/backend-selection.md).
+
 ### Added
 
 - README: links the [documentation site](https://dietmarwo.github.io/SQP-craft/), now that it is published.

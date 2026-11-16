@@ -235,7 +235,7 @@ mod tests {
             PROFILE,
             json!({
                 "problem": "custom.large", "dimension": n, "starts": [vec![0.0; n]],
-                "backend": "clarabel", "max_iterations": 100, "max_callback_calls": 500,
+                "backend": "auto", "max_iterations": 100, "max_callback_calls": 500,
                 "feasibility_tolerance": 1e-7, "stationarity_tolerance": 1e-6,
             }),
             1,
@@ -258,6 +258,13 @@ mod tests {
         assert_eq!(result.claim, "first_order");
         assert_eq!(result.details["structure"]["hessian_nnz"], n);
         assert_eq!(s.payload["hessian"], "partitioned");
+        assert_eq!(s.payload["backend"], "clarabel");
+        assert_eq!(s.payload["elastic_mode"], false);
+        let frozen = s.clone();
+        adapter.prepare(&mut s, Path::new(".")).unwrap();
+        assert_eq!(s, frozen);
+        s.payload["backend"] = json!("active_set");
+        assert!(err(&mut s).contains("require hessian=partitioned"));
         result.check().unwrap();
     }
 
@@ -332,6 +339,45 @@ mod tests {
     }
 
     #[test]
+    fn automatic_backend_resolves_and_freezes_effective_options() {
+        for (backend, elastic, expected_backend, expected_elastic) in [
+            ("auto", None, "active_set", true),
+            ("auto", Some(false), "active_set", false),
+            ("active_set", None, "active_set", false),
+            ("clarabel", None, "clarabel", false),
+        ] {
+            let mut payload = simplex(json!({"backend":backend}));
+            if let Some(elastic) = elastic {
+                payload["elastic_mode"] = json!(elastic);
+            }
+            let mut s = job(PROFILE, payload, 1);
+            let p = Adapter::default().prepare(&mut s, Path::new(".")).unwrap();
+            assert_eq!(s.payload["backend"], expected_backend);
+            assert_eq!(s.payload["elastic_mode"], expected_elastic);
+            let frozen = s.clone();
+            Adapter::default().prepare(&mut s, Path::new(".")).unwrap();
+            assert_eq!(s, frozen);
+            let o = p.solve(0, 10.0).unwrap().outcome;
+            assert_eq!(o.claim, "first_order", "{o:?}");
+            assert_eq!(o.details["options"]["backend"], expected_backend);
+            assert_eq!(o.details["options"]["elastic_mode"], expected_elastic);
+        }
+        let mut s = job(
+            PROFILE,
+            simplex(json!({"backend":"auto", "elastic_mode":null})),
+            1,
+        );
+        Adapter::default().prepare(&mut s, Path::new(".")).unwrap();
+        assert_eq!(s.payload["elastic_mode"], true);
+        let mut s = job(
+            PROFILE,
+            simplex(json!({"backend":"auto", "hessian":"partitioned", "elastic_mode":true})),
+            1,
+        );
+        assert!(error(&mut s).contains("elastic_mode"));
+    }
+
+    #[test]
     fn elastic_mode_needs_the_active_set_backend_and_is_reported() {
         let mut s = job(PROFILE, simplex(json!({"elastic_mode":true})), 1);
         let p = Adapter::default().prepare(&mut s, Path::new(".")).unwrap();
@@ -347,7 +393,7 @@ mod tests {
             simplex(json!({"elastic_mode":true,"backend":"clarabel"})),
             1,
         );
-        assert!(error(&mut s).contains("elastic_mode needs backend active_set"));
+        assert!(error(&mut s).contains("elastic_mode needs the active-set backend"));
         let mut s = job(PROFILE, simplex(json!({"elastic_mode":"yes"})), 1);
         assert!(error(&mut s).contains("expected a boolean"));
     }

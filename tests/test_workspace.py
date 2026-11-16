@@ -9,7 +9,7 @@ from test_sqp import Circle, Domain, Quadratic, Rosenbrock, free, load_example
 
 def checked(spec, model, start, *, reuse=True, **settings):
     r = solve(spec, model, start, method="sqp",
-              method_options=SqpOptions(qp_reuse_workspace=reuse, **settings))
+              method_options=SqpOptions(qp_solver="clarabel", qp_reuse_workspace=reuse, **settings))
     assert r.status == "converged", r.message
     residual = kkt_residuals(spec, r.candidate, r.evaluation, r.multipliers)
     assert residual.primal <= 1e-7
@@ -68,7 +68,7 @@ def test_reuse_keeps_undefined_recovery_and_original_fatal_exception():
 
 def test_callback_limit_and_observer_cancel_keep_complete_point():
     limited = solve(free(), Rosenbrock(), [-1.2, 1.], method="sqp",
-                    method_options=SqpOptions(qp_reuse_workspace=True, max_callback_calls=15))
+                    method_options=SqpOptions(qp_solver="clarabel", qp_reuse_workspace=True, max_callback_calls=15))
     assert limited.status == "evaluation_limit"
     assert limited.counts.functions + limited.counts.derivatives <= 15
     f, c = Rosenbrock().functions(limited.candidate)
@@ -78,7 +78,7 @@ def test_callback_limit_and_observer_cancel_keep_complete_point():
         if p.iteration == 2:
             token.cancel()
     stopped = solve(free(), Rosenbrock(), [-1.2, 1.], method="sqp", cancellation=token,
-                    observer=observe, method_options=SqpOptions(qp_reuse_workspace=True))
+                    observer=observe, method_options=SqpOptions(qp_solver="clarabel", qp_reuse_workspace=True))
     assert stopped.status == "cancelled" and stopped.iterations == 2
     assert stopped.report.qp_updates > 0
 

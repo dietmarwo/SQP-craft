@@ -91,6 +91,7 @@ def test_exact_hessian_sign_missing_entries_and_convexification():
     r = solve(spec, model, [0.8, 1.2], method="sqp", method_options=options)
     assert r.status == "converged", r.message
     assert np.allclose(r.candidate, [1.0, 1.0], atol=1e-5)
+    assert r.report.qp_solver == "clarabel" and not r.report.elastic_mode
     assert r.report.structure["maximum_diagonal_shift"] > 0
     assert r.report.structure["exact_hessian_calls"] > 0
     limited = solve(spec, model, [0.8, 1.2], method="sqp",

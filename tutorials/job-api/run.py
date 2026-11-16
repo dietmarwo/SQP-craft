@@ -117,7 +117,13 @@ def run_examples(worker_id,description):
               'limits':example['limits'],'inputs':inputs}
         conforms('optimization.job-0.1.schema.json',spec);payload_conforms(description,spec)
         path=directory/'job.json';path.write_text(json.dumps(spec,indent=2)+'\n')
-        assert call('validate','--spec',path)['resolved']['payload']==example['payload'],example
+        resolved=call('validate','--spec',path)['resolved']['payload']
+        expected=dict(example['payload'])
+        if example['profile']=='sqp.solve/1':
+            structured=expected.get('hessian')=='partitioned'
+            assert expected['backend']=='auto'
+            expected.update(backend='clarabel' if structured else 'active_set', elastic_mode=not structured)
+        assert resolved==expected,(example,resolved)
         job=call('run','--spec',path);result=call('result',job['directory'])
         conforms('optimization.result-0.2.schema.json',result)
         assert job['state']=='completed' and result['completed_tasks']>=1,result
@@ -173,7 +179,8 @@ schemas_reject(descriptions[WORKER],simplex,[{'ignored_option':True},{'backend':
 schemas_reject(descriptions[APPLICATION[0]],fit,[{'config':{'anchor_time':'t'}},{'config':{'anchor':1.}},{'dimension':2}])
 evaluate=json.loads((HERE/'simplex-evaluate.json').read_text())
 for description,spec in ((descriptions[WORKER],simplex),(descriptions[WORKER],evaluate),(descriptions[APPLICATION[0]],fit)):
-    schemas_accept(description,spec)
+    schemas_accept(description,spec,fields=('problem_version','config','elastic_mode')
+                   if spec['payload_schema']=='sqp.solve/1' else ('problem_version','config'))
 described=[run for w,d in descriptions.items() for run in run_examples(w,d)]
 output={'node':str(root),'worker':WORKER,'application_worker':APPLICATION[0],'runs':report,'describe_examples':described}
 (root/'tutorial-report.json').write_text(json.dumps(output,indent=2)+'\n')

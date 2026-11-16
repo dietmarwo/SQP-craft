@@ -154,15 +154,17 @@ class SqpOptions:
     of constraints; first entries are not charged."""
     qp_reuse_workspace: bool = False
     """Opt in to compatible workspace reuse; primal/dual iterates still start cold."""
-    qp_solver: str = "clarabel"
-    """QP backend: ``"clarabel"`` (interior point) or ``"active-set"`` (dense
-    Goldfarb–Idnani dual active set, warm-started from the last working set)."""
+    qp_solver: Literal["auto", "clarabel", "active-set"] = "auto"
+    """``"auto"`` selects active-set for full/block BFGS and Clarabel for
+    partitioned/exact curvature. Explicit choices are never replaced."""
     qp_warm_start: bool = True
     """Pass the last step QP's working set to the next; only ``"active-set"`` uses it."""
-    elastic_mode: bool = False
+    elastic_mode: Optional[bool] = None
     """Solve every step QP as an l1-elastic QP: rows may be violated at a cost, so
     the QP is always feasible and restoration is not used. Needs
-    ``qp_solver="active-set"``."""
+    the active-set backend. ``None`` enables it only for automatic dense
+    selection; explicit backends retain their nonelastic default. An explicit
+    boolean overrides this policy; ``True`` with Clarabel is rejected."""
     second_order_correction: bool = False
     """When the full step fails the merit test and increases the constraint
     violation, re-solve the step QP with the constraints shifted by their
@@ -330,6 +332,10 @@ class RunReport:
     restoration_history: list[RestorationRecord]
     structure: Optional[dict[str, Any]] = None
     """Structured Hessian pattern, fill estimates and curvature diagnostics."""
+    qp_solver: Optional[str] = None
+    """Resolved backend choice, even before a QP runs; ``None`` for dummy."""
+    elastic_mode: bool = False
+    """Resolved elastic setting, including for cancelled and limited solves."""
 
 
 @dataclass(frozen=True)

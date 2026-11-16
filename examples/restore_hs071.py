@@ -28,7 +28,7 @@ if __name__ == '__main__':
     spec = specification()
     for budget in (0, 10):
         result = solve(spec, Hs071(), [1.]*4, method='sqp',
-                       method_options=SqpOptions(max_restoration_steps=budget, record_history=True))
+                       method_options=SqpOptions(qp_solver="clarabel", max_restoration_steps=budget, record_history=True))
         print(f'restoration budget={budget}: {result.status}, '
               f'iterations={result.iterations}, restoration steps={result.report.restoration_steps}')
         for step in result.report.restoration_history:

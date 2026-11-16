@@ -140,12 +140,12 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `structured_memory_limit_bytes` | `64 MiB` | Estimated structured storage and fill budget, maximum 128 MiB |
 | `initial_hessian_scale` | `1` | `B = scale·I` initially and after a reset |
 | `max_hessian_resets` | `3` | Total resets (failed BFGS updates and non-descent retries) |
-| `qp_solver` | `"clarabel"` | Python only: `"clarabel"` (interior point) or `"active-set"` (dense dual active set, see below); in Rust, the type `B` of `NativeSqp<B>` |
+| `qp_solver` | `"auto"` | Python: active-set for full/block BFGS, Clarabel for partitioned/exact curvature. Explicit `"clarabel"` and `"active-set"` are preserved. Rust callers choose `B`; frontends can use `QpSolver::resolve`. See [backend selection](backend-selection.md). |
 | `qp_tolerance` | `1e-10` | The QP backend's native tolerance: Clarabel's feasibility and gap tolerances, the active-set violation and sign thresholds |
 | `qp_max_iterations` | `200` | Per QP, shared across an attempt and its cold retry. Clarabel: interior-point iterations. Active set: drops and re-entries of constraints (first entries are not charged) |
 | `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below. No effect on the active-set backend |
 | `qp_warm_start` | `true` | Pass the last step QP's working set to the next QP; only backends that report one (the active-set backend) receive it |
-| `elastic_mode` | `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; needs a backend with elastic support (`qp_solver="active-set"`), otherwise `Unsupported` / `NotImplementedError` before any model call. See [elastic-mode.md](elastic-mode.md) |
+| `elastic_mode` | Python `None`; Rust `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; Python `None` enables it only for automatic dense selection. Explicit booleans override the policy; needs a backend with elastic support, otherwise `Unsupported` / `NotImplementedError` before any model call. See [elastic-mode.md](elastic-mode.md) |
 | `second_order_correction` | `false` | After a rejected full step that increased the constraint violation through curved constraints, re-solve the step QP with the rows shifted by their second-order change and try that step once before backtracking. See [second-order-correction.md](second-order-correction.md) |
 | `elastic_weight` | `1e4` | Initial elastic weight relative to `max(1, ‖∇f(x₀)‖∞)`; multiplied by 10, at most six times, at a stationary point of the ℓ1 penalty with violated rows |
 | `hessian_update` | `"damped"` | What to do below the curvature threshold `sᵀy < 0.2·sᵀBs`. `"damped"` uses Powell's damping. `"augmented"` uses SNOPT's repair: it adds `(J(x⁺) − J(x))ᵀ Ω d_L`, built from the departure from linearity `d_L`, with minimum-norm weights, and damps when no repair exists. See [snopt-lessons.md](snopt-lessons.md) |
@@ -782,3 +782,11 @@ come from [optimization-jobs](https://github.com/dietmarwo/optimization-jobs)
 through git, at the revision `Cargo.toml` pins; their build also makes
 `optimization-mcp`, through which agents submit and follow these jobs
 ([Agents and MCP](https://github.com/dietmarwo/optimization-jobs/blob/main/docs/job-api.md#agents-and-mcp)).
+
+## Resolved Python backend settings
+
+`RunReport.qp_solver` records `active-set` or `clarabel` and
+`RunReport.elastic_mode` records the resolved boolean, even when no QP ran.
+Dummy reports use `None` and `False`. `qp_backend` keeps the actual backend's
+versioned diagnostic. See [backend selection](backend-selection.md) for jobs,
+Rust frontends and compatibility with explicit choices.

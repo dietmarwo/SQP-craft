@@ -32,6 +32,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod backend;
 pub mod batch;
 mod bfgs;
 mod exact;
@@ -42,6 +43,7 @@ mod partitioned;
 mod restoration;
 mod scaling;
 
+pub use backend::{QpSolver, ResolvedQpOptions};
 use scaling::Scales;
 pub use scaling::Scaling;
 
