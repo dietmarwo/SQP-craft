@@ -6,6 +6,8 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-11-16
+
 ### Changed
 
 - Python `SqpOptions.qp_solver` now defaults to `"auto"`: full/block BFGS
@@ -13,7 +15,8 @@ the job worker share it). Dates are those of the commits that set each version.
   Clarabel without elastic steps. `elastic_mode=None` follows this policy;
   explicit booleans override it. Explicit backend choices keep their previous
   nonelastic default and are never silently replaced. Dense size limits and
-  all numerical tolerances are unchanged.
+  all numerical tolerances are unchanged. `SqpOptions(qp_solver="clarabel",
+  elastic_mode=False)` reproduces the 0.18.0 default.
 - `sqp.solve/1` accepts `backend: "auto"` (the field remains required).
   Validation freezes the selected backend and elastic boolean in the resolved
   job; generated examples use automatic selection. Existing explicit jobs
@@ -30,6 +33,11 @@ the job worker share it). Dates are those of the commits that set each version.
   elastic QP is the same problem there, but it had bypassed that step: on
   the backend-selection panel the automatic default lost three unconstrained
   problems (BROWNDEN, HIMMELBF, PENALTY2) that explicit active-set solves.
+- optimization-jobs pin `78970a2` (tag `v0.4.1`; the job crates are 0.4.1)
+  in the manifest and the lockfile. That release documents every public
+  item and updates the guide that `get_guide` serves; the CLI, the MCP
+  tools, the job envelope, the worker protocol and the result contract are
+  unchanged.
 
 ### Added
 

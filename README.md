@@ -14,7 +14,7 @@ Clarabel for larger models. Partitioned BFGS passed the independent
 first-order check on the 4,994-variable SQP5 transfer with an extended time
 budget.
 
-**Unreleased backend policy:** Python defaults to `qp_solver="auto"`:
+**Backend policy since 0.19.0:** Python defaults to `qp_solver="auto"`:
 active-set with elastic steps for full/block BFGS, Clarabel for partitioned
 or exact curvature. Explicit choices are preserved. Jobs can request
 `backend: "auto"`; validation records the concrete choices. See
@@ -63,7 +63,18 @@ and the other structured solver, then explains library, shell and MCP use.
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
 > conventions).
 
-**Version 0.18.0: experimental structured SQP above 256 variables.** Opt-in
+**Version 0.19.0: automatic QP backend selection.** Python's
+`qp_solver="auto"` is the new default: active-set with elastic steps for
+full and block BFGS, Clarabel for partitioned or exact curvature. Explicit
+choices keep their previous behavior; `SqpOptions(qp_solver="clarabel",
+elastic_mode=False)` reproduces the 0.18.0 default. `sqp.solve/1` accepts
+`backend: "auto"` and records the concrete choices. Elastic mode without a
+row to relax now runs the plain QP. See
+[backend selection](docs/backend-selection.md), its
+[evidence](docs/benchmarks/backend-selection/README.md) and
+[CHANGELOG.md](CHANGELOG.md).
+
+**Previous version 0.18.0: experimental structured SQP above 256 variables.** Opt-in
 [partitioned BFGS](docs/structured-sqp.md) on overlapping constraint cliques
 and an optional exact sparse Lagrangian Hessian, with sparse Clarabel QPs,
 sparse restoration, a memory and fill budget checked before solving, and
@@ -74,7 +85,7 @@ budget. The default dense mode is unchanged. `sqp.solve/1` accepts the
 structured mode for registered models up to 5,000 variables. See the
 [target card](docs/target-card.md) and [CHANGELOG.md](CHANGELOG.md).
 
-**Previous version 0.17.0: first release on PyPI and crates.io.** `pip install sqp-craft`
+**Version 0.17.0: first release on PyPI and crates.io.** `pip install sqp-craft`
 installs a wheel, and the library crates `sqp-craft`, `sqp-craft-solver`,
 `sqp-craft-clarabel`, `sqp-craft-activeset` and `sqp-craft-parallel` are on
 crates.io. The solver crates and the Python package are numerically unchanged
@@ -167,7 +178,7 @@ independent first-order check for every solver:
   with exact Hessians; SLSQP solves 631.
 
 The results recommend the active-set backend with elastic mode as the
-dense default. The unreleased automatic policy implements that recommendation
+dense default. The automatic policy of 0.19.0 implements that recommendation
 while retaining Clarabel for structured curvature. These results were measured
 with 0.14; the [0.16 review](docs/performance-60/REVIEW.md) reran the harness:
 Clarabel and elastic mode give the same results, and the active-set backend

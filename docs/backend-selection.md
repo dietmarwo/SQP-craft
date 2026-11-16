@@ -1,6 +1,6 @@
 # Automatic backend selection
 
-This is an unreleased change after 0.18.0. Python's `method="sqp"` defaults
+Since 0.19.0, Python's `method="sqp"` defaults
 to `SqpOptions(qp_solver="auto", elastic_mode=None)`. The selected Hessian
 mode determines the backend; there is no timing heuristic or retry with a
 different solver.
