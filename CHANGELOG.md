@@ -6,6 +6,14 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Changed
+
+- optimization-jobs pin `41d5f00` (main after the 0.4.1 release; the job
+  crates are still 0.4.1). It adds an optional progress file to command jobs
+  (`jobs progress`), which experiment-craft uses to prune adaptive trials,
+  and guide entries; the job envelope, the worker protocol and the result
+  contract are unchanged.
+
 ## [0.20.0] - 2026-11-16
 
 ### Fixed
