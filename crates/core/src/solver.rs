@@ -393,9 +393,11 @@ pub struct RunReport {
     pub qp_factor_nnz: Option<usize>,
     /// Successful numeric QP workspace updates.
     pub qp_updates: u64,
-    /// Fresh retries after a failed update or reused solve.
+    /// Fresh QP retries after a failed update, a reused solve or a
+    /// backend-specific rejected first attempt.
     pub qp_cold_retries: u64,
-    /// Last reason requesting a QP cold retry, even if its budget was exhausted.
+    /// Recovery reasons of the last QP call that had any (see
+    /// `QpReport::retry_reason`), even if its budget was exhausted.
     pub qp_retry_reason: Option<String>,
     /// QP conversion and positive-definiteness validation time.
     pub qp_conversion_seconds: f64,
@@ -409,7 +411,7 @@ pub struct RunReport {
     pub qp_check_seconds: f64,
     /// BFGS and positive-definiteness-check time.
     pub bfgs_seconds: f64,
-    /// Optional bounded history in original step coordinates.
+    /// Optional most recent step QPs (in scaled coordinates when scaling is used).
     pub qp_trace: Vec<crate::qp::QpModel>,
     /// Optional per-iteration record (empty unless the backend was asked for it).
     pub history: Vec<IterationRecord>,

@@ -261,7 +261,7 @@ pub struct SqpOptions {
     /// is rejected before its derivatives are evaluated. `None` (default)
     /// imposes no limit.
     pub violation_limit: Option<f64>,
-    /// Number of step QPs to keep in the report, `0..=QP_TRACE_CAP`.
+    /// Number of most recent step QPs to keep in the report, `0..=QP_TRACE_CAP`.
     pub record_qp_limit: usize,
     /// Keep one [`IterationRecord`] per iteration in the report.
     pub record_history: bool,
@@ -1132,7 +1132,10 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                     scales.scale_qp(qp_work.as_mut().expect("QP initialized"), &scales.rows);
                 }
                 let qp = qp_work.as_ref().expect("QP initialized");
-                if r.report.qp_trace.len() < settings.record_qp_limit {
+                if settings.record_qp_limit > 0 {
+                    if r.report.qp_trace.len() == settings.record_qp_limit {
+                        r.report.qp_trace.remove(0);
+                    }
                     r.report.qp_trace.push((*qp).clone());
                 }
                 let remaining = settings

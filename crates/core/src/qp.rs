@@ -632,9 +632,12 @@ pub struct QpReport {
     pub setups: u64,
     /// Successful complete numeric workspace updates.
     pub updates: u64,
-    /// Fresh retries after an unsuccessful workspace update or reused solve.
+    /// Fresh retries after an unsuccessful workspace update or reused solve,
+    /// or after a backend-specific rejected first attempt.
     pub cold_retries: u64,
-    /// Reason requesting a cold retry, even if the remaining budget prevents it.
+    /// Recovery reasons of this call, joined by `; `: each requested cold
+    /// retry (even if the remaining budget prevents it) and any accepted
+    /// backend recovery such as Clarabel's polish.
     pub retry_reason: Option<String>,
     /// Model conversion and positive-definiteness validation time.
     pub conversion_seconds: f64,

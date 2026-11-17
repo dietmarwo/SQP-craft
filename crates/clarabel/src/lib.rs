@@ -4,13 +4,16 @@
 //! reuse keeps allocation, symbolic structure and initial equilibration, not
 //! numerical factors or iterates. Nonempty warm starts remain unsupported.
 //! An updated solve must pass the same original-coordinate independent checks
-//! as a fresh one; failures get at most one cold retry within the call budget.
+//! as a fresh one. A rejected updated solve gets a cold retry; a rejected
+//! equilibrated cold solve can be polished or retry without equilibration. All attempts share
+//! the original call's time and iteration budgets and independent checks.
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 use clarabel::{algebra::CscMatrix, solver::*};
 use nalgebra::DMatrix;
 use sqp_craft::{CancellationToken, CsrPattern, Error, Multipliers, Result, qp::*, sparse};
 use std::time::Instant;
+mod polish;
 
 /// Clarabel QP backend; configure through [`QpBackend::configure`].
 /// Clones copy settings/reporting and begin with an empty workspace cache.
@@ -72,6 +75,7 @@ struct Structure {
 struct Workspace {
     solver: DefaultSolver<f64>,
     key: Structure,
+    equilibrated: bool,
 }
 struct Converted {
     original_rows: usize,
@@ -444,8 +448,13 @@ impl ConversionCache {
 }
 
 impl ClarabelQp {
-    fn engine_settings(&self, began: Instant) -> DefaultSettings<f64> {
-        let tol = self.settings.tolerance;
+    fn engine_settings(
+        &self,
+        began: Instant,
+        equilibrated: bool,
+        accuracy_scale: f64,
+    ) -> DefaultSettings<f64> {
+        let tol = (self.settings.tolerance / accuracy_scale).max(f64::MIN_POSITIVE);
         DefaultSettings {
             verbose: false,
             max_iter: self
@@ -462,6 +471,7 @@ impl ClarabelQp {
             tol_feas: tol,
             tol_infeas_abs: tol,
             tol_infeas_rel: tol,
+            equilibrate_enable: equilibrated,
             ..Default::default()
         }
     }
@@ -482,7 +492,10 @@ impl ClarabelQp {
     }
 
     fn cold_retry(&mut self, reason: String) {
-        self.last.retry_reason = Some(reason);
+        self.last.retry_reason = Some(match self.last.retry_reason.take() {
+            Some(previous) => format!("{previous}; {reason}"),
+            None => reason,
+        });
     }
 }
 
@@ -616,12 +629,19 @@ impl QpBackend for ClarabelQp {
                 }
             }
         }
-        // At most two engine attempts: an updated solve and one fresh retry.
+        // At most three attempts: update, fresh equilibrated, then fresh
+        // unequilibrated if the original-coordinate check still rejects it.
+        let mut unequilibrated_retry = false;
         loop {
             if let Some(outcome) = self.stop(began, cancel) {
                 return Ok(outcome);
             }
             let reused = reusable.is_some();
+            let original_scale = data
+                .b
+                .iter()
+                .chain(&model.gradient)
+                .fold(1.0_f64, |a, b| a.max(b.abs()));
             let mut workspace = if let Some(w) = reusable.take() {
                 w
             } else {
@@ -635,13 +655,22 @@ impl QpBackend for ClarabelQp {
                     &data.a,
                     &data.b,
                     &data.cones,
-                    self.engine_settings(began),
+                    self.engine_settings(
+                        began,
+                        !unequilibrated_retry,
+                        if unequilibrated_retry {
+                            original_scale
+                        } else {
+                            1.0
+                        },
+                    ),
                 );
                 self.last.setup_seconds += t.elapsed().as_secs_f64();
                 self.last.setups += 1;
                 Workspace {
                     solver: solver.map_err(|e| Error::Backend(format!("Clarabel setup: {e}")))?,
                     key: data.structure(),
+                    equilibrated: !unequilibrated_retry,
                 }
             };
             if let Some(outcome) = self.stop(began, cancel) {
@@ -651,7 +680,15 @@ impl QpBackend for ClarabelQp {
             // refreshed even for a cached workspace and before every retry.
             workspace
                 .solver
-                .update_settings(self.engine_settings(began))
+                .update_settings(self.engine_settings(
+                    began,
+                    workspace.equilibrated,
+                    if workspace.equilibrated {
+                        1.0
+                    } else {
+                        original_scale
+                    },
+                ))
                 .map_err(|e| Error::Backend(format!("Clarabel settings: {e}")))?;
             // Clarabel's time-limit check uses the sum of its root timers:
             // "setup", "solve" and "post-process". It resets only "solve"
@@ -728,11 +765,63 @@ impl QpBackend for ClarabelQp {
                 }
                 continue;
             }
-            if matches!(outcome, Ok(QpOutcome::Optimal(_)))
-                && self.settings.reuse_workspace
-                && workspace.solver.is_data_update_allowed()
+            let equilibrated = workspace.equilibrated;
+            if outcome.is_err() && matches!(raw, SolverStatus::Solved | SolverStatus::AlmostSolved)
             {
-                self.workspace = Some(workspace);
+                let candidate = candidate(&workspace.solver, model, &data.mapping);
+                // Keep only conversion data while allocating the bounded
+                // polish factor, rather than holding two solver factors.
+                drop(workspace);
+                let t = Instant::now();
+                let before_checks = self.last.check_seconds;
+                let polished = polish::solve(
+                    model,
+                    &candidate,
+                    &self.settings,
+                    began,
+                    cancel,
+                    &mut self.last,
+                    &mut self.checks,
+                );
+                self.last.solve_seconds += (t.elapsed().as_secs_f64()
+                    - (self.last.check_seconds - before_checks))
+                    .max(0.0);
+                if let Some(outcome) = self.stop(began, cancel) {
+                    return Ok(outcome);
+                }
+                if let Some(solution) = polished {
+                    self.cold_retry(
+                        "active-set polish accepted by original-coordinate checks".into(),
+                    );
+                    self.conversion = Some(conversion);
+                    return Ok(QpOutcome::Optimal(solution));
+                }
+                if self.last.iterations >= u64::from(self.settings.max_iterations) {
+                    self.last.limit_reason = Some("iterations".into());
+                    return Ok(QpOutcome::LimitReached(None));
+                }
+            } else {
+                if matches!(outcome, Ok(QpOutcome::Optimal(_)))
+                    && self.settings.reuse_workspace
+                    && workspace.solver.is_data_update_allowed()
+                {
+                    self.workspace = Some(workspace);
+                }
+            }
+            if !reused && equilibrated && outcome.is_err() {
+                // Equilibrated stopping measures can understate residuals in
+                // the original model. Retry the identical QP without that
+                // transformation; never weaken the independent acceptance.
+                self.cold_retry(format!("unequilibrated retry after {outcome:?}"));
+                if let Some(outcome) = self.stop(began, cancel) {
+                    return Ok(outcome);
+                }
+                if self.last.iterations >= u64::from(self.settings.max_iterations) {
+                    self.last.limit_reason = Some("iterations".into());
+                    return Ok(QpOutcome::LimitReached(None));
+                }
+                unequilibrated_retry = true;
+                continue;
             }
             if matches!(outcome, Ok(QpOutcome::Optimal(_))) {
                 self.conversion = Some(conversion);
@@ -748,6 +837,30 @@ impl QpBackend for ClarabelQp {
     }
 }
 
+fn candidate(
+    solver: &DefaultSolver<f64>,
+    model: &QpModel,
+    mapping: &[(bool, usize, f64)],
+) -> QpSolution {
+    let mut multipliers = Multipliers {
+        constraints: vec![0.0; model.m()],
+        variables: vec![0.0; model.n()],
+    };
+    for (&dual, &(variable, index, sign)) in solver.solution.z.iter().zip(mapping) {
+        if variable {
+            multipliers.variables[index] += sign * dual;
+        } else {
+            multipliers.constraints[index] += sign * dual;
+        }
+    }
+    QpSolution {
+        step: solver.solution.x.clone(),
+        multipliers,
+        active_set: None,
+        iterations: u64::from(solver.solution.iterations),
+    }
+}
+
 fn extract(
     solver: &DefaultSolver<f64>,
     model: &QpModel,
@@ -758,30 +871,34 @@ fn extract(
     match solver.solution.status {
         SolverStatus::PrimalInfeasible => Ok(QpOutcome::Infeasible),
         SolverStatus::DualInfeasible => Ok(QpOutcome::Unbounded),
-        SolverStatus::Solved => {
-            let mut multipliers = Multipliers {
-                constraints: vec![0.0; model.m()],
-                variables: vec![0.0; model.n()],
-            };
-            for (&dual, &(variable, index, sign)) in solver.solution.z.iter().zip(mapping) {
-                if variable {
-                    multipliers.variables[index] += sign * dual;
-                } else {
-                    multipliers.constraints[index] += sign * dual;
-                }
-            }
-            let solution = QpSolution {
-                step: solver.solution.x.clone(),
-                multipliers,
-                active_set: None,
-                iterations: u64::from(solver.solution.iterations),
-            };
+        SolverStatus::Solved | SolverStatus::AlmostSolved => {
+            let solution = candidate(solver, model, mapping);
             let check = model.accepts_with_workspace(&solution, tolerance, workspace)?;
             if !check.accepted {
                 return Err(Error::Backend(format!(
                     "Clarabel solution failed the independent check (scale {:.3e}): {:?}",
                     check.scale, check.residuals
                 )));
+            }
+            // SQP rounds tolerance-sized bound overshoots before using a step.
+            // Certify that version too: clipping can amplify row/H residuals.
+            let needs_snap = solution
+                .step
+                .iter()
+                .enumerate()
+                .any(|(j, &v)| v < model.variables.lower[j] || v > model.variables.upper[j]);
+            if needs_snap {
+                let mut rounded = solution.clone();
+                for (j, v) in rounded.step.iter_mut().enumerate() {
+                    *v = v.clamp(model.variables.lower[j], model.variables.upper[j]);
+                }
+                let check = model.accepts_with_workspace(&rounded, tolerance, workspace)?;
+                if !check.accepted {
+                    return Err(Error::Backend(format!(
+                        "Clarabel rounded step failed the independent check (scale {:.3e}): {:?}",
+                        check.scale, check.residuals
+                    )));
+                }
             }
             Ok(QpOutcome::Optimal(solution))
         }
@@ -796,6 +913,364 @@ mod tests {
     use super::*;
     use clarabel::algebra::TriangularMatrixChecks;
     use sqp_craft::{Bounds, CsrMatrix, CsrPattern};
+
+    fn power_qp(data: &str) -> QpModel {
+        let tokens: Vec<&str> = data
+            .lines()
+            .filter(|l| !l.starts_with('#'))
+            .flat_map(str::split_whitespace)
+            .collect();
+        let mut cursor = 0;
+        let mut take = |count: usize| {
+            let v = tokens[cursor..cursor + count]
+                .iter()
+                .map(|s| s.parse::<f64>().unwrap())
+                .collect::<Vec<_>>();
+            cursor += count;
+            v
+        };
+        let dims = take(2);
+        let (n, m) = (dims[0] as usize, dims[1] as usize);
+        let gradient = take(n);
+        let variables = Bounds::new(take(n), take(n));
+        let rows = Bounds::new(take(m), take(m));
+        let mut matrix = |rows, cols| {
+            let nnz = take(1)[0] as usize;
+            CsrMatrix {
+                pattern: CsrPattern {
+                    rows,
+                    cols,
+                    indptr: take(rows + 1).iter().map(|v| *v as usize).collect(),
+                    indices: take(nnz).iter().map(|v| *v as usize).collect(),
+                },
+                values: take(nnz),
+            }
+        };
+        let hessian_lower = matrix(n, n);
+        let matrix = matrix(m, n);
+        QpModel {
+            hessian_lower,
+            gradient,
+            variables,
+            matrix,
+            rows,
+        }
+    }
+
+    fn captured_power_qp() -> QpModel {
+        power_qp(include_str!("../tests/data/epigrids-reference-step.txt"))
+    }
+
+    #[test]
+    fn later_power_step_recovers_from_a_wrong_active_bound() {
+        let model = power_qp(include_str!("../tests/data/epigrids-later-step.txt"));
+        let mut backend = ClarabelQp::default();
+        backend
+            .configure(&QpOptions {
+                tolerance: 1e-10,
+                acceptance_tolerance: 1e-10,
+                max_iterations: 200,
+                ..Default::default()
+            })
+            .unwrap();
+        let QpOutcome::Optimal(solution) = backend
+            .solve(&model, None, &CancellationToken::default())
+            .unwrap()
+        else {
+            panic!("later QP not accepted")
+        };
+        assert!(model.accepts(&solution, 1e-10).unwrap().accepted);
+        assert!(backend.report().iterations <= 200);
+        assert!(
+            backend
+                .report()
+                .retry_reason
+                .as_ref()
+                .unwrap()
+                .contains("active-set polish accepted")
+        );
+    }
+
+    #[test]
+    fn captured_power_step_meets_original_coordinate_checks() {
+        let model = captured_power_qp();
+        let mut backend = ClarabelQp::default();
+        backend
+            .configure(&QpOptions {
+                tolerance: 1e-10,
+                acceptance_tolerance: 1e-10,
+                max_iterations: 200,
+                reuse_workspace: true,
+                ..Default::default()
+            })
+            .unwrap();
+        let outcome = backend
+            .solve(&model, None, &CancellationToken::default())
+            .unwrap();
+        let QpOutcome::Optimal(solution) = outcome else {
+            panic!("{outcome:?}");
+        };
+        assert!(model.accepts(&solution, 1e-10).unwrap().accepted);
+        assert!(backend.report().iterations <= 200);
+        assert_eq!(backend.report().cold_retries, 0);
+        assert!(
+            backend
+                .report()
+                .retry_reason
+                .as_ref()
+                .unwrap()
+                .contains("active-set polish accepted")
+        );
+        assert!(backend.workspace.is_none());
+        let QpOutcome::Optimal(repeated) = backend
+            .solve(&model, None, &CancellationToken::default())
+            .unwrap()
+        else {
+            panic!("cached unscaled solve failed");
+        };
+        assert!(model.accepts(&repeated, 1e-10).unwrap().accepted);
+        assert_eq!(backend.report().updates, 0);
+        assert_eq!(backend.report().setups, 1);
+    }
+
+    #[test]
+    fn power_accuracy_retry_shares_the_original_iteration_budget() {
+        let model = captured_power_qp();
+        let mut backend = ClarabelQp::default();
+        backend
+            .configure(&QpOptions {
+                tolerance: 1e-10,
+                acceptance_tolerance: 1e-10,
+                max_iterations: 20,
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(matches!(
+            backend
+                .solve(&model, None, &CancellationToken::default())
+                .unwrap(),
+            QpOutcome::LimitReached(_)
+        ));
+        assert!(backend.report().iterations <= 20);
+        assert_eq!(backend.report().setups, 1);
+        assert_eq!(backend.report().cold_retries, 0);
+    }
+
+    #[test]
+    fn almost_solved_requires_the_same_independent_certificate() {
+        let (_, q) = reusable();
+        let data = convert(&q).unwrap();
+        let mut solver = DefaultSolver::new(
+            &data.p,
+            &q.gradient,
+            &data.a,
+            &data.b,
+            &data.cones,
+            DefaultSettings {
+                verbose: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        solver.solution.status = SolverStatus::AlmostSolved;
+        solver.solution.x = vec![1.0];
+        solver.solution.z.fill(0.0);
+        assert!(matches!(
+            extract(
+                &solver,
+                &q,
+                &data.mapping,
+                1e-10,
+                &mut QpResidualWorkspace::default()
+            )
+            .unwrap(),
+            QpOutcome::Optimal(_)
+        ));
+        solver.solution.x[0] += 1e-5;
+        assert!(
+            extract(
+                &solver,
+                &q,
+                &data.mapping,
+                1e-10,
+                &mut QpResidualWorkspace::default()
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn polish_corrects_wrong_active_guesses_and_honors_cancellation() {
+        let q = QpModel {
+            hessian_lower: CsrMatrix {
+                pattern: CsrPattern {
+                    rows: 2,
+                    cols: 2,
+                    indptr: vec![0, 1, 2],
+                    indices: vec![0, 1],
+                },
+                values: vec![1.0, 1.0],
+            },
+            gradient: vec![-1.0, -1.0],
+            variables: Bounds::new(vec![0.0, 0.0], vec![2.0, 2.0]),
+            matrix: CsrMatrix {
+                pattern: CsrPattern::dense(0, 2),
+                values: vec![],
+            },
+            rows: Bounds::free(0),
+        };
+        let mut candidate = QpSolution {
+            step: vec![2.0, 1.0],
+            multipliers: Multipliers {
+                constraints: vec![],
+                variables: vec![-1.0, 0.0],
+            },
+            active_set: None,
+            iterations: 0,
+        };
+        let mut report = QpReport::default();
+        let mut checks = QpResidualWorkspace::default();
+        let options = QpOptions::default();
+        let corrected = polish::solve(
+            &q,
+            &candidate,
+            &options,
+            Instant::now(),
+            &CancellationToken::default(),
+            &mut report,
+            &mut checks,
+        )
+        .unwrap();
+        assert_eq!(corrected.step, vec![1.0, 1.0]);
+        assert!(
+            q.accepts(&corrected, options.acceptance_tolerance)
+                .unwrap()
+                .accepted
+        );
+        assert!(report.iterations <= 27);
+        let one = QpOptions {
+            max_iterations: 1,
+            ..options.clone()
+        };
+        let mut limited = QpReport::default();
+        assert!(
+            polish::solve(
+                &q,
+                &candidate,
+                &one,
+                Instant::now(),
+                &CancellationToken::default(),
+                &mut limited,
+                &mut checks
+            )
+            .is_none()
+        );
+        assert_eq!(limited.iterations, 1);
+        candidate.step[0] = 1.0;
+        candidate.multipliers.variables[0] = 0.0;
+        let token = CancellationToken::default();
+        token.cancel();
+        let mut report = QpReport::default();
+        assert!(
+            polish::solve(
+                &q,
+                &candidate,
+                &options,
+                Instant::now(),
+                &token,
+                &mut report,
+                &mut checks
+            )
+            .is_none()
+        );
+        assert_eq!(report.iterations, 0);
+        let options = QpOptions {
+            max_iterations: 0,
+            ..options
+        };
+        assert!(
+            polish::solve(
+                &q,
+                &candidate,
+                &options,
+                Instant::now(),
+                &CancellationToken::default(),
+                &mut report,
+                &mut checks
+            )
+            .is_none()
+        );
+        assert_eq!(report.iterations, 0);
+    }
+
+    #[test]
+    fn polish_never_ignores_an_inactive_row() {
+        let (_, mut q) = reusable();
+        q.matrix = CsrMatrix {
+            pattern: CsrPattern::dense(1, 1),
+            values: vec![1.0],
+        };
+        q.rows = Bounds::new(vec![f64::NEG_INFINITY], vec![0.5]);
+        let candidate = QpSolution {
+            step: vec![0.25],
+            multipliers: Multipliers {
+                variables: vec![0.0],
+                constraints: vec![0.0],
+            },
+            active_set: None,
+            iterations: 0,
+        };
+        assert!(
+            polish::solve(
+                &q,
+                &candidate,
+                &QpOptions::default(),
+                Instant::now(),
+                &CancellationToken::default(),
+                &mut QpReport::default(),
+                &mut QpResidualWorkspace::default()
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn cached_unequilibrated_workspace_keeps_its_mode() {
+        let (mut backend, q) = reusable();
+        let data = convert(&q).unwrap();
+        let solver = DefaultSolver::new(
+            &data.p,
+            &q.gradient,
+            &data.a,
+            &data.b,
+            &data.cones,
+            DefaultSettings {
+                verbose: false,
+                equilibrate_enable: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        backend.workspace = Some(Workspace {
+            solver,
+            key: data.structure(),
+            equilibrated: false,
+        });
+        let QpOutcome::Optimal(solution) = backend
+            .solve(&q, None, &CancellationToken::default())
+            .unwrap()
+        else {
+            panic!("unscaled cache failed")
+        };
+        assert!(
+            q.accepts(&solution, backend.settings.acceptance_tolerance)
+                .unwrap()
+                .accepted
+        );
+        assert_eq!(backend.report().updates, 1);
+        assert_eq!(backend.report().setups, 0);
+        assert!(!backend.workspace.as_ref().unwrap().equilibrated);
+    }
 
     fn reusable() -> (ClarabelQp, QpModel) {
         let model = QpModel {

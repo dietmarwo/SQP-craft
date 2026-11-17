@@ -142,7 +142,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `max_hessian_resets` | `3` | Total resets (failed BFGS updates and non-descent retries) |
 | `qp_solver` | `"auto"` | Python: active-set for full/block BFGS, Clarabel for partitioned/exact curvature. Explicit `"clarabel"` and `"active-set"` are preserved. Rust callers choose `B`; frontends can use `QpSolver::resolve`. See [backend selection](backend-selection.md). |
 | `qp_tolerance` | `1e-10` | The QP backend's native tolerance: Clarabel's feasibility and gap tolerances, the active-set violation and sign thresholds |
-| `qp_max_iterations` | `200` | Per QP, shared across an attempt and its cold retry. Clarabel: interior-point iterations. Active set: drops and re-entries of constraints (first entries are not charged) |
+| `qp_max_iterations` | `200` | Per QP, shared across all attempts of one call: Clarabel's updated solve, cold retries and recovery (interior-point iterations; each recovery factorization and refinement counts one). Active set: drops and re-entries of constraints (first entries are not charged) |
 | `qp_reuse_workspace` | `false` | Reuse compatible Clarabel workspaces; see below. No effect on the active-set backend |
 | `qp_warm_start` | `true` | Pass the last step QP's working set to the next QP; only backends that report one (the active-set backend) receive it |
 | `elastic_mode` | Python `None`; Rust `false` | Solve every step QP as an ℓ1-elastic QP (rows may be violated at a cost), so restoration is not needed; Python `None` enables it only for automatic dense selection. Explicit booleans override the policy; needs a backend with elastic support, otherwise `Unsupported` / `NotImplementedError` before any model call. Rows declared linear stay hard; without any other row the plain QP runs. See [elastic-mode.md](elastic-mode.md) |
@@ -152,7 +152,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `merit` | `"l1"` | `"l1"` (Powell-weighted violations) or `"augmented-lagrangian"`, SNOPT's merit `f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²`, searched jointly in `x`, `π` and `s`. The augmented-Lagrangian merit cannot be combined with `second_order_correction` |
 | `violation_limit` | `None` | SNOPT's `τ_V ≥ 1`. A trial point that violates some row by more than `τ_V·max(1, violation at the start)` is rejected before its derivatives are evaluated |
 | `scaling` | `"none"` | Power-of-two scaling of the QP and the BFGS matrix. `"linear"` scales from the rows declared linear (the identity without them). `"jacobian"` scales from every row's Jacobian at the first point on the linear rows. Tests stay in original units |
-| `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
+| `record_qp_limit` | `0` | Most recent step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
 ## The native SQP method
@@ -444,9 +444,44 @@ bounds become a zero-cone row; free sides produce no row. Clarabel's duals
 `z ≥ 0` satisfy `Hp + g + Aᵀz = 0`, so `λ = z_lower − z_upper`, and `−z` for an
 equality. A Clarabel iteration callback polls the cancellation token and the
 deadline. A `Solved` result is kept even if the deadline passed during the
-solve; reduced-accuracy (`AlmostSolved`) and limited iterates are never used as
-steps. HiGHS was probed first (see the results document); it lacks a user
+solve. A reduced-accuracy (`AlmostSolved`) result is used only if it passes
+the same independent check as a `Solved` one; limited iterates are never used
+as steps. When a step lies outside its variable bounds by a tolerance-sized
+amount, the step clipped onto the bounds, which SQP uses, must pass the check
+too. HiGHS was probed first (see the results document); it lacks a user
 interruption callback in its QP solver.
+
+#### Recovery of a rejected Clarabel step
+
+Interior-point stopping measures are computed on Clarabel's equilibrated
+model, and they can understate the residuals of the original QP. When a cold
+(not reused) solve is rejected by the independent check, or ends with another
+unsuccessful status than infeasibility or a limit (such as a numerical
+error), the adapter tries, in this order, and only within the call's
+iteration and time budget:
+
+1. **Active-set polish**, if Clarabel reported `Solved` or `AlmostSolved`.
+   The candidate's active bounds and rows are guessed from its duals, active
+   variable bounds are eliminated, and the equality KKT system of the rest is
+   solved by a sparse quasi-definite factorization (row-normalized, with
+   iterative refinement against the unregularized equations). An active
+   guess whose dual has the wrong sign is released, at most three times. At
+   most eight refinements follow each factorization. The polish runs only if
+   a dense worst-case bound on its factor fits the adapter's fixed 128 MiB
+   budget for sparse work, which allows about 1,600 free variables plus
+   active rows; larger systems skip it. The engine workspace is freed before
+   the polish allocates.
+2. **An unequilibrated cold retry**, if the rejected attempt was equilibrated.
+   It solves the same QP without equilibration and with Clarabel's tolerances
+   divided by the largest absolute gradient or constraint bound (at least 1).
+   A rejected unequilibrated solve can be polished once more.
+
+Every recovered step must pass the complete independent check with the
+unchanged acceptance tolerance, including inactive rows, bounds and dual
+signs; the guessed active set is not a certificate. After a polished step,
+the conversion cache is kept and the engine workspace is rebuilt on the next
+call. A successful unequilibrated workspace can be reused, and it stays
+unequilibrated.
 
 ### QP workspace reuse
 
@@ -473,11 +508,12 @@ promise identical results or faster execution on every problem.
 
 A failed numeric update discards the possibly partially updated workspace.
 A reused result that fails the independent QP check, or returns an unsuccessful
-status including infeasibility, gets at most one fresh setup/solve. Thus a reused
-infeasibility status alone cannot trigger restoration. Cancellation and
-time/iteration limits stop immediately. Both attempts share the per-call QP
-iteration budget and remaining cooperative time budget, including conversion,
-setup and updates. Clarabel's own time-limit clock is the sum of its root
+status including infeasibility, gets a fresh setup/solve, which is then
+handled like any cold solve, including the [recovery](#recovery-of-a-rejected-clarabel-step)
+above. Thus a reused infeasibility status alone cannot trigger restoration.
+Cancellation and time/iteration limits stop immediately. All attempts share
+the per-call QP iteration budget and remaining cooperative time budget,
+including conversion, setup and updates. Clarabel's own time-limit clock is the sum of its root
 timers, and Clarabel resets only the solve timer per call. The adapter resets
 the setup and post-processing timers before every engine call, so a reused
 workspace is not charged for earlier calls. Settings and the
@@ -493,12 +529,12 @@ restoration calls under these names (the Python report has the same fields):
 | --- | --- |
 | `qp_setups` | Fresh engine setup attempts, including cold retries |
 | `qp_updates` | Successful complete numeric updates; a later stop can precede the engine solve |
-| `qp_cold_retries` | Fresh retry setups actually started after a failed update or reused result |
-| `qp_retry_reason` | Most recent reason requesting a cold retry, even if the remaining budget prevented it; otherwise `None` |
+| `qp_cold_retries` | Fresh retry setups actually started: after a failed update or reused result, and Clarabel's unequilibrated retry |
+| `qp_retry_reason` | The recovery reasons of the most recent call that had any, joined by `; `: each requested cold retry (even if the remaining budget prevented it) and an accepted Clarabel polish; otherwise `None` |
 | `qp_conversion_seconds` | Matrix/cone conversion and positive-definiteness check |
 | `qp_setup_seconds` | Fresh engine construction |
 | `qp_update_seconds` | Numeric updates, including failed updates |
-| `qp_solve_seconds` | Engine solve time across all attempts |
+| `qp_solve_seconds` | Engine solve time across all attempts, including Clarabel's polish |
 | `qp_check_seconds` | Backend solution extraction and independent acceptance checking |
 
 For the active-set backend, conversion is the dense copy of `H` and the
@@ -507,8 +543,10 @@ row norms, setup is the Cholesky factorization (one setup per call), solve is
 
 Per-QP names omit the `qp_` prefix (`setups`, `updates`, and so on).
 `qp_solves` still counts backend calls; `qp_iterations` and the final
-`QpSolution.iterations` include both engine attempts. `qp_status` is the most
-recent native status; `qp_retry_reason` preserves why a retry was requested.
+`QpSolution.iterations` include all engine attempts and polish steps.
+`qp_status` is the most recent native status; `qp_retry_reason` preserves why
+a retry was requested or a polish accepted. `qp_factor_nnz` is the largest
+factor of the call when a Clarabel polish factorized too.
 The new phase timers are disjoint subsets of inclusive `qp_seconds`; input
 validation, structural matching and other overhead explain their difference.
 Dummy reports have zero counters/times and no retry reason. Timing is diagnostic,

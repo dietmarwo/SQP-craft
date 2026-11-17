@@ -19,6 +19,8 @@
 
 - [Design notes](docs/design-notes.md)
 - [Structured SQP with sparse curvature](docs/structured-sqp.md)
+  - [EPIGRIDS power regression study](bench/epigrids/README.md)
+  - [Fan QP mapping study](bench/fan-qp/README.md)
 - [Elastic mode](docs/elastic-mode.md)
 - [Second-order correction](docs/second-order-correction.md)
 - [Dense active-set QP backend](docs/active-set-qp.md)
