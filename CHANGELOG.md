@@ -6,22 +6,49 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
-- Clarabel now certifies the step after bound rounding, independently checks
-  `AlmostSolved` candidates, and can recover a rejected cold step using bounded
-  sparse active-set polishing or an unequilibrated accuracy retry. Engine
-  attempts and polishing share the original time/iteration limits; acceptance
-  tolerances are unchanged. Added two EPIGRIDS step-QP regressions.
-- Opt-in QP traces retain the most recent requested models, so a failure after
-  the trace fills still includes the QP that stopped the solve.
-- Added bounded EPIGRIDS DC/AC regression tooling and fan-QP mapping/oracle studies, with independent checks and an optional standalone Clarabel QP bridge. No solver default changes.
+### Added
+
+- [EPIGRIDS study](bench/epigrids/README.md): the 250-bus New England
+  MATPOWER cases as a checked DC dispatch (LP-IP-craft against HiGHS) and a
+  sparse AC regression with an independent PYPOWER reference and frozen
+  acceptance gates. With partitioned curvature, an initial Hessian scale of
+  0.01, the augmented-Lagrangian merit and a QP tolerance of 1e-12, 5 of 14
+  AC runs are accepted (0 of 14 before the Clarabel recovery below). The
+  compact results and `verify.py`, which rechecks them without an optimizer,
+  are in the repository.
+- [Fan QP study](bench/fan-qp/README.md): a lossless mapping of a small
+  scenario-fan control problem to the generic QP seam, checked against an
+  independent KKT oracle and SciPy, with the standalone example
+  `crates/clarabel/examples/fan_bridge.rs`. No FanCyqlone comparison ran.
 
 ### Changed
 
+- Clarabel uses an `AlmostSolved` result when it passes the same independent
+  check as a `Solved` one, and checks the step clipped onto its variable
+  bounds as SQP uses it.
+- `record_qp_limit` keeps the most recent step QPs instead of the first ones,
+  so a trace shows the QP that stopped a solve.
+- `qp_retry_reason` joins all recovery reasons of a call with `; `, including
+  an accepted polish; `qp_cold_retries` also counts Clarabel's unequilibrated
+  retry.
 - optimization-jobs pin `41d5f00` (main after the 0.4.1 release; the job
   crates are still 0.4.1). It adds an optional progress file to command jobs
   (`jobs progress`), which experiment-craft uses to prune adaptive trials,
   and guide entries; the job envelope, the worker protocol and the result
   contract are unchanged.
+
+### Fixed
+
+- Clarabel step QPs that its equilibrated stopping test accepted but the
+  independent original-coordinate check rejected ended the solve with
+  `qp_failure`; on the EPIGRIDS power-flow cases this happened in the first
+  steps. A rejected cold solve is now recovered within the call's iteration
+  and time budget, by a bounded sparse active-set polish of the candidate
+  and, if needed, an unequilibrated retry at tighter internal accuracy. Every
+  recovered step must pass the unchanged independent check. Two captured
+  250-bus step QPs are regression tests ([details](docs/api.md#recovery-of-a-rejected-clarabel-step)).
+- The documentation of `RunReport::qp_trace` said the QPs were in original
+  coordinates; with scaling they are scaled.
 
 ## [0.20.0] - 2026-11-16
 

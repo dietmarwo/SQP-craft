@@ -1,0 +1,38 @@
+{
+  "schema": "research.power/1",
+  "cases": [
+    "Easy/Winter12Generous.m",
+    "Easy/Fall116Generous.m",
+    "Easy/Winter68Generous.m",
+    "BaseCase.m",
+    "Hard/Spring13Tight.m"
+  ],
+  "curvature": [
+    "partitioned"
+  ],
+  "exact_hessian": "optional analytic PYPOWER derivatives, finite-difference checked",
+  "starts": [
+    "source",
+    "reference_diagnostic",
+    "dc_replay_if_available"
+  ],
+  "cost_scale": 10000,
+  "dc_intervals": 16,
+  "native_limits": {
+    "seconds": 60,
+    "steps": 300,
+    "callbacks": 5000
+  },
+  "acceptance": {
+    "primal": 1e-07,
+    "stationarity_currency": 1e-06,
+    "complementarity_currency": 1e-06,
+    "objective_relative": 0.001
+  },
+  "threads": 1,
+  "protocol_sha256": "437e2014d59c3516bc61844af3af56267b3442d6128e6fa6416cd2ff88db5f69",
+  "merit": "augmented-lagrangian",
+  "qp_tolerance": 1e-12,
+  "initial_hessian_scale": 0.01,
+  "executed_source_sha256": "160d17fda6bc7cf9454ca7aa5fe85f21fe52efd329ecdaa313a1cf1028ae3b68"
+}

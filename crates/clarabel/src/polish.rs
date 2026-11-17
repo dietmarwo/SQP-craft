@@ -112,19 +112,20 @@ fn attempt(
     }
     let a = &model.matrix;
     let mut rows = Vec::new();
-    for i in 0..model.m() {
+    for (i, &excluded) in excluded_rows.iter().enumerate() {
+        if excluded {
+            continue;
+        }
         let value: f64 = (a.pattern.indptr[i]..a.pattern.indptr[i + 1])
             .map(|k| a.values[k] * candidate.step[a.pattern.indices[k]])
             .sum();
-        if !excluded_rows[i] {
-            if let Some(target) = active(
-                value,
-                candidate.multipliers.constraints[i],
-                model.rows.lower[i],
-                model.rows.upper[i],
-            ) {
-                rows.push((i, target));
-            }
+        if let Some(target) = active(
+            value,
+            candidate.multipliers.constraints[i],
+            model.rows.lower[i],
+            model.rows.upper[i],
+        ) {
+            rows.push((i, target));
         }
     }
     let dimension = nf.checked_add(rows.len())?;

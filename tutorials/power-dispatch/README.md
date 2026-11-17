@@ -65,4 +65,4 @@ The [study summary](results/study/summary.json) and [study figure](results/study
 
 ## Public-grid follow-up
 
-The [EPIGRIDS study](../../bench/epigrids/README.md) adds original-file import, quadratic-cost DC bounds and a 250-bus sparse AC regression. Native DC parity passes, while native AC acceptance fails under the frozen criteria. This extends the application evidence without claiming a validated large-grid AC solver.
+The [EPIGRIDS study](../../bench/epigrids/README.md) adds original-file import, quadratic-cost DC bounds and a 250-bus sparse AC regression. Native DC dispatch matches HiGHS. With tuned settings, 5 of 14 native AC runs pass the frozen acceptance criteria, all on the three easy operating points; ordinary starts on the harder cases still fail. This extends the application evidence without claiming a validated large-grid AC solver.

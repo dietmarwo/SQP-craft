@@ -11,8 +11,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .split_whitespace()
         .map(str::parse)
         .collect::<Result<_, _>>()?;
-    let n = numbers[0] as usize;
-    let m = numbers[1] as usize;
+    // Header n, m; then 4n + 2m vectors and the dense m-by-n row matrix.
+    let dimension = |v: Option<&f64>| match v {
+        Some(&v) if v >= 0.0 && v.fract() == 0.0 && v <= 1e6 => Ok(v as usize),
+        _ => Err("the input must start with two nonnegative integer dimensions n and m"),
+    };
+    let n = dimension(numbers.first())?;
+    let m = dimension(numbers.get(1))?;
+    let expected = 2 + 4 * n + 2 * m + n * m;
+    if numbers.len() != expected {
+        return Err(format!(
+            "expected {expected} numbers for n = {n}, m = {m}, found {}",
+            numbers.len()
+        )
+        .into());
+    }
     let mut offset = 2;
     let mut take = |count: usize| {
         let v = numbers[offset..offset + count].to_vec();
