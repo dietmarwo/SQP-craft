@@ -409,7 +409,7 @@ pub struct RunReport {
     pub qp_check_seconds: f64,
     /// BFGS and positive-definiteness-check time.
     pub bfgs_seconds: f64,
-    /// Optional bounded history in original step coordinates.
+    /// Optional most recent step QPs (in scaled coordinates when scaling is used).
     pub qp_trace: Vec<crate::qp::QpModel>,
     /// Optional per-iteration record (empty unless the backend was asked for it).
     pub history: Vec<IterationRecord>,

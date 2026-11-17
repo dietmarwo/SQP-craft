@@ -6,6 +6,15 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+- Clarabel now certifies the step after bound rounding, independently checks
+  `AlmostSolved` candidates, and can recover a rejected cold step using bounded
+  sparse active-set polishing or an unequilibrated accuracy retry. Engine
+  attempts and polishing share the original time/iteration limits; acceptance
+  tolerances are unchanged. Added two EPIGRIDS step-QP regressions.
+- Opt-in QP traces retain the most recent requested models, so a failure after
+  the trace fills still includes the QP that stopped the solve.
+- Added bounded EPIGRIDS DC/AC regression tooling and fan-QP mapping/oracle studies, with independent checks and an optional standalone Clarabel QP bridge. No solver default changes.
+
 ### Changed
 
 - optimization-jobs pin `41d5f00` (main after the 0.4.1 release; the job

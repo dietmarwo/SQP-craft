@@ -152,7 +152,7 @@ Every field is honoured; invalid values raise `InvalidInput` / `ValueError`.
 | `merit` | `"l1"` | `"l1"` (Powell-weighted violations) or `"augmented-lagrangian"`, SNOPT's merit `f − πᵀ(c − s) + ½Σρᵢ(cᵢ − sᵢ)²`, searched jointly in `x`, `π` and `s`. The augmented-Lagrangian merit cannot be combined with `second_order_correction` |
 | `violation_limit` | `None` | SNOPT's `τ_V ≥ 1`. A trial point that violates some row by more than `τ_V·max(1, violation at the start)` is rejected before its derivatives are evaluated |
 | `scaling` | `"none"` | Power-of-two scaling of the QP and the BFGS matrix. `"linear"` scales from the rows declared linear (the identity without them). `"jacobian"` scales from every row's Jacobian at the first point on the linear rows. Tests stay in original units |
-| `record_qp_limit` | `0` | Step QPs kept in `report.qp_trace`, at most 16 |
+| `record_qp_limit` | `0` | Most recent step QPs kept in `report.qp_trace`, at most 16 |
 | `record_history` | `false` | Normal SQP records in `history`, accepted feasibility steps in `restoration_history` |
 
 ## The native SQP method

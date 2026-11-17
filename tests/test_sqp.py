@@ -130,6 +130,15 @@ def test_nonlinear_inequality_with_signed_multiplier():
     assert r.multipliers.constraints[0] == pytest.approx(-0.5, abs=1e-5)
 
 
+def test_qp_trace_keeps_the_recent_models_for_failure_diagnosis():
+    results = [solve(free(), Rosenbrock(), [-1.2, 1.0], method="sqp",
+                     method_options=SqpOptions(max_iterations=12, record_qp_limit=limit))
+               for limit in (1, 16)]
+    assert results[1].report.qp_solves > 1
+    assert len(results[0].report.qp_trace) == 1
+    assert results[0].report.qp_trace[-1] == results[1].report.qp_trace[-1]
+
+
 def test_rosenbrock_needs_many_bfgs_steps():
     r = solve(free(), Rosenbrock(), [-1.2, 1.0], method="sqp")
     assert r.status == "converged", r.message

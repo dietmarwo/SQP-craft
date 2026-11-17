@@ -204,7 +204,7 @@ class SqpOptions:
     """Initial elastic weight relative to ``max(1, ‖∇f(x0)‖∞)``; multiplied by 10
     (at most six times) at a stationary point of the penalty with violated rows."""
     record_qp_limit: int = 0
-    """Number of step QPs to keep in ``report.qp_trace`` (at most 16)."""
+    """Number of most recent step QPs to keep in ``report.qp_trace`` (at most 16)."""
     max_restoration_steps: int = 10
     """Accepted restoration steps allowed; zero keeps the old infeasible-QP stop."""
     restoration_step_limit: float = 1.0

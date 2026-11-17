@@ -62,3 +62,7 @@ The checked-in `results/` record one run of each preset. The shared driver write
 Inspect the [complete smoke summary](results/smoke/summary.json) alongside the figure.
 
 The [study summary](results/study/summary.json) and [study figure](results/study/figure.png) record the study preset.
+
+## Public-grid follow-up
+
+The [EPIGRIDS study](../../bench/epigrids/README.md) adds original-file import, quadratic-cost DC bounds and a 250-bus sparse AC regression. Native DC parity passes, while native AC acceptance fails under the frozen criteria. This extends the application evidence without claiming a validated large-grid AC solver.
