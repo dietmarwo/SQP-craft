@@ -31,7 +31,7 @@ the job worker share it). Dates are those of the commits that set each version.
 - `qp_retry_reason` joins all recovery reasons of a call with `; `, including
   an accepted polish; `qp_cold_retries` also counts Clarabel's unequilibrated
   retry.
-- optimization-jobs pin `2bfa8e4` (tag `v0.5.0`, the optimization-jobs 0.5.0
+- optimization-jobs pin `2bfa8e4` (the merge of the optimization-jobs 0.5.0
   release; was `41d5f00`, main after 0.4.1; the job crates are 0.5.0). It
   adds an optional progress file to command jobs (`jobs progress`), which
   experiment-craft uses to prune adaptive trials, and guide entries, among

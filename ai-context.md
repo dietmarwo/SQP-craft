@@ -13,7 +13,7 @@ failed job, plus the tutorial's `--bin-dir` (#19). #20 moved the pin to
 `6a42472` and the release preparation to `423cd87`, which add worker-declared
 artifacts and paged artifact reads (`get_artifact` with `offset` and `limit`
 also pages through the `results` journal of a running job); the pin is now
-`2bfa8e4` (tag `v0.5.0`, the optimization-jobs 0.5.0 release: command jobs
+`2bfa8e4` (the merge of the optimization-jobs 0.5.0 release; tag `v0.5.0` is on `df7c55d`, whose shared files are the same: command jobs
 may declare a JSON-lines progress file, read with `jobs progress` while they
 run, and the guide behind `get_guide` lists BO-craft and the releases of
 20 November 2026; job and worker protocols are as in 0.4.0); 0.4.0 adds
