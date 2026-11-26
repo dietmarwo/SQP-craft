@@ -128,6 +128,10 @@ jobs:
       - run: python -m pip install unopy || echo "unopy unavailable"
       - run: python -m bench.s2mpj fetch
       - run: python -m pytest -q tests/test_bench.py
+      - name: Fan-QP study (toy cases and the offline replay of the published case)
+        run: |
+          cargo build --release --locked -p sqp-craft-clarabel --example fan_bridge
+          FAN_BRIDGE=target/release/examples/fan_bridge python -m pytest -q tests/test_fan_qp.py
       - name: Twenty HS problems (fails on a sqp-craft false claim)
         run: |
           python -m bench.run docs/benchmarks/selection.json hs.jsonl --jobs 2 \

@@ -1,0 +1,319 @@
+{
+  "status": "optimal",
+  "accepted_by_qp_model": true,
+  "clarabel": {
+    "objective": 1778.0312549336459,
+    "inequality": {
+      "value": 1.2989609388114332e-14,
+      "at": [
+        0,
+        12,
+        15
+      ]
+    },
+    "complementarity": {
+      "value": 2.2459539936832767e-10,
+      "at": [
+        0,
+        19,
+        "input",
+        2
+      ]
+    },
+    "dual_sign": {
+      "value": 0.0,
+      "at": null
+    },
+    "equality": {
+      "value": 1.709743457922741e-13,
+      "at": [
+        0,
+        18,
+        15
+      ]
+    },
+    "stationarity": {
+      "value": 1.2297269194514357e-13,
+      "at": [
+        0,
+        19,
+        "input",
+        2
+      ]
+    },
+    "root_stationarity": {
+      "value": 1.4210854715202004e-14,
+      "at": [
+        null,
+        0,
+        "shared input",
+        3
+      ]
+    },
+    "forward_rollout": {
+      "value": 3.0393465522138285e-12,
+      "at": [
+        0,
+        19,
+        "state",
+        15
+      ]
+    },
+    "passed": true
+  },
+  "fancyqpalm": {
+    "status": "Converged",
+    "original": {
+      "objective": 1778.03125415838,
+      "inequality": {
+        "value": 3.727127384500761e-09,
+        "at": [
+          2,
+          13,
+          16
+        ]
+      },
+      "complementarity": {
+        "value": 2.2985212506184363e-08,
+        "at": [
+          3,
+          9,
+          13
+        ]
+      },
+      "dual_sign": {
+        "value": 0.0,
+        "at": null
+      },
+      "equality": {
+        "value": 1.7763568394002505e-15,
+        "at": [
+          0,
+          2,
+          14
+        ]
+      },
+      "stationarity": {
+        "value": 1.794120407794253e-13,
+        "at": [
+          2,
+          11,
+          "input",
+          0
+        ]
+      },
+      "root_stationarity": {
+        "value": 6.439293542825908e-14,
+        "at": [
+          null,
+          0,
+          "shared input",
+          4
+        ]
+      },
+      "forward_rollout": {
+        "value": 7.91033905045424e-15,
+        "at": [
+          1,
+          22,
+          "state",
+          5
+        ]
+      },
+      "passed": true
+    },
+    "after_root_bound_aggregation": {
+      "objective": 1778.03125415838,
+      "inequality": {
+        "value": 3.727127384500761e-09,
+        "at": [
+          2,
+          13,
+          16
+        ]
+      },
+      "complementarity": {
+        "value": 3.6413427384112055e-08,
+        "at": [
+          null,
+          0,
+          "shared input",
+          3
+        ]
+      },
+      "dual_sign": {
+        "value": 0.0,
+        "at": null
+      },
+      "equality": {
+        "value": 1.7763568394002505e-15,
+        "at": [
+          0,
+          2,
+          14
+        ]
+      },
+      "stationarity": {
+        "value": 1.794120407794253e-13,
+        "at": [
+          2,
+          11,
+          "input",
+          0
+        ]
+      },
+      "root_stationarity": {
+        "value": 6.439293542825908e-14,
+        "at": [
+          null,
+          0,
+          "shared input",
+          4
+        ]
+      },
+      "forward_rollout": {
+        "value": 7.91033905045424e-15,
+        "at": [
+          1,
+          22,
+          "state",
+          5
+        ]
+      },
+      "passed": true
+    },
+    "shared_input_copies": {
+      "value": 0.0,
+      "at": null
+    },
+    "fixed_initial_state_copies": {
+      "value": 0.0,
+      "at": null
+    },
+    "relative_objective_difference": 4.360248376918017e-10,
+    "maximum_state_difference": {
+      "value": 8.40676854796385e-08,
+      "at": [
+        0,
+        20,
+        "state",
+        15
+      ]
+    },
+    "maximum_control_difference": {
+      "value": 2.2732141574666187e-07,
+      "at": [
+        0,
+        19,
+        "input",
+        2
+      ]
+    },
+    "maximum_rollout_difference": {
+      "value": 8.406492946200217e-08,
+      "at": [
+        0,
+        20,
+        "state",
+        15
+      ]
+    },
+    "passed": true
+  },
+  "negative_checks": {
+    "root_copy_rejected": true,
+    "bound_sign_rejected": true,
+    "dynamics_sign_rejected": true
+  },
+  "exact_sqp": {
+    "status": "iteration_limit",
+    "message": "iteration limit reached",
+    "backend": "clarabel 0.11.1",
+    "accepted_steps": 1,
+    "qp_solves": 1,
+    "maximum_start_coordinate": 6.3972424920558435,
+    "start_equality": 1.7763568394002505e-15,
+    "linear_projection": false,
+    "scale_deviations": 0,
+    "max_recorded_qp_coefficient_differences": {
+      "gradient": 0.0,
+      "lower": 0.0,
+      "upper": 0.0,
+      "row_lower": 0.0,
+      "row_upper": 0.0
+    },
+    "trace_count": 1,
+    "structure": {
+      "hessian_nnz": 3822,
+      "hessian_factor_nnz": 3822,
+      "kkt_factor_nnz": 276201,
+      "estimated_memory_bytes": 43736160,
+      "fell_back_to_full": false,
+      "qp_factor_nnz": 199659,
+      "exact_hessian_calls": 1,
+      "maximum_diagonal_shift": 0.0,
+      "diagonal_shifts": 0,
+      "elements": []
+    },
+    "restore_attempts": 0,
+    "qp_cold_retries": 0,
+    "certificate": {
+      "objective": 1778.031254933746,
+      "inequality": {
+        "value": 0.0,
+        "at": null
+      },
+      "complementarity": {
+        "value": 4.395292539238199e-10,
+        "at": [
+          0,
+          19,
+          "input",
+          2
+        ]
+      },
+      "dual_sign": {
+        "value": 0.0,
+        "at": null
+      },
+      "equality": {
+        "value": 3.780309398848658e-14,
+        "at": [
+          0,
+          18,
+          15
+        ]
+      },
+      "stationarity": {
+        "value": 1.1231682182524948e-12,
+        "at": [
+          0,
+          19,
+          "input",
+          2
+        ]
+      },
+      "root_stationarity": {
+        "value": 1.4210854715202004e-14,
+        "at": [
+          null,
+          0,
+          "shared input",
+          3
+        ]
+      },
+      "forward_rollout": {
+        "value": 6.75182132425789e-13,
+        "at": [
+          0,
+          19,
+          "state",
+          15
+        ]
+      },
+      "passed": true
+    },
+    "relative_objective_difference": 5.6266962078093513e-14,
+    "passed": true
+  }
+}

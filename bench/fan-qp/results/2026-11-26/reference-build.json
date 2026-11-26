@@ -1,0 +1,38 @@
+{
+  "schema": "fan-experiment-build/1",
+  "sqp_craft_revision": "a87fde4ef8904198f8ba959d047348f3934a7d25",
+  "reference_revisions": {
+    "fancyqlone": "06f4bcfbab56d0fa9bbd82ad871929a3f0a464b1",
+    "batmat": "0e6e2585019c9505a417060005087078bea18a2d",
+    "guanaqo": "d0671c2ba3ff3b01253964d1eedb8c93dc6a1bcc",
+    "eigen": "3147391d946bb4b6c68edd901f2add6ac1f31f8c",
+    "lapack-src": "6ec7f2bc4ecf4c4a93496aa2fa519575bc0e39ca"
+  },
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "cmake": "cmake version 4.4.5",
+  "ninja": "1.13.2.git.kitware.jobserver-pipe-1",
+  "rust": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+  "reference_blas_library": "/usr/lib/x86_64-linux-gnu/blas/libblas.so.3.12.1",
+  "reference_lapack_library": "/usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.12.1",
+  "reference_compile_options": [
+    "Release",
+    "-O2",
+    "binary64",
+    "VL=1",
+    "OpenMP enabled",
+    "LP64/int BLAS indices",
+    "system reference BLAS"
+  ],
+  "reference_run_options": [
+    "one processor",
+    "serial branches",
+    "zero-start",
+    "CPU affinity {0}",
+    "OMP_DYNAMIC=FALSE",
+    "OMP_NUM_THREADS=1"
+  ],
+  "cpu_model": "AMD EPYC 9V74 80-Core Processor",
+  "rust_tests_passed": 236,
+  "python_tests_passed": 220,
+  "s2mpj_revision": "fea6a70048eaad28b13a08703ddbfdbf65cd9c30"
+}

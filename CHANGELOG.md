@@ -21,10 +21,12 @@ the job worker share it). Dates are those of the commits that set each version.
   AC runs are accepted (0 of 14 before the Clarabel recovery below). The
   compact results and `verify.py`, which rechecks them without an optimizer,
   are in the repository.
-- [Fan QP study](bench/fan-qp/README.md): a lossless mapping of a small
-  scenario-fan control problem to the generic QP seam, checked against an
-  independent KKT oracle and SciPy, with the standalone example
-  `crates/clarabel/examples/fan_bridge.rs`. No FanCyqlone comparison ran.
+- [Fan QP study](bench/fan-qp/README.md): direct CSR assembly and transport
+  for the published four-branch spring–mass fixture. Clarabel and the pinned
+  FanCyQPALM reference passed independent original-coordinate checks. The
+  study records the first exact-Hessian SQP step, symbolic fill and sparse
+  storage counts. The exported fixture, the reference solution and the
+  records are committed, and CI replays the comparison from them (#61).
 
 ### Changed
 
