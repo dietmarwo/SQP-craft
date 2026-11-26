@@ -141,7 +141,7 @@ impl HessianModel for Exact {
         Ok(())
     }
 
-    fn shift_diagonal(&mut self) -> Result<()> {
+    fn shift_diagonal(&mut self, gradient: &[f64]) -> Result<()> {
         // A backend rejection triggers a sufficient Gershgorin shift. The
         // margin keeps it strictly dominant despite rounding in the row sums.
         self.radii.fill(0.0);
@@ -161,10 +161,13 @@ impl HessianModel for Exact {
             norm = norm.max(finite(diagonal.abs() + radius, "exact Hessian row norm")?);
             deficit = deficit.max(radius - diagonal);
         }
-        let extra = finite(
-            deficit + (1e-8 * (1.0 + norm)).max(self.shift),
-            "exact Hessian shift",
-        )?;
+        // With zero curvature, a linear objective can drive an arbitrarily
+        // long tangent step. Use the configured proximal scale in that case.
+        let mut margin = 1e-8 * (1.0 + norm);
+        if norm == 0.0 && gradient.iter().any(|&g| g != 0.0) {
+            margin = margin.max(self.initial_scale);
+        }
+        let extra = finite(deficit + margin.max(self.shift), "exact Hessian shift")?;
         self.shift = finite(self.shift + extra, "total exact Hessian shift")?;
         for &end in &pattern.indptr[1..] {
             self.lower.values[end - 1] = finite(

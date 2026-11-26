@@ -1237,7 +1237,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
                                         .into();
                                 break;
                             }
-                            hessian.shift_diagonal()?;
+                            hessian.shift_diagonal(&qp.gradient)?;
                             exact_shift_retries += 1;
                             retry_descent = false;
                             notify = false;

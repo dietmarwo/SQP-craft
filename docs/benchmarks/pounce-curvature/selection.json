@@ -1,0 +1,192 @@
+{
+  "s2mpj_commit": "fea6a70048eaad28b13a08703ddbfdbf65cd9c30",
+  "frozen_from": "../selection.json",
+  "controls": [
+    "ROSENBR",
+    "HS44",
+    "HS71",
+    "DTOC2"
+  ],
+  "problems": [
+    {
+      "name": "ROSENBR",
+      "n": 2,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSUR2-AN-2-0"
+    },
+    {
+      "name": "ALLINITU",
+      "n": 4,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COUR2-AY-4-0"
+    },
+    {
+      "name": "ARWHEAD",
+      "n": 10,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COUR2-AN-V-0"
+    },
+    {
+      "name": "BRYBND",
+      "n": 10,
+      "m": 0,
+      "subset": "unconstrained",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSUR2-AN-V-0"
+    },
+    {
+      "name": "HS2",
+      "n": 2,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CSBR2-AN-2-0"
+    },
+    {
+      "name": "HS38",
+      "n": 4,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COBR2-AN-4-0"
+    },
+    {
+      "name": "JNLBRNG1",
+      "n": 25,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQBR2-AY-V-0"
+    },
+    {
+      "name": "BQPGABIM",
+      "n": 50,
+      "m": 0,
+      "subset": "bounds",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CQBR2-AN-50-0"
+    },
+    {
+      "name": "HS21",
+      "n": 2,
+      "m": 1,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CQLR2-AN-2-1"
+    },
+    {
+      "name": "HS44",
+      "n": 4,
+      "m": 6,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 6,
+      "pbclass": "C-CQLR2-AN-4-6"
+    },
+    {
+      "name": "HS48",
+      "n": 5,
+      "m": 2,
+      "subset": "linear",
+      "control": false,
+      "linear_rows": 2,
+      "pbclass": "C-CSLR2-AY-5-2"
+    },
+    {
+      "name": "DTOC1L",
+      "n": 58,
+      "m": 36,
+      "subset": "linear",
+      "control": true,
+      "linear_rows": 36,
+      "pbclass": "C-COLR2-AN-V-V"
+    },
+    {
+      "name": "HS14",
+      "n": 2,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 1,
+      "pbclass": "C-CSQR2-AN-2-2"
+    },
+    {
+      "name": "HS71",
+      "n": 4,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AY-4-2"
+    },
+    {
+      "name": "HS78",
+      "n": 5,
+      "m": 3,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-5-3"
+    },
+    {
+      "name": "HS100",
+      "n": 7,
+      "m": 4,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-7-4"
+    },
+    {
+      "name": "POWELLBS",
+      "n": 2,
+      "m": 2,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-CNOR2-AN-2-2"
+    },
+    {
+      "name": "ALSOTAME",
+      "n": 2,
+      "m": 1,
+      "subset": "nonlinear",
+      "control": false,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-2-1"
+    },
+    {
+      "name": "CATENARY",
+      "n": 15,
+      "m": 4,
+      "subset": "nonlinear",
+      "control": true,
+      "linear_rows": 0,
+      "pbclass": "C-CLQR2-AY-V-V"
+    },
+    {
+      "name": "DTOC2",
+      "n": 58,
+      "m": 36,
+      "subset": "nonlinear",
+      "control": true,
+      "linear_rows": 0,
+      "pbclass": "C-COOR2-AN-V-V"
+    }
+  ]
+}

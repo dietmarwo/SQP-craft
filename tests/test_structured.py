@@ -119,3 +119,30 @@ def test_exact_mode_requires_a_callable_hessian():
     model.lagrangian_hessian = [2.0, 0.0, 0.0]
     with pytest.raises(TypeError, match="lagrangian_hessian must be callable"):
         solve(spec, model, [0.8, 1.2], method="sqp", method_options=options)
+
+
+@pytest.mark.parametrize("slope, scale, expected", [(100.0, 1.0, 1.0), (100.0, 4.0, 4.0),
+                                                   (0.0, 4.0, 1e-8)])
+def test_exact_flat_tangent_uses_proximal_scale_for_linear_objective(slope, scale, expected):
+    class Circle:
+        def functions(self, x):
+            return -slope * x[1], [x[0] ** 2 + x[1] ** 2]
+
+        def derivatives(self, x):
+            return [0.0, -slope], [2 * x[0], 2 * x[1]]
+
+        def lagrangian_hessian(self, x, lam):
+            return [-2 * lam[0], -2 * lam[0]]
+
+    spec = ProblemSpec(lower=[-np.inf] * 2, upper=[np.inf] * 2,
+                       constraint_lower=[1], constraint_upper=[1],
+                       jacobian_indptr=[0, 2], jacobian_indices=[0, 1],
+                       hessian_indptr=[0, 1, 2], hessian_indices=[0, 1])
+    options = SqpOptions(hessian="exact", initial_hessian_scale=scale, max_iterations=1,
+                         record_qp_limit=2)
+    r = solve(spec, Circle(), [1.0, 0.0], method="sqp", method_options=options)
+    original, retry = r.report.qp_trace
+    assert original["hessian_lower"]["values"] == [0.0, 0.0]
+    assert retry["hessian_lower"]["values"] == [expected, expected]
+    assert r.report.structure["diagonal_shifts"] == r.report.structure["exact_hessian_calls"] == 1
+    assert r.candidate == pytest.approx([1.0, slope / expected])

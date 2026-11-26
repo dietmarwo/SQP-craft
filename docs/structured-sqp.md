@@ -81,7 +81,10 @@ outside the pattern. Test with nonzero constraint multipliers if the model
 has nonlinear rows. When a QP backend rejects an exact Hessian as indefinite,
 SQP adds a diagonal shift using row sums as a sufficient bound. It allows up
 to two such retries per iterate and reports the count and largest shift in
-QP coordinates. The shift can slow convergence on problems with strongly
+QP coordinates. If the rejected matrix is exactly zero and the scaled QP
+gradient is nonzero, the shift is at least `initial_hessian_scale`. This
+gives an affine model quadratic curvature along free directions. With zero
+gradient the numerical margin still suffices. The shift can slow convergence on problems with strongly
 indefinite full-space curvature.
 
 The [SQP4 and SQP6 exact examples](../tutorials/_support/exact_hessian.py)

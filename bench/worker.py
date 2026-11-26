@@ -13,7 +13,9 @@ limit per solve and restarts the worker after a timeout or a crash.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import os
 import sys
 import time
@@ -30,8 +32,30 @@ def _channel():
     return os.fdopen(fd, "w", buffering=1)
 
 
+def objective_check(reported, verified):
+    if reported is None or verified is None:
+        return dict(delta=None, mismatch=None)
+    if not (math.isfinite(reported) and math.isfinite(verified)):
+        return dict(delta=None, mismatch=True)
+    delta = reported - verified
+    return dict(delta=delta, mismatch=abs(delta) > 1e-8 * max(1.0, abs(verified)))
+
+
+def verify(problem, record, *, evidence=True):
+    from .check import check
+
+    if record["x"] is None:
+        return dict(accepted=False, reason="no point")
+    raw = record.get("raw_multipliers")
+    sides = (raw["mult_x_L"], raw["mult_x_U"]) if raw is not None else None
+    return check(problem, record["x"], record.get("constraint_multipliers"),
+                 record.get("variable_multipliers"), include_solver_certificate=evidence,
+                 bound_duals=sides)
+
+
 def main() -> None:
     name, solver_names = sys.argv[1], sys.argv[2].split(",")
+    evidence = "--evidence" in sys.argv[3:]
     channel = _channel()
 
     def emit(**data):
@@ -40,20 +64,29 @@ def main() -> None:
 
     from . import s2mpj, solvers
     from .adapter import S2mpjProblem
-    from .check import check
 
-    solvers.warm_up()
     began = time.perf_counter()
+    solvers.warm_up(solver_names)
     problem = S2mpjProblem(s2mpj.load(name))
-    emit(event="ready", setup_seconds=time.perf_counter() - began)
+    setup = time.perf_counter() - began
+    emit(event="ready", setup_seconds=setup, dimensions=[problem.n, problem.m])
+    if evidence:
+        start_sha = hashlib.sha256(problem.x0.astype("<f8").tobytes()).hexdigest()
     for solver in solver_names:
         emit(event="start", solver=solver)
-        record = solvers.run(solver, problem)
-        verdict = (check(problem, record["x"], record.get("constraint_multipliers"),
-                         record.get("variable_multipliers"))
-                   if record.get("x") is not None else dict(accepted=False, reason="no point"))
-        for key in ("x", "constraint_multipliers", "variable_multipliers"):
-            record.pop(key, None)
+        record = solvers.run(solver, problem, evidence=evidence)
+        if evidence:
+            emit(event="solved", seconds=record["seconds"])
+        began = time.perf_counter()
+        verdict = verify(problem, record, evidence=evidence)
+        if evidence:
+            record.update(check_seconds=time.perf_counter() - began, setup_seconds=setup,
+                          start_sha256=start_sha, start_clipped=problem.start_clipped,
+                          objective_check=objective_check(
+                              record.get("reported_objective"), verdict.get("objective")))
+        else:
+            for key in ("x", "constraint_multipliers", "variable_multipliers", "raw_multipliers"):
+                record.pop(key, None)
         emit(event="result", problem=name, solver=solver, check=verdict, **record)
 
 

@@ -39,8 +39,9 @@ DECISIONS = [
 SQP_CRAFT = ["auto", "clarabel", "active-set", "active-set+soc", "active-set+al",
              "active-set+augmented", "active-set+scale-jacobian", "active-set+linear",
              "active-set+linear+scale-linear", "active-set+elastic", "active-set+snopt",
-             "clarabel+al"]
-COMPARATORS = ["slsqp", "uno-filtersqp", "uno-ipopt", "uno-filtersqp-exact"]
+             "clarabel+al", "clarabel+exact"]
+COMPARATORS = ["slsqp", "uno-filtersqp", "uno-ipopt", "uno-filtersqp-exact",
+               "pounce-sqp-exact", "pounce-sqp-lbfgs", "pounce-sqp-damped"]
 # Candidate rules emulated with options (bench/solvers.py EXPERIMENTS).
 EXPERIMENTS = [("Experiment: first step of at most unit length", "active-set",
                 "active-set+b0-gradient")]
@@ -205,7 +206,8 @@ def render(selection: dict, records: list[dict], environments: list[dict]) -> st
                 + ", "
                 f"S2MPJ `{(e.get('s2mpj_commit') or '?')[:10]}`, Uno {e.get('uno')}, "
                 f"SciPy {e.get('scipy')}, NumPy {e.get('numpy')}, Python {e.get('python')}",
-                f"- {e.get('cpu')}, {e.get('cpus')} CPUs, two solves in parallel", ""]
+                f"- {e.get('cpu')}, {e.get('cpus')} CPUs, " +
+(f"{e['jobs']} workers" if "jobs" in e else "two solves in parallel"), ""]
     counts = collections.Counter(meta[n]["subset"] for n in names)
     control = [n for n in names if meta[n]["control"]]
     out += [f"{len(names)} problems: " + ", ".join(f"{counts[s]} {s}" for s in subsets)
