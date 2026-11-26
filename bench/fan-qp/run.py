@@ -1,6 +1,7 @@
 """Run the sparse benchmark bridge and independently verify both solvers."""
 from argparse import ArgumentParser
 from dataclasses import replace
+import gzip
 import hashlib
 import json
 import os
@@ -27,8 +28,15 @@ def save(path, data):
 
 
 def digest(path):
-    with path.open("rb") as file:
-        return hashlib.file_digest(file, "sha256").hexdigest()
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def copy_input(source, destination):
+    """Copy an input into the output directory, expanding a gzipped one."""
+    if source.suffix == ".gz":
+        destination.write_bytes(gzip.decompress(source.read_bytes()))
+    else:
+        shutil.copyfile(source, destination)
 
 
 def require(condition, message):
@@ -361,9 +369,9 @@ def run_published(args):
     if args.published:
         invoke_upstream(args.upstream, ["published", fixture_path, reference_path])
     else:
-        shutil.copyfile(args.fixture, fixture_path)
+        copy_input(args.fixture, fixture_path)
         if args.reference_solution:
-            shutil.copyfile(args.reference_solution, reference_path)
+            copy_input(args.reference_solution, reference_path)
     fixture = read_fixture(fixture_path)
     tracemalloc.start()
     try:
@@ -402,7 +410,8 @@ def run_published(args):
     fill = compare(q)
     sides = int(np.count_nonzero(np.isfinite(q.lower)) + np.count_nonzero(np.isfinite(q.upper)))
     fill["clarabel_native"] = {
-        "order": "QDLDL AMD (Clarabel 0.11.1 default build)", "presolve": "enabled",
+        # The bridge names the engine it ran, such as "clarabel 0.11.1".
+        "order": f"QDLDL AMD ({raw['backend'].capitalize()} default build)", "presolve": "enabled",
         "box_sides": sides, "zero_cone_dynamics_rows": L.m,
         "kkt_dimension_from_finite_cone_rows": L.n + L.m + sides,
         "off_diagonal_factor_nnz": raw["qp_factor_nnz"],
@@ -446,8 +455,9 @@ def main():
                         help="instrumented spring-mass-fixture executable")
     source = parser.add_mutually_exclusive_group()
     source.add_argument("--published", action="store_true", help="generate the Figure 3 fixture and solve it")
-    source.add_argument("--fixture", type=Path, help="replay the exported Figure 3 fixture")
-    parser.add_argument("--reference-solution", type=Path, help="previous FanCyQPALM solution for --fixture")
+    source.add_argument("--fixture", type=Path, help="replay the exported Figure 3 fixture (plain or .gz)")
+    parser.add_argument("--reference-solution", type=Path,
+                        help="previous FanCyQPALM solution for --fixture (plain or .gz)")
     parser.add_argument("--exact-step", action="store_true", help="exercise the installed SQP-craft Python API")
     args = parser.parse_args()
     if args.published and not args.upstream:

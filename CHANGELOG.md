@@ -25,7 +25,8 @@ the job worker share it). Dates are those of the commits that set each version.
   for the published four-branch spring–mass fixture. Clarabel and the pinned
   FanCyQPALM reference passed independent original-coordinate checks. The
   study records the first exact-Hessian SQP step, symbolic fill and sparse
-  storage counts.
+  storage counts. The exported fixture, the reference solution and the
+  records are committed, and CI replays the comparison from them (#61).
 
 ### Changed
 

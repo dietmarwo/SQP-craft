@@ -1,0 +1,15 @@
+{
+  "fixture_sha256": "3df5ee99261f33abfbd82e592b0a9a66206ccd337112f61bfa0111005cccbf6a",
+  "upstream_solution_sha256": "ad3ca655c7f1a8d36438910547edfca7856120ef2d46ddd52aadcaded27262ce",
+  "sparse_qp_sha256": "54ba7d100905f805911c8e4bc7567b31628635116ae2fde25a4fde4c5381b394",
+  "bridge_sha256": "c19eb8baae572c7415941f9ff858977b5f78de5a2364146e4dfdbdfdfb324817",
+  "upstream_binary_sha256": null,
+  "fixture_description": "FanCyqlone Fig. 3, wang-boyd-2008, M=12, N=32, J=4, seed=0",
+  "affinity": [
+    0,
+    1
+  ],
+  "python": "3.12.3",
+  "numpy": "2.5.5",
+  "scipy": "1.18.1"
+}

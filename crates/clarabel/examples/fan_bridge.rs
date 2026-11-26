@@ -111,11 +111,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         .factor_nnz
         .map_or_else(|| "null".to_string(), |n| n.to_string());
     print!(
-        "{{\"raw_status\":{raw},\"wire_bytes\":{wire_bytes},\"csr_payload_bytes\":{csr_bytes},\
+        "{{\"backend\":{:?},\"raw_status\":{raw},\"wire_bytes\":{wire_bytes},\"csr_payload_bytes\":{csr_bytes},\
          \"hessian_factor_nnz\":{hessian_nnz},\"kkt_factor_nnz\":{kkt_nnz},\
          \"qp_factor_nnz\":{factor},\"cold_retries\":{},\"setups\":{},\"iterations\":{},\
          \"backend_tolerance\":{TOLERANCE},\"acceptance_tolerance\":{ACCEPTANCE},",
-        report.cold_retries, report.setups, report.iterations
+        report.backend, report.cold_retries, report.setups, report.iterations
     );
     let (status, candidate) = match outcome {
         QpOutcome::Optimal(s) => ("optimal", Some(s)),
