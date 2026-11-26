@@ -13,6 +13,61 @@ use a complete lower triangle for these small cases. At the pinned tag,
 POUNCE's SQP L-BFGS implementation expands its history to a dense Hessian
 for the QP. This panel measures behavior on small NLPs. [Pinned POUNCE SQP guide](https://github.com/jkitchin/pounce/blob/v0.12.0/docs/src/active-set-sqp.md)
 
+## Results
+
+[tables.md](tables.md) is the generated report of the committed records
+([primary](primary.jsonl.gz), [controls](controls.jsonl.gz),
+[fixtures](fixtures.json)); [native-exact](native-exact.jsonl.gz) is the
+supplemental SQP-craft Clarabel exact arm on all 20 cases. Verified means that
+the fresh first-order KKT check passed. Strict means that the solver also
+claimed convergence.
+
+| Run | Verified | Strict and verified | Supplied duals (fixed variables completed) | Recovered duals | False strict claims |
+|---|---:|---:|---:|---:|---:|
+| SQP-craft default BFGS | 20/20 | 20 | 20 (0) | 0 | 0 |
+| POUNCE exact | 19/20 | 18 | 18 (4) | 1 | 0 |
+| POUNCE L-BFGS | 20/20 | 20 | 19 (5) | 1 | 0 |
+| POUNCE damped BFGS control | 4/4 | 4 | 4 (1) | 0 | 0 |
+| SQP-craft Clarabel BFGS control | 4/4 | 4 | 4 (0) | 0 | 0 |
+| SQP-craft Clarabel exact control | 4/4 | 4 | 4 (0) | 0 | 0 |
+| Supplemental SQP-craft Clarabel exact | 19/20 | 19 | 19 (0) | 0 | 0 |
+
+- **POUNCE exact against L-BFGS.** On the 19 pairs that both verify, the
+  median ratio of first-order work is 0.426, with a median of seven Hessian
+  calls. On the 18 pairs that both solvers certify with their own multipliers
+  it is 0.491; on the 14 of those without a fixed variable it is 0.750.
+- **Multipliers.** JNLBRNG1, BQPGABIM, DTOC1L, DTOC2 and CATENARY have fixed
+  variables. POUNCE reports no multiplier for those and its multipliers pass
+  on everything else (see the verifier notes below). HS2 is the one recovered
+  certificate: POUNCE returns a zero multiplier for an active lower bound.
+  There it also ends at the other local solution (4.9412 against 0.0504).
+- **Failures.** POUNCE exact stops at its iteration limit on CATENARY, and its
+  BRYBND point passes the check at that limit. The supplemental native exact
+  arm fails HS38 at 500 iterations with stationarity 0.00908. Before the
+  flat-Hessian shift it also failed CATENARY, which now converges in 20
+  iterations.
+- **Hosts.** The records were made on an Intel Xeon with AVX-512. A run of
+  the delivery on an AMD EPYC 9V74 gave the same candidates, statuses and
+  counts in all 92 records. With the AVX-512 kernels of NumPy and OpenBLAS
+  switched off, three records take another path to the same verdict
+  (CATENARY with SQP-craft BFGS and POUNCE L-BFGS, HS100 with POUNCE L-BFGS),
+  and the 0.426 becomes 0.419. Counts are therefore reproducible only between
+  hosts with the same kernels.
+
+The panel has at most 58 variables and the exact adapters emit a full lower
+triangle, so it says nothing about scaling.
+[implementation-review.md](implementation-review.md) is the delivered log of
+the pilot.
+
+Replay the committed records without either optimizer (the second command
+needs the fetched S2MPJ models):
+
+```sh
+d=docs/benchmarks/pounce-curvature
+python -m bench.pounce_report $d/primary.jsonl.gz $d/controls.jsonl.gz $d/fixtures.json --check | cmp - $d/tables.md
+python -m bench.pounce_report $d/primary.jsonl.gz $d/controls.jsonl.gz $d/fixtures.json --check --recheck > /dev/null
+```
+
 ## Reproduce
 
 Run the manually dispatched POUNCE curvature pilot workflow or use a Python

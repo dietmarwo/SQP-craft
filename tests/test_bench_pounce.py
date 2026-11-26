@@ -411,6 +411,45 @@ def test_configuration_digest_detects_an_edited_resume_header(tmp_path):
         run.done_pairs(path)  # A legacy run cannot append to an evidence file.
 
 
+EVIDENCE = ROOT / "docs/benchmarks/pounce-curvature"
+
+
+@pytest.mark.parametrize("recheck", [False, True])
+def test_committed_records_regenerate_the_committed_tables(monkeypatch, capsys, recheck):
+    if recheck and not (s2mpj.cache_dir() / "S2MPJ/s2mpjlib.py").exists():
+        pytest.skip("fetch pinned S2MPJ to replay the committed candidates")
+    arguments = [str(EVIDENCE / name) for name in ("primary.jsonl.gz", "controls.jsonl.gz", "fixtures.json")]
+    monkeypatch.setattr(sys, "argv", ["pounce_report", *arguments, "--check", *["--recheck"] * recheck])
+    pounce_report.main()
+    assert capsys.readouterr().out == (EVIDENCE / "tables.md").read_text(encoding="utf-8")
+
+
+def test_committed_records_support_the_documented_counts():
+    def panel(name, arms, names):
+        return pounce_report.read_panel(EVIDENCE / name, names, arms)[0]
+
+    selection = json.loads(pounce_report.SELECTION.read_text())
+    names = [case["name"] for case in selection["problems"]]
+    primary = panel("primary.jsonl.gz", pounce_report.PRIMARY, names)
+    native = report.table(report.read(EVIDENCE / "native-exact.jsonl.gz")[0])
+
+    def counts(rows):
+        rows = list(rows)
+        return (sum(row["solved"] for row in rows),
+                sum(row["solved"] and row["check"]["certificate"] == "solver" for row in rows),
+                sum(pounce_report.completed_fixed(row) > 0 for row in rows))
+
+    assert counts(primary[n]["auto"] for n in names) == (20, 20, 0)
+    assert counts(primary[n]["pounce-sqp-exact"] for n in names) == (19, 18, 4)
+    assert counts(primary[n]["pounce-sqp-lbfgs"] for n in names) == (20, 19, 5)
+    assert counts(native[n]["clarabel+exact"] for n in names) == (19, 19, 0)
+    assert not native["HS38"]["clarabel+exact"]["solved"]
+    # The only recovered certificate left is a zero multiplier on an active bound.
+    recovered = {n for n in names for arm in pounce_report.PRIMARY
+                 if primary[n][arm]["solved"] and primary[n][arm]["check"]["certificate"] != "solver"}
+    assert recovered == {"HS2"}
+
+
 def test_native_exact_catenary_recovers_from_flat_first_qp():
     if not (s2mpj.cache_dir() / "S2MPJ/s2mpjlib.py").exists():
         pytest.skip("fetch pinned S2MPJ for the CATENARY regression")

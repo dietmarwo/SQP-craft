@@ -45,6 +45,11 @@ jobs:
           python -m bench.s2mpj fetch
           python -m bench.pounce_fixtures > "$RUNNER_TEMP/pounce-evidence/fixtures.json"
           python -m pytest -q tests/test_bench.py tests/test_bench_pounce.py
+      - name: Replay the committed records on the original models
+        run: |
+          d=docs/benchmarks/pounce-curvature
+          python -m bench.pounce_report "$d/primary.jsonl.gz" "$d/controls.jsonl.gz" "$d/fixtures.json" \
+            --check --recheck | cmp - "$d/tables.md"
       - name: Compare curvature options
         run: |
           out="$RUNNER_TEMP/pounce-evidence"
