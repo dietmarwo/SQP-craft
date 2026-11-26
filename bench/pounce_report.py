@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+import gzip
 import hashlib
 import itertools
 import json
@@ -18,12 +19,31 @@ from .worker import objective_check, verify
 
 ROOT = Path(__file__).resolve().parents[1]
 SELECTION = ROOT / "docs/benchmarks/pounce-curvature/selection.json"
+WHEEL_PIN = ROOT / "docs/benchmarks/pounce-curvature/pounce-linux-x86_64.txt"
 PRIMARY = ("auto", "pounce-sqp-exact", "pounce-sqp-lbfgs")
 CONTROLS = ("pounce-sqp-damped", "clarabel", "clarabel+exact")
 
 
+def pinned_wheel_sha256():
+    return WHEEL_PIN.read_text().split("--hash=sha256:")[1].split()[0]
+
+
+def read_text(path):
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt") as stream:
+            return stream.read()
+    return path.read_text()
+
+
+def completed_fixed(row):
+    """Fixed-variable multipliers the checker supplied for a credited solver certificate."""
+    if not row["solved"] or row["check"]["certificate"] != "solver":
+        return 0
+    return (row["check"].get("solver_certificate") or {}).get("completed_fixed_multipliers", 0)
+
+
 def read_panel(path, names, arms):
-    entries = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    entries = [json.loads(line) for line in read_text(path).splitlines() if line.strip()]
     environments = [row for row in entries if row["event"] == "environment"]
     records = [row for row in entries if row["event"] == "result"]
     found = Counter((row["problem"], row["solver"]) for row in records)
@@ -62,7 +82,7 @@ def pair_summary(name_a, name_b, rows):
     shared = 0
     ratios, callbacks_a, callbacks_b = [], [], []
     hessians_a, hessians_b = [], []
-    actual_ratios, solver_dual_ratios = [], []
+    actual_ratios, solver_dual_ratios, complete_dual_ratios = [], [], []
     wins = Counter()
     for problem, (a, b) in rows.items():
         if not a["solved"] or not b["solved"]:
@@ -87,6 +107,8 @@ def pair_summary(name_a, name_b, rows):
         actual_ratios.append(attempts_ratio)
         if all(row["check"]["certificate"] == "solver" for row in (a, b)):
             solver_dual_ratios.append(attempts_ratio)
+            if not any(completed_fixed(row) for row in (a, b)):
+                complete_dual_ratios.append(attempts_ratio)
         wins["A" if a["callbacks"] < b["callbacks"]
              else "B" if a["callbacks"] > b["callbacks"] else "equal"] += 1
         callbacks_a.append(sum(a["callback_work"]["seconds"].values()))
@@ -113,6 +135,10 @@ def pair_summary(name_a, name_b, rows):
             summary.append(f"- Restricting to points verified with both solvers’ supplied duals, "
                            f"median paired grouped-attempt ratio {median(solver_dual_ratios):.3f} "
                            f"({len(solver_dual_ratios)} pairs).")
+        if complete_dual_ratios and len(complete_dual_ratios) != len(solver_dual_ratios):
+            summary.append(f"- Restricting further to pairs where neither solver left out a "
+                           f"fixed-variable multiplier, {median(complete_dual_ratios):.3f} "
+                           f"({len(complete_dual_ratios)} pairs).")
     return summary + [""]
 
 
@@ -130,6 +156,8 @@ def metrics(row):
         state = f"rejected {state}"
     if row["solved"] and row["check"]["certificate"] == "least-squares":
         state += " (LS)"
+    elif completed_fixed(row):
+        state += " (fixed)"
     return f"{state}, {counts}"
 
 
@@ -142,15 +170,18 @@ def render(selection, primary, controls, fixtures, info):
         f"{info['cpu']}, Python {info['python']}, NumPy {info['numpy']}, SciPy {info['scipy']}.",
         "",
         "Solved means independently accepted first-order KKT. LS denotes a recovered least-squares "
-        "certificate. F and D are distinct grouped value and derivative points. H counts analytic "
+        "certificate. Supplied duals counts points certified by the solver's own multipliers; "
+        "the next column gives how many of them lacked multipliers of fixed variables, which the "
+        "checker took from stationarity. F and D are distinct grouped value and derivative points. H counts analytic "
         "Lagrangian-Hessian calls, including failed attempts. The exact callbacks emit a full lower "
         "triangle on this panel. The evidence includes solver duals, residuals and model timings.",
         "",
         "## Outcomes",
         "",
-        "| Solver | Runs | Verified | Supplied duals | Recovered duals | Strict and verified | Verified without strict claim | "
+        "| Solver | Runs | Verified | Supplied duals | Of these, fixed variables completed | Recovered duals | "
+        "Strict and verified | Verified without strict claim | "
         "False strict claims | Acceptable-level (rejected) | Objective mismatches |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for runs, arms in ((primary, PRIMARY), (controls, CONTROLS)):
         for arm in arms:
@@ -161,7 +192,8 @@ def render(selection, primary, controls, fixtures, info):
             rejected_acceptable = sum(bool(row.get("acceptable")) and not row["solved"] for row in rows)
             mismatch = sum(row.get("objective_check", {}).get("mismatch") is True for row in rows)
             supplied = sum(row["solved"] and row["check"]["certificate"] == "solver" for row in rows)
-            lines.append(f"| {arm} | {len(rows)} | {accepted} | {supplied} | {accepted - supplied} | "
+            completed = sum(completed_fixed(row) > 0 for row in rows)
+            lines.append(f"| {arm} | {len(rows)} | {accepted} | {supplied} | {completed} | {accepted - supplied} | "
                          f"{strict} | {accepted - strict} | "
                          f"{sum(row['false_claim'] for row in rows)} | "
                          f"{acceptable} ({rejected_acceptable}) | {mismatch} |")
@@ -232,7 +264,7 @@ def recheck_candidate(problem, row):
                 raise ValueError(f"{pair}: missing certificate on replay")
             continue
         for key in ("objective", "primal", "gradient_scale", "stationarity", "complementarity",
-                    "dual_sign", "duals_passed"):
+                    "dual_sign", "duals_passed", "completed_fixed_multipliers"):
             if key in current or key in old:
                 if (key not in current or key not in old or
                         not math.isclose(current[key], old[key], rel_tol=1e-8, abs_tol=1e-12)):
@@ -285,6 +317,9 @@ def main():
                 recheck_candidate(model, row)
     if args.check:
         errors = [f"fixture #{f['id']} failed" for f in fixtures if f["passed"] is not True]
+        for label, header in (("primary", info), ("controls", control_info)):
+            if header.get("pounce_wheel_sha256") != pinned_wheel_sha256():
+                errors.append(f"{label}: the recorded POUNCE wheel is missing or not the pinned one")
         for panel in (primary, controls):
             for pairs in panel.values():
                 for row in pairs.values():

@@ -63,6 +63,15 @@ POUNCE supplies lower and upper bound duals, it tests each side for sign,
 presence of a bound and complementarity before crediting a solver certificate.
 The report shows the accepted points that needed multiplier recovery.
 
+POUNCE's SQP removes fixed variables and returns zero for both of their bound
+multipliers. A fixed variable admits a multiplier of either sign, so for a
+zero multiplier of a fixed variable the verifier takes the value that
+stationarity requires and then judges the solver's multipliers on every other
+variable and row. Such points count under supplied duals, and the report
+lists how many there are. A nonzero multiplier of a fixed variable is checked
+as supplied, and an active bound of a variable that is not fixed gets no such
+completion.
+
 The paired tables give both unique F+D points and actual grouped evaluation
 attempts. Revisiting a previous point after the one-point adapter cache has
 moved incurs new model work. The solver-dual-only ratio restricts the latter
@@ -73,5 +82,7 @@ Returning arrays to the foreign solver and its factorization take additional tim
 `--recheck` loads the pinned S2MPJ models and replays starts, multiplier
 conversion, residuals and objective comparisons from the saved candidates.
 `--check` makes false strict successes, missing or discrepant candidate
-objectives, failed release fixtures and infrastructure failures fail CI.
+objectives, failed release fixtures, infrastructure failures and a missing
+or different POUNCE wheel hash fail CI. The hash is the one exported as
+`SQP_CRAFT_POUNCE_WHEEL_SHA256` before the run.
 An ordinary solver limit stays visible with its independent verdict.

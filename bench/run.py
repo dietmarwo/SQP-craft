@@ -152,8 +152,12 @@ def solve_problem(name: str, pending: list[str], timeout: float, emit, *,
                     deadline = limit if phase == "solve" else timeout
                     emit(failure(name, solver, "timeout", f"{phase} exceeded {deadline:g} s", elapsed))
                 else:
+                    try:
+                        code = worker.process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        code = None
                     emit(failure(name, solver, "crash",
-                                 f"{phase}: {' | '.join(worker.errors)}", elapsed))
+                                 f"{phase}: exit {code}: {' | '.join(worker.errors)}", elapsed))
                 break
         finally:
             worker.stop()

@@ -147,12 +147,15 @@ def test_multiplier_conversion_and_bounds(wheel, kind):
     assert independent["accepted"]
     if kind == "fixed variable":
         # In this release fixed variables are eliminated and their duals
-        # come back as zero. The independent checker recovers their dual.
-        assert independent["certificate"] == "least-squares"
+        # come back as zero. The checker takes the value stationarity requires
+        # and then credits the solver's certificate for the other variables.
+        assert independent["certificate"] == "solver"
+        assert independent["solver_certificate"]["completed_fixed_multipliers"] == 1
         assert z[0] == 0.0
     else:
         assert solved[relevant][0] == pytest.approx(expected, abs=1e-7)
         assert independent["solver_certificate"]["duals_passed"]
+        assert independent["solver_certificate"]["completed_fixed_multipliers"] == 0
     if kind == "upper row":
         reversed_dual = check(p, solved["x"], [-lam[0]], z, include_solver_certificate=True)
         assert reversed_dual["accepted"] and reversed_dual["certificate"] == "least-squares"
@@ -255,6 +258,31 @@ def test_evidence_worker_solve_deadline(wheel):
     assert all(r["status"] == "timeout" and r["message"].startswith("solve exceeded") for r in rows)
 
 
+def test_a_worker_that_dies_during_a_solve_reports_its_exit_code(monkeypatch):
+    class Dead:
+        errors = ["Segmentation fault"]
+
+        def __init__(self, name, pending, *, evidence=False):
+            self.events = [dict(event="ready", setup_seconds=0.0, dimensions=[2, 0]),
+                           dict(event="start", solver=pending[0]), None]
+            self.process = self
+
+        def wait(self, timeout=None):
+            return -11
+
+        def next(self, timeout):
+            return self.events.pop(0)
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(run, "Worker", Dead)
+    rows = []
+    run.solve_problem("ANY", ["auto", "clarabel"], 90.0, rows.append)
+    assert [(r["solver"], r["status"]) for r in rows] == [("auto", "crash"), ("clarabel", "crash")]
+    assert all(r["message"] == "solve: exit -11: Segmentation fault" for r in rows)
+
+
 def test_zero_objective_factor_preserves_small_constraint_curvature():
     p = S2mpjProblem(Quadratic(weights=(1e20, 1e20), row=([0], [1]), curved=True))
     model = pounce_adapter.Exact(p)
@@ -292,6 +320,50 @@ def test_split_bound_duals_cannot_cancel_a_complementarity_error():
     assert verified["accepted"] and verified["certificate"] == "least-squares"
     assert verified["solver_certificate"]["complementarity"] == 1
     assert not verified["solver_certificate"]["duals_passed"]
+
+
+def fixed_second_variable():
+    # Minimum at (1, 0.5) with gradient (0, -9): the fixed variable's multiplier is -9.
+    return S2mpjProblem(Quadratic(target=(1.0, 2.0), box=([-np.inf, 0.5], [np.inf, 0.5])))
+
+
+def test_solver_certificate_completes_missing_multipliers_of_fixed_variables():
+    p = fixed_second_variable()
+    removed = check(p, [1.0, 0.5], [], [0, 0], include_solver_certificate=True)
+    assert removed["accepted"] and removed["certificate"] == "solver"
+    assert removed["solver_certificate"]["completed_fixed_multipliers"] == 1
+    supplied = check(p, [1.0, 0.5], [], [0, -9], include_solver_certificate=True)
+    assert supplied["certificate"] == "solver"
+    assert supplied["solver_certificate"]["completed_fixed_multipliers"] == 0
+    # A nonzero multiplier is the solver's statement and is checked as supplied.
+    wrong = check(p, [1.0, 0.5], [], [0, 1], include_solver_certificate=True)
+    assert wrong["accepted"] and wrong["certificate"] == "least-squares"
+    assert wrong["solver_certificate"]["stationarity"] == pytest.approx(10)
+    assert not wrong["solver_certificate"]["duals_passed"]
+    # The completion never covers an error on a free variable.
+    off = check(p, [0.9, 0.5], [], [0, 0], include_solver_certificate=True)
+    assert not off["accepted"]
+    assert off["solver_certificate"]["stationarity"] == pytest.approx(0.2)
+    # Both bound arrays of a removed variable are zero, which the side checks accept.
+    row = dict(x=[1.0, 0.5], constraint_multipliers=[], variable_multipliers=[0, 0],
+               raw_multipliers=dict(mult_x_L=[0, 0], mult_x_U=[0, 0]))
+    assert worker.verify(p, row)["certificate"] == "solver"
+    # An active bound of a variable that is not fixed gets no such help.
+    free = S2mpjProblem(Quadratic(target=(1.0, 2.0), box=([-np.inf, -np.inf], [np.inf, 0.5])))
+    missing = check(free, [1.0, 0.5], [], [0, 0], include_solver_certificate=True)
+    assert missing["accepted"] and missing["certificate"] == "least-squares"
+    assert missing["solver_certificate"]["completed_fixed_multipliers"] == 0
+
+
+def test_pounce_reports_no_multiplier_for_a_fixed_variable(wheel):
+    p = fixed_second_variable()
+    for arm in ("pounce-sqp-exact", "pounce-sqp-lbfgs"):
+        row = solvers.run(arm, p, evidence=True)
+        assert row["claimed"] and row["x"] == pytest.approx([1.0, 0.5])
+        assert row["raw_multipliers"]["mult_x_L"][1] == row["raw_multipliers"]["mult_x_U"][1] == 0
+        verdict = worker.verify(p, row)
+        assert verdict["accepted"] and verdict["certificate"] == "solver"
+        assert verdict["solver_certificate"]["completed_fixed_multipliers"] == 1
 
 
 def test_panel_gate_and_candidate_replay_detect_invalid_evidence(wheel):

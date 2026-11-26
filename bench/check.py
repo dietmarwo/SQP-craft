@@ -10,6 +10,12 @@ At the returned point it recomputes, in NumPy from the problem's own values:
 It uses the solver's multipliers when they pass. Otherwise it tries
 least-squares multipliers on the active set, so a different sign convention
 cannot fail a correct point.
+
+A fixed variable (equal bounds) admits a multiplier of either sign, and a
+solver that removes fixed variables reports none. Where the solver's
+multiplier of a fixed variable is zero, the check therefore takes the value
+that stationarity requires before it judges the solver's certificate. A
+nonzero one is checked as supplied.
 """
 from __future__ import annotations
 
@@ -76,6 +82,10 @@ def check(problem, x, constraint_multipliers=None, variable_multipliers=None,
         if lam.shape == (problem.m,) and z.shape == (problem.n,):
             own = np.concatenate([lam, z])
             if np.isfinite(own).all():
+                fixed = np.flatnonzero((problem.lower == problem.upper) & (z == 0.0))
+                if fixed.size:
+                    own[problem.m + fixed] = (g - J.T @ lam)[fixed]
+                completed = int(np.count_nonzero(own[problem.m + fixed]))
                 cert = _certificate(g, gradients, value, lower, upper, own)
                 if bound_duals is not None:
                     # A lower and upper multiplier can cancel in the signed vector.
@@ -109,6 +119,7 @@ def check(problem, x, constraint_multipliers=None, variable_multipliers=None,
                    primal=primal, **cert, gradient_scale=scale, certificate=source)
     if include_solver_certificate:
         verdict["solver_certificate"] = (
-            dict(**solver_cert, duals_passed=bool(passes(solver_cert))) if solver_cert is not None else None
+            dict(**solver_cert, duals_passed=bool(passes(solver_cert)),
+                 completed_fixed_multipliers=completed) if solver_cert is not None else None
         )
     return verdict
