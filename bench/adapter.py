@@ -82,7 +82,7 @@ class S2mpjProblem:
                 points.append(np.clip(trial, self.lower, self.upper))
             for x in points:
                 try:
-                    J = self._jacobian(x)
+                    J = self.full_jacobian(x)
                 except Exception:
                     continue
                 self._sampled.append(J)
@@ -132,7 +132,10 @@ class S2mpjProblem:
     def _column(self, x):
         return np.asarray(x, dtype=float).reshape(-1, 1)
 
-    def _jacobian(self, x) -> np.ndarray:
+    def full_jacobian(self, x) -> np.ndarray:
+        """Original model derivative, including entries outside the solver's pattern."""
+        if not self.m:
+            return np.zeros((0, self.n))
         _, J = self.raw.cJx(self._column(x))
         return J.toarray() if hasattr(J, "toarray") else np.asarray(J, dtype=float)
 
@@ -155,7 +158,7 @@ class S2mpjProblem:
     def jacobian_values(self, x) -> np.ndarray:
         if not self.m:
             return np.zeros(0)
-        return self._jacobian(x)[self._rows, self._cols]
+        return self.full_jacobian(x)[self._rows, self._cols]
 
     def functions(self, x):
         self.function_points.add(tuple(np.asarray(x, dtype=float)))
@@ -174,10 +177,12 @@ class S2mpjProblem:
         return len(self.function_points), len(self.derivative_points)
 
     # --- sqp-craft --------------------------------------------------------
-    def spec(self, linear: bool = False, structured: bool = False):
+    def spec(self, linear: bool = False, structured: bool = False, *, hessian_pattern=None):
         from sqp_craft import ProblemSpec
 
         declarations = {}
+        if hessian_pattern is not None:
+            declarations["hessian_indptr"], declarations["hessian_indices"] = hessian_pattern
         if structured:
             groups = np.asarray(getattr(self.raw, "objgrps", [])).reshape(-1)
             columns = self._group_columns(groups, nonlinear_only=True)

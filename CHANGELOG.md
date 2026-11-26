@@ -8,6 +8,11 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ### Added
 
+- [POUNCE curvature pilot](docs/benchmarks/pounce-curvature/README.md): an
+  optional 20-problem comparison in the S2MPJ harness with independent KKT
+  and objective checks, callback counts, and analytic release regressions.
+  Its records and generated tables are committed and replay without either
+  optimizer (#60).
 - [EPIGRIDS study](bench/epigrids/README.md): the 250-bus New England
   MATPOWER cases as a checked DC dispatch (LP-IP-craft against HiGHS) and a
   sparse AC regression with an independent PYPOWER reference and frozen
@@ -22,6 +27,18 @@ the job worker share it). Dates are those of the commits that set each version.
   `crates/clarabel/examples/fan_bridge.rs`. No FanCyqlone comparison ran.
 
 ### Changed
+
+- Exact SQP regularizes a rejected zero Hessian with the configured initial
+  curvature scale when the step objective has a nonzero gradient. This
+  prevents the tiny numerical shift from generating the first CATENARY step.
+- The S2MPJ verifier uses the original model Jacobian and checks both bound
+  multiplier arrays when a solver supplies them. The curvature report can
+  replay saved points and distinguishes actual evaluations from distinct points.
+- The S2MPJ verifier takes a zero multiplier of a fixed variable from
+  stationarity before it judges a solver's own certificate, because a solver
+  that removes fixed variables reports none. This changes which certificate
+  is credited (`solver` instead of `least-squares`); a point needs a valid
+  certificate as before.
 
 - Clarabel uses an `AlmostSolved` result when it passes the same independent
   check as a `Solved` one, and checks the step clipped onto its variable

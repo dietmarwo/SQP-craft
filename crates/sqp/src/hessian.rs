@@ -36,7 +36,7 @@ pub(super) trait HessianModel {
     ) -> Result<()> {
         unreachable!("exact mode must supply a Hessian callback")
     }
-    fn shift_diagonal(&mut self) -> Result<()> {
+    fn shift_diagonal(&mut self, _gradient: &[f64]) -> Result<()> {
         unreachable!("only the exact Hessian can be shifted")
     }
     fn structured_pattern(&self) -> Option<&CsrPattern> {

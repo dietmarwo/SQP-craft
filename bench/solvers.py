@@ -20,10 +20,14 @@ SLSQP as NaN.
 """
 from __future__ import annotations
 
+from dataclasses import asdict
 import math
 import time
 
 import numpy as np
+
+from . import pounce_adapter
+from .callbacks import CallbackWork, lagrangian_hessian
 
 MAX_ITERATIONS = 500
 TIME_LIMIT = 60.0
@@ -58,6 +62,7 @@ EXPERIMENTS: dict[str, tuple[dict, bool]] = {
     "auto+safeguard": ({"major_step_limit": 2.0, "initial_curvature_scaling": True}, False),
     "auto+safeguard10": ({"major_step_limit": 10.0, "initial_curvature_scaling": True}, False),
     "active-set+safeguard": ({**ACTIVE, "major_step_limit": 2.0, "initial_curvature_scaling": True}, False),
+    "clarabel+exact": ({**CLARABEL, "hessian": "exact"}, False),
     "clarabel+partitioned": ({**CLARABEL, "hessian": "partitioned", "qp_reuse_workspace": True}, True),
     "active-set+b0-gradient": (ACTIVE, False),
 }
@@ -67,11 +72,11 @@ REPORT_FIELDS = ["step_limited_iterations", "initial_curvature_scale", "qp_solve
                  "linear_projection", "restoration_attempts", "restoration_steps",
                  "qp_seconds", "callback_seconds", "qp_status"]
 COMPARATORS = ["slsqp", "uno-filtersqp", "uno-ipopt", "uno-filtersqp-exact"]
-SOLVERS = list(SQP_VARIANTS) + COMPARATORS + list(EXPERIMENTS)
+SOLVERS = list(SQP_VARIANTS) + COMPARATORS + list(EXPERIMENTS) + list(pounce_adapter.MODES)
 
 
-def warm_up() -> None:
-    """Imports every solver's modules, so no solve is charged for them."""
+def warm_up(names=()) -> None:
+    """Import solver modules so no solve is charged for them."""
     import scipy.optimize  # noqa: F401
     import sqp_craft  # noqa: F401
 
@@ -80,8 +85,16 @@ def warm_up() -> None:
     except ImportError:
         pass
 
+    if any(name in pounce_adapter.MODES for name in names):
+        pounce_adapter.require_wheel()
+
 
 def available(name: str) -> bool:
+    if name in pounce_adapter.MODES:
+        try:
+            pounce_adapter.require_wheel()
+        except ImportError:
+            return False
     if name.startswith("uno"):
         try:
             import unopy  # noqa: F401
@@ -90,11 +103,13 @@ def available(name: str) -> bool:
     return True
 
 
-def run(name: str, problem) -> dict:
+def run(name: str, problem, *, evidence=False) -> dict:
     problem.reset_counts()
     began = time.perf_counter()
     if name in SQP_VARIANTS or name in EXPERIMENTS:
-        record = _sqp_craft(name, problem)
+        record = _sqp_craft(name, problem, evidence=evidence)
+    elif name in pounce_adapter.MODES:
+        record = pounce_adapter.solve(problem, pounce_adapter.MODES[name], MAX_ITERATIONS)
     elif name == "slsqp":
         record = _slsqp(problem)
     elif name.startswith("uno-"):
@@ -115,33 +130,51 @@ def _finite_list(values):
 
 # --- sqp-craft ----------------------------------------------------------------
 class _SqpModel:
-    def __init__(self, problem):
+    def __init__(self, problem, work=None):
         self.problem = problem
+        self.work = work
 
-    def functions(self, x):
+    def _evaluate(self, group, x):
         from sqp_craft import UndefinedPointError
 
+        callback = getattr(self.problem, group)
         try:
-            f, c = self.problem.functions(x)
+            if self.work is not None:
+                self.work.requests[group] += 1
+                return self.work.evaluate(group, callback, x)
+            values = callback(x)
         except (ArithmeticError, ValueError) as error:
             raise UndefinedPointError(f"{type(error).__name__}: {error}") from None
-        if not (math.isfinite(f) and np.all(np.isfinite(c))):
-            raise UndefinedPointError("nonfinite function values")
+        if not all(np.all(np.isfinite(part)) for part in values):
+            message = "nonfinite function values" if group == "functions" else "nonfinite derivatives"
+            raise UndefinedPointError(message)
+        return values
+
+    def functions(self, x):
+        f, c = self._evaluate("functions", x)
         return f, c.tolist()
 
     def derivatives(self, x):
-        from sqp_craft import UndefinedPointError
-
-        try:
-            g, j = self.problem.derivatives(x)
-        except (ArithmeticError, ValueError) as error:
-            raise UndefinedPointError(f"{type(error).__name__}: {error}") from None
-        if not (np.all(np.isfinite(g)) and np.all(np.isfinite(j))):
-            raise UndefinedPointError("nonfinite derivatives")
+        g, j = self._evaluate("derivatives", x)
         return g.tolist(), j.tolist()
 
 
-def _sqp_craft(name: str, problem) -> dict:
+class _SqpExactModel(_SqpModel):
+    def __init__(self, problem, work):
+        super().__init__(problem, work)
+        self.triangle = np.tril_indices(problem.n)
+        self.indptr = np.r_[0, np.cumsum(np.arange(1, problem.n + 1))].tolist()
+
+    def lagrangian_hessian(self, x, multipliers):
+        self.work.requests["hessian"] += 1
+        matrix = self.work.evaluate(
+            "hessians", lagrangian_hessian, self.problem, np.asarray(x), 1.0,
+            np.asarray(multipliers), self.work,
+        )
+        return matrix[self.triangle].tolist()
+
+
+def _sqp_craft(name: str, problem, *, evidence=False) -> dict:
     from sqp_craft import SqpOptions, solve
 
     fields, linear = SQP_VARIANTS.get(name) or EXPERIMENTS[name]
@@ -151,22 +184,41 @@ def _sqp_craft(name: str, problem) -> dict:
                                                          if g.size else 1.0)}
     options = SqpOptions(max_iterations=MAX_ITERATIONS, max_callback_calls=MAX_CALLBACKS,
                          time_limit_seconds=TIME_LIMIT, **fields)
+    exact = options.hessian == "exact"
+    work = CallbackWork() if exact or evidence else None
+    record = {}
     try:
-        r = solve(problem.spec(linear=linear, structured=True) if fields.get("hessian") == "partitioned"
-                  else problem.spec(linear=linear), _SqpModel(problem), list(problem.x0),
-                  method="sqp", method_options=options)
+        if exact:
+            model = _SqpExactModel(problem, work)
+            spec = problem.spec(linear=linear, hessian_pattern=(model.indptr, model.triangle[1].tolist()))
+        else:
+            model = _SqpModel(problem, work)
+            if options.hessian == "partitioned":
+                spec = problem.spec(linear=linear, structured=True)
+            else:
+                spec = problem.spec(linear=linear)
+        r = solve(spec, model, list(problem.x0), method="sqp", method_options=options)
     except Exception as error:  # an error, not a status: recorded as such
-        return dict(status="error", claimed=False, x=None, constraint_multipliers=None,
-                    variable_multipliers=None, iterations=None,
-                    message=f"{type(error).__name__}: {error}"[:300])
-    m = r.multipliers
-    return dict(status=r.status, claimed=r.status == "converged", x=r.candidate,
-                constraint_multipliers=list(m.constraints) if m else None,
-                variable_multipliers=list(m.variables) if m else None,
-                iterations=r.iterations, message=r.message[:300],
-                callback_calls=r.counts.functions + r.counts.derivatives,
-                actual_functions=r.counts.functions, actual_derivatives=r.counts.derivatives,
-                report={key: getattr(r.report, key, None) for key in REPORT_FIELDS})
+        record.update(status="error", claimed=False, x=None, constraint_multipliers=None,
+                      variable_multipliers=None, iterations=None,
+                      message=f"{type(error).__name__}: {error}"[:300])
+    else:
+        m = r.multipliers
+        record.update(status=r.status, claimed=r.status == "converged", x=r.candidate,
+                      constraint_multipliers=list(m.constraints) if m else None,
+                      variable_multipliers=list(m.variables) if m else None,
+                      iterations=r.iterations, message=r.message[:300],
+                      callback_calls=r.counts.functions + r.counts.derivatives,
+                      actual_functions=r.counts.functions, actual_derivatives=r.counts.derivatives,
+                      report={key: getattr(r.report, key, None) for key in REPORT_FIELDS})
+        if work is not None:
+            record["reported_objective"] = r.evaluation.objective if r.evaluation is not None else None
+            record["report"].update(qp_solver=r.report.qp_solver, elastic_mode=r.report.elastic_mode,
+                                    structure=r.report.structure)
+    if work is not None:
+        record.update(options={**asdict(options), "declare_linear_rows": linear},
+                      hessians=work.evaluations["hessians"], callback_work=work.record())
+    return record
 
 
 # --- SciPy SLSQP ----------------------------------------------------------------
@@ -286,7 +338,7 @@ def _uno(problem, preset: str, exact: bool) -> dict:
             x = np.asarray(x, dtype=float)
             try:
                 y = np.asarray(multipliers, float)[:m]
-                H = _lagrangian_hessian(problem, x, float(sigma), y)
+                H = lagrangian_hessian(problem, x, float(sigma), y)
                 out[:] = H[rows, cols]
             except (ArithmeticError, ValueError):
                 out[:] = np.full(rows.size, nan)
@@ -320,21 +372,3 @@ def _uno(problem, preset: str, exact: bool) -> dict:
                 x=_finite_list(r.primal_solution), constraint_multipliers=lam,
                 variable_multipliers=z, iterations=int(r.number_iterations),
                 hessians=hessians[0], message="")
-
-
-def _lagrangian_hessian(problem, x, sigma, multipliers) -> np.ndarray:
-    """σ∇²f − Σλᵢ∇²cᵢ from S2MPJ, whose Lagrangian is f + yᵀc."""
-    raw, column = problem.raw, x.reshape(-1, 1)
-
-    def dense(H):
-        return H.toarray() if hasattr(H, "toarray") else np.asarray(H, dtype=float)
-
-    objective = dense(raw.fgHx(column)[2]) if problem.has_objective else np.zeros((problem.n,) * 2)
-    if not problem.m:
-        return sigma * objective
-    if problem.has_objective:
-        # ∇²(f − λᵀc) from one call, then the objective's weight corrected.
-        lagrangian = dense(raw.LgHxy(column, -multipliers.reshape(-1, 1))[2])
-        return lagrangian + (sigma - 1.0) * objective
-    rows = raw.cJHx(column)[2]
-    return -sum(l * dense(H) for l, H in zip(multipliers, rows) if l != 0.0) + 0.0 * objective

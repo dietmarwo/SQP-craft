@@ -10,6 +10,12 @@ At the returned point it recomputes, in NumPy from the problem's own values:
 It uses the solver's multipliers when they pass. Otherwise it tries
 least-squares multipliers on the active set, so a different sign convention
 cannot fail a correct point.
+
+A fixed variable (equal bounds) admits a multiplier of either sign, and a
+solver that removes fixed variables reports none. Where the solver's
+multiplier of a fixed variable is zero, the check therefore takes the value
+that stationarity requires before it judges the solver's certificate. A
+nonzero one is checked as supplied.
 """
 from __future__ import annotations
 
@@ -39,7 +45,8 @@ def _certificate(g, gradients, value, lower, upper, mu):
                 dual_sign=float(sign))
 
 
-def check(problem, x, constraint_multipliers=None, variable_multipliers=None) -> dict:
+def check(problem, x, constraint_multipliers=None, variable_multipliers=None,
+          *, include_solver_certificate=False, bound_duals=None) -> dict:
     """Residuals at `x` and whether they pass (`accepted`)."""
     x = np.asarray(x, dtype=float).reshape(-1)
     if x.size != problem.n or not np.all(np.isfinite(x)):
@@ -48,8 +55,7 @@ def check(problem, x, constraint_multipliers=None, variable_multipliers=None) ->
         f = problem.objective(x)
         c = problem.constraints(x)
         g = problem.gradient(x)
-        J = (problem.dense_jacobian(problem.jacobian_values(x)) if problem.m
-             else np.zeros((0, problem.n)))
+        J = problem.full_jacobian(x)
     except Exception as error:
         return dict(accepted=False, reason=f"evaluation failed: {type(error).__name__}")
     if not (np.isfinite(f) and np.all(np.isfinite(c)) and np.all(np.isfinite(g))
@@ -71,11 +77,34 @@ def check(problem, x, constraint_multipliers=None, variable_multipliers=None) ->
 
     candidates = []
     if constraint_multipliers is not None and variable_multipliers is not None:
-        own = np.concatenate([np.asarray(constraint_multipliers, float).reshape(-1),
-                              np.asarray(variable_multipliers, float).reshape(-1)])
-        if own.size == value.size and np.all(np.isfinite(own)):
-            candidates.append(("solver", _certificate(g, gradients, value, lower, upper, own)))
-    if not candidates or not passes(candidates[0][1]):
+        lam = np.asarray(constraint_multipliers, dtype=float)
+        z = np.asarray(variable_multipliers, dtype=float)
+        if lam.shape == (problem.m,) and z.shape == (problem.n,):
+            own = np.concatenate([lam, z])
+            if np.isfinite(own).all():
+                fixed = np.flatnonzero((problem.lower == problem.upper) & (z == 0.0))
+                if fixed.size:
+                    own[problem.m + fixed] = (g - J.T @ lam)[fixed]
+                completed = int(np.count_nonzero(own[problem.m + fixed]))
+                cert = _certificate(g, gradients, value, lower, upper, own)
+                if bound_duals is not None:
+                    # A lower and upper multiplier can cancel in the signed vector.
+                    # Verify both arrays before attributing a certificate to the solver.
+                    for dual, bounds in zip(bound_duals, (problem.lower, problem.upper), strict=True):
+                        dual = np.asarray(dual, dtype=float)
+                        if dual.shape != (problem.n,) or not np.isfinite(dual).all():
+                            cert = None
+                            break
+                        finite = np.isfinite(bounds)
+                        cert["dual_sign"] = max(cert["dual_sign"], float(np.max(-dual, initial=0)),
+                                                float(np.max(abs(dual[~finite]), initial=0)))
+                        products = abs(dual[finite] * (x[finite] - bounds[finite]))
+                        cert["complementarity"] = max(cert["complementarity"],
+                                                      float(np.max(products, initial=0)))
+                if cert is not None:
+                    candidates.append(("solver", cert))
+    solver_cert = candidates[0][1] if candidates else None
+    if solver_cert is None or not passes(solver_cert):
         def near(v, b):
             return math.isfinite(b) and abs(v - b) <= 1e-6 * (1 + abs(b))
 
@@ -86,5 +115,11 @@ def check(problem, x, constraint_multipliers=None, variable_multipliers=None) ->
             mu[active] = np.linalg.lstsq(gradients[active].T, g, rcond=None)[0]
         candidates.append(("least-squares", _certificate(g, gradients, value, lower, upper, mu)))
     source, cert = next(((s, c) for s, c in candidates if passes(c)), candidates[-1])
-    return dict(accepted=bool(primal <= PRIMAL and passes(cert)), objective=float(f),
-                primal=primal, **cert, gradient_scale=scale, certificate=source)
+    verdict = dict(accepted=bool(primal <= PRIMAL and passes(cert)), objective=float(f),
+                   primal=primal, **cert, gradient_scale=scale, certificate=source)
+    if include_solver_certificate:
+        verdict["solver_certificate"] = (
+            dict(**solver_cert, duals_passed=bool(passes(solver_cert)),
+                 completed_fixed_multipliers=completed) if solver_cert is not None else None
+        )
+    return verdict
