@@ -78,8 +78,8 @@ registries for the latest version before relying on it
 ([RELEASING.md](RELEASING.md)); the worker and the benchmarks stay
 source-only. For Rust, the job worker or changes after the latest release,
 use a checkout of https://github.com/dietmarwo/SQP-craft. The workspace
-version is 0.20.0;
-the shared job crates are 0.4.1, and the worker crate shares the workspace
+version is 0.21.0;
+the shared job crates are 0.5.0, and the worker crate shares the workspace
 version, which it reports as its engine version. `sqp.solve/1` is a protocol
 identifier, independent of both.
 
@@ -793,6 +793,10 @@ optimization-jobs' CI does that with all three workers.
 ## Structured application tutorials
 
 [tutorials/README.md](tutorials/README.md) lists seven application chapters (SQP1–SQP6 and X2). Each writes its model as Python callbacks, runs `check_derivatives` before solving, solves with `solve(..., method="sqp")`, and reconstructs the KKT residuals from the model's own derivatives and the returned multipliers (`tutorials/_support/numerics.py`). A `first_order` tutorial claim needs both a converged solve and a passed derivative check. Run a chapter with `python tutorials/<chapter>/run.py --output DIR`. The cross-repository driver in optimization-jobs (`tutorials/structured/`) runs all twenty chapters of the series directly or as trusted command jobs; the chapters add no job profile or registered model.
+
+## Opt-in curvature, scaling and kernel controls (since 0.21.0)
+
+All four are off by default and leave default solves unchanged. `partitioned_initial_scaling=True` (Rust, Python, `sqp.solve/1`; needs `hessian="partitioned"`) starts each BFGS element from its first usable secant; it roughly halved the steps of the multiple-shooting transfer problem. `scaling="elements"` (partitioned Hessian and declared constraint elements) pools and bounds the Jacobian scales per element; use it when `scaling="jacobian"` ends in `qp_failure`, not as a speedup. `exact_shift_bracketing=True` (needs `hessian="exact"`, at most 256 variables) searches for a smaller diagonal shift after the backend rejects the Hessian; on 240 S2MPJ problems it verified 182 instead of 168 and lost one. `tiled_dense_inverse=True` (Python; Rust `ActiveSetQp::with_tiled_inverse`) needs the active-set backend and gives bit-identical results. A mismatched mode raises `ValueError`. Measurements: [docs/performance-90/REVIEW.md](docs/performance-90/REVIEW.md).
 
 ## Numerical statuses and step safeguards (since 0.20.0)
 

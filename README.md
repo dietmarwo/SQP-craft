@@ -63,6 +63,16 @@ and the other structured solver, then explains library, shell and MCP use.
 > results, multistart, the job API) and [AGENTS.md](AGENTS.md) (build, test,
 > conventions).
 
+**Version 0.21.0: four opt-in controls and a sturdier Clarabel path.**
+`partitioned_initial_scaling` halves the steps of the low-thrust transfer
+problem, `exact_shift_bracketing` verified 182 instead of 168 of 240 S2MPJ
+problems with exact Hessians, `scaling="elements"` solves a scaled problem
+on which `scaling="jacobian"` fails, and `tiled_dense_inverse` speeds up the
+inverse factor of mid-sized active-set QPs with bit-identical results. All
+are off by default ([review](docs/performance-90/REVIEW.md)). A Clarabel
+step that fails the independent check is now recovered instead of ending
+the solve with `qp_failure`.
+
 **Version 0.20.0: statuses instead of exceptions.** Solver arithmetic that
 overflows ends a solve with `numerical_failure`, and an unusable QP answer
 with `qp_failure`, instead of raising; model errors still raise. A
