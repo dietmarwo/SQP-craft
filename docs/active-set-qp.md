@@ -202,3 +202,11 @@ the first QP (`tests/test_active_set.py`, `crates/sqp/tests/active_set_backend.r
 - The next item in the order of work, elastic mode (gap 4), can be built on
   this backend: an ℓ1 penalty on the constraints inside the QP keeps it
   feasible and uses the same factors.
+
+## Optional tiled inverse factor
+
+Python's `SqpOptions(tiled_dense_inverse=True)` uses a tiled triangular solve
+when the resolved backend is active-set and the QP has 80–256 variables.
+Rust callers can select it with `ActiveSetQp::default().with_tiled_inverse(true)`.
+The kernel walks groups of right-hand sides and retains each column's dot
+product and arithmetic order.

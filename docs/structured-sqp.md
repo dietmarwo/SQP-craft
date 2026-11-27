@@ -157,3 +157,27 @@ checker judged each result; Uno 2.9.3 ran through unopy 0.4.17, all with a
 The large-problem route remains experimental, especially where the QP is
 ill-conditioned or the objective and constraints do not split into small
 cliques.
+
+## Optional curvature and scaling controls
+
+With partitioned BFGS, set `partitioned_initial_scaling=True` in Python or
+set the identically named Rust option. Each element initializes on its first
+usable positive secant with `yᵀy / sᵀy`, clipped to [0.05, 20], while keeping
+its share of the overlapping starting diagonal. An element can initialize
+again after a reset. The job worker accepts the same option when the selected
+Hessian mode is partitioned.
+
+For partitioned problems with declared constraint elements, `scaling="elements"`
+groups the initial Jacobian row scales by element and by equality or inequality.
+The row factors are bounded to [¼, 4] and variable factors to [½, 2] within
+the declared supports. The scales are fixed for the solve. The merit and KKT
+checks use the original coordinates.
+
+For exact Hessians, `exact_shift_bracketing=True` tries a smaller scalar
+correction after the backend rejects nonzero curvature on at most 256
+variables. The bracket starts below the sufficient row-sum bound and
+uses Cholesky checks. A failed probe or a subsequent backend rejection uses
+the row-sum recovery. The proximal floor for a zero Hessian still applies.
+
+These options are experimental. The default `SqpOptions` retains the
+existing curvature and scaling policies.

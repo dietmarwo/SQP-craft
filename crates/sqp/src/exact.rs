@@ -9,6 +9,7 @@ pub(super) struct Exact {
     restoration: CsrPattern,
     initial_scale: f64,
     shift: f64,
+    bracket_shift: bool,
     radii: Vec<f64>,
     report: StructureReport,
 }
@@ -63,6 +64,7 @@ impl Exact {
             restoration: graph.into_pattern(),
             initial_scale: settings.initial_hessian_scale,
             shift: 0.0,
+            bracket_shift: settings.exact_shift_bracketing,
             radii: vec![0.0; n],
             report: StructureReport {
                 hessian_nnz: pattern.nnz(),
@@ -167,7 +169,13 @@ impl HessianModel for Exact {
         if norm == 0.0 && gradient.iter().any(|&g| g != 0.0) {
             margin = margin.max(self.initial_scale);
         }
-        let extra = finite(deficit + margin.max(self.shift), "exact Hessian shift")?;
+        let sufficient_shift = finite(deficit + margin.max(self.shift), "exact Hessian shift")?;
+        let extra = if self.bracket_shift && self.shift == 0.0 && norm != 0.0 && pattern.rows <= 256
+        {
+            bracket_shift(&self.lower, margin, sufficient_shift).unwrap_or(sufficient_shift)
+        } else {
+            sufficient_shift
+        };
         self.shift = finite(self.shift + extra, "total exact Hessian shift")?;
         for &end in &pattern.indptr[1..] {
             self.lower.values[end - 1] = finite(
@@ -182,4 +190,33 @@ impl HessianModel for Exact {
         self.report.diagonal_shifts = self.report.diagonal_shifts.map(|n| n + 1);
         Ok(())
     }
+}
+
+fn bracket_shift(lower: &CsrMatrix, margin: f64, sufficient: f64) -> Option<f64> {
+    let pattern = &lower.pattern;
+    let n = pattern.rows;
+    let mut h = nalgebra::DMatrix::zeros(n, n);
+    for i in 0..n {
+        for k in pattern.indptr[i]..pattern.indptr[i + 1] {
+            h[(i, pattern.indices[k])] = lower.values[k];
+        }
+    }
+    let positive = |shift| {
+        let mut candidate = h.clone();
+        for i in 0..n {
+            candidate[(i, i)] += shift;
+        }
+        candidate.cholesky().is_some()
+    };
+    let (mut lo, mut hi) = (margin, sufficient);
+    for _ in 0..7 {
+        let mid = lo + 0.5 * (hi - lo);
+        if positive(mid) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    let shifted = hi + margin + 0.05 * (hi - lo);
+    (shifted.is_finite() && shifted < sufficient && positive(shifted)).then_some(shifted)
 }

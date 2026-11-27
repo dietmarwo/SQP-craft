@@ -33,6 +33,9 @@ pub enum Scaling {
     /// point that satisfies the rows declared linear (the start, or its
     /// projection). Best with a good start on a mildly nonlinear problem.
     Jacobian,
+    /// Bounded geometric scaling with common row scales for equalities
+    /// and inequalities within each declared partition.
+    Elements,
 }
 
 impl Scaling {
@@ -42,6 +45,7 @@ impl Scaling {
             Scaling::None => "none",
             Scaling::Linear => "linear",
             Scaling::Jacobian => "jacobian",
+            Scaling::Elements => "elements",
         }
     }
 
@@ -51,8 +55,9 @@ impl Scaling {
             "none" => Ok(Scaling::None),
             "linear" => Ok(Scaling::Linear),
             "jacobian" => Ok(Scaling::Jacobian),
+            "elements" => Ok(Scaling::Elements),
             _ => Err(sqp_craft::Error::InvalidInput(format!(
-                "scaling must be \"none\", \"linear\" or \"jacobian\", got {name:?}"
+                "scaling must be \"none\", \"linear\" \"jacobian\", or \"elements\", got {name:?}"
             ))),
         }
     }
@@ -210,11 +215,41 @@ impl Scales {
     }
 
     /// The scales of `mode` for `spec` from the Jacobian `values`.
+    fn for_elements(spec: &ProblemSpec, values: &[f64]) -> Self {
+        let mut scale = Self::of(Scaling::Jacobian, spec, values);
+        for rows in spec.elements().unwrap_or_default() {
+            let bounds = spec.constraints();
+            for equalities in [true, false] {
+                let same_kind = rows
+                    .iter()
+                    .copied()
+                    .filter(|&i| (bounds.lower[i] == bounds.upper[i]) == equalities);
+                let (sum, count) = same_kind.clone().fold((0.0, 0), |(sum, count), i| {
+                    (sum + scale.rows[i].log2(), count + 1)
+                });
+                if count != 0 {
+                    let exponent = (sum / f64::from(count)).round().clamp(-2.0, 2.0);
+                    let factor = 2.0_f64.powf(exponent);
+                    for i in same_kind {
+                        scale.rows[i] = factor;
+                    }
+                }
+            }
+            for &i in rows {
+                for &j in spec.jacobian().row(i) {
+                    scale.variables[j] = scale.variables[j].clamp(0.5, 2.0);
+                }
+            }
+        }
+        scale
+    }
+
     pub fn of(mode: Scaling, spec: &ProblemSpec, values: &[f64]) -> Self {
         match mode {
             Scaling::None => Self::identity(spec.n(), spec.m()),
             Scaling::Linear => Self::geometric(spec.jacobian(), values, spec.linear_rows()),
             Scaling::Jacobian => Self::geometric(spec.jacobian(), values, &vec![true; spec.m()]),
+            Scaling::Elements => Self::for_elements(spec, values),
         }
     }
 }

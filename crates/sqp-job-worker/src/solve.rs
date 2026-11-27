@@ -41,6 +41,8 @@ pub(crate) struct Payload {
     #[serde(default)]
     pub initial_curvature_scaling: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partitioned_initial_scaling: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hessian: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub elements: Option<Vec<Vec<usize>>>,
@@ -115,6 +117,7 @@ pub(crate) fn prepare(
     SqpOptions {
         major_step_limit: p.major_step_limit,
         initial_curvature_scaling: p.initial_curvature_scaling,
+        partitioned_initial_scaling: p.partitioned_initial_scaling.unwrap_or(false),
         stationarity_tolerance: p.stationarity_tolerance,
         elastic_mode: selected.elastic_mode,
         hessian,
@@ -189,6 +192,9 @@ impl Run {
             "major_step_limit":self.payload.major_step_limit,"initial_curvature_scaling":self.payload.initial_curvature_scaling,
             "max_iterations":self.payload.max_iterations,"max_callback_calls":self.payload.max_callback_calls,
             "threads":self.options.threads});
+        if let Some(spectral) = self.payload.partitioned_initial_scaling {
+            options["partitioned_initial_scaling"] = json!(spectral);
+        }
         if let Some(hessian) = &self.payload.hessian {
             options["hessian"] = json!(hessian);
             options["qp_reuse_workspace"] =
@@ -435,6 +441,7 @@ impl Prepared for Run {
         let settings = SqpOptions {
             major_step_limit: self.payload.major_step_limit,
             initial_curvature_scaling: self.payload.initial_curvature_scaling,
+            partitioned_initial_scaling: self.payload.partitioned_initial_scaling.unwrap_or(false),
             max_iterations: self.payload.max_iterations,
             max_callback_calls: self.payload.max_callback_calls,
             time_limit_seconds: Some(remaining),
@@ -501,6 +508,7 @@ mod tests {
                 elastic_mode: Some(false),
                 major_step_limit: None,
                 initial_curvature_scaling: false,
+                partitioned_initial_scaling: None,
                 hessian: None,
                 elements: None,
                 objective_pattern: None,

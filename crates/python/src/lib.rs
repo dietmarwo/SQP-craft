@@ -560,6 +560,7 @@ fn solve_native<'py>(
                 let mut settings = sqp_craft_solver::SqpOptions::default();
                 let mut qp_solver = String::from("auto");
                 let mut elastic_mode: Option<bool> = None;
+                let mut tiled_dense_inverse = false;
                 if let Some(d) = method_options {
                     for (key, value) in d.iter() {
                         let key: String = key.extract()?;
@@ -591,6 +592,12 @@ fn solve_native<'py>(
                                 settings.structured_memory_limit_bytes = value.extract()?
                             }
                             "major_step_limit" => settings.major_step_limit = value.extract()?,
+                            "partitioned_initial_scaling" => {
+                                settings.partitioned_initial_scaling = value.extract()?
+                            }
+                            "exact_shift_bracketing" => {
+                                settings.exact_shift_bracketing = value.extract()?
+                            }
                             "initial_curvature_scaling" => {
                                 settings.initial_curvature_scaling = value.extract()?
                             }
@@ -609,6 +616,7 @@ fn solve_native<'py>(
                                 settings.qp_reuse_workspace = value.extract()?
                             }
                             "qp_warm_start" => settings.qp_warm_start = value.extract()?,
+                            "tiled_dense_inverse" => tiled_dense_inverse = value.extract()?,
                             "elastic_mode" => elastic_mode = value.extract()?,
                             "elastic_weight" => settings.elastic_weight = value.extract()?,
                             "second_order_correction" => {
@@ -654,13 +662,19 @@ fn solve_native<'py>(
                 let selected = sqp_craft_solver::QpSolver::parse(&qp_solver)
                     .and_then(|choice| choice.resolve(settings.hessian, elastic_mode))
                     .map_err(to_py_err)?;
+                if tiled_dense_inverse && selected.solver != sqp_craft_solver::QpSolver::ActiveSet {
+                    return Err(PyValueError::new_err(
+                        "tiled_dense_inverse requires the active-set QP backend",
+                    ));
+                }
                 settings.elastic_mode = selected.elastic_mode;
                 selected_qp_options = (Some(selected.solver.as_str()), selected.elastic_mode);
                 py.detach(|| {
                     let observer = monitor.as_mut().map(|m| m as &mut dyn Observer);
                     if selected.solver == sqp_craft_solver::QpSolver::ActiveSet {
                         sqp_craft_solver::NativeSqp {
-                            qp: sqp_craft_activeset::ActiveSetQp::default(),
+                            qp: sqp_craft_activeset::ActiveSetQp::default()
+                                .with_tiled_inverse(tiled_dense_inverse),
                             settings,
                         }
                         .solve(inner, &mut model, &x0, &options, &token, observer)

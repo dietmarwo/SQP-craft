@@ -184,12 +184,13 @@ class SqpOptions:
     twice SNOPT's slope rule). The latter is differentiable and is not combined
     with ``second_order_correction``; elastic steps that leave rows violated use
     the l1 merit."""
-    scaling: Literal["none", "linear", "jacobian"] = "none"
+    scaling: Literal["none", "linear", "jacobian", "elements"] = "none"
     """Scaling of the QP subproblems and the BFGS matrix by powers of two:
     ``"linear"`` from the rows declared linear (SNOPT's Scale option 1; the
     identity without such rows), ``"jacobian"`` from every row's Jacobian at the
     first point on the linear rows (Scale option 2). The merit, the line search
-    and the convergence test stay in original units."""
+    and the convergence test stay in original units. ``"elements"`` pools equality and
+    inequality scales within each declared partition and limits scale changes."""
     violation_limit: Optional[float] = None
     """SNOPT's ``τ_V ≥ 1``: reject a trial point that violates some row by more
     than ``τ_V · max(1, its violation at the start)`` before evaluating its
@@ -213,6 +214,12 @@ class SqpOptions:
     """Positive diagonal regularization of the Gauss–Newton feasibility model."""
     record_history: bool = False
     """Keep normal records in ``history`` and feasibility steps in ``restoration_history``."""
+    partitioned_initial_scaling: bool = False
+    """Initialize each BFGS partition from its first usable secant."""
+    exact_shift_bracketing: bool = False
+    """Probe for a smaller shift on rejected exact Hessians up to 256 variables."""
+    tiled_dense_inverse: bool = False
+    """Use the tiled inverse-factor kernel for active-set QPs of size 80–256."""
 
 
 @dataclass(frozen=True)

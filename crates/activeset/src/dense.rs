@@ -36,6 +36,14 @@ pub(crate) fn cholesky(a: &mut [f64], n: usize) -> bool {
 
 /// `j = L⁻ᵀ` (upper triangular) from the factor in the lower triangle of `l`.
 pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
+    inverse_transpose_impl(l, j, n, false);
+}
+
+pub(crate) fn inverse_transpose_tiled(l: &[f64], j: &mut [f64], n: usize) {
+    inverse_transpose_impl(l, j, n, true);
+}
+
+fn inverse_transpose_impl(l: &[f64], j: &mut [f64], n: usize, tiled: bool) {
     debug_assert_eq!(l.len(), n * n);
     debug_assert_eq!(j.len(), n * n);
     j.fill(0.0);
@@ -54,6 +62,14 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
         }
         return;
     }
+    if tiled && (80..=256).contains(&n) {
+        inverse_panels(l, j, n);
+        return;
+    }
+    inverse_columns(l, j, n);
+}
+
+fn inverse_columns(l: &[f64], j: &mut [f64], n: usize) {
     // Column k solves Lᵀ y = e_k; y vanishes below row k.
     for k in 0..n {
         let column = &mut j[k * n..(k + 1) * n];
@@ -61,6 +77,26 @@ pub(crate) fn inverse_transpose(l: &[f64], j: &mut [f64], n: usize) {
         for i in (0..k).rev() {
             let li = &l[i * n..(i + 1) * n];
             column[i] = -dot(&li[i + 1..=k], &column[i + 1..=k]) / li[i];
+        }
+    }
+}
+
+// Traverse several right-hand sides while a factor column is still in
+// cache. Keep the original dot product and within-column dependency order.
+fn inverse_panels(l: &[f64], j: &mut [f64], n: usize) {
+    const WIDTH: usize = 8;
+    for start in (0..n).step_by(WIDTH) {
+        let end = (start + WIDTH).min(n);
+        let panel = &mut j[start * n..end * n];
+        for (k, column) in (start..end).zip(panel.chunks_exact_mut(n)) {
+            column[k] = 1.0 / l[k * n + k];
+        }
+        for i in (0..end - 1).rev() {
+            let factor = &l[i * n..(i + 1) * n];
+            let first = (i + 1).max(start);
+            for (k, column) in (first..end).zip(panel[(first - start) * n..].chunks_exact_mut(n)) {
+                column[i] = -dot(&factor[i + 1..=k], &column[i + 1..=k]) / factor[i];
+            }
         }
     }
 }
@@ -256,6 +292,24 @@ mod tests {
             }
         }
         a
+    }
+
+    #[test]
+    fn tiled_inverse_preserves_each_column_at_partial_panel_boundaries() {
+        for n in [80, 81, 164, 196, 255, 256] {
+            let mut factor = spd(n);
+            assert!(cholesky(&mut factor, n));
+            let mut reference = vec![0.0; n * n];
+            let mut result = vec![0.0; n * n];
+            inverse_columns(&factor, &mut reference, n);
+            inverse_transpose_tiled(&factor, &mut result, n);
+            assert!(
+                reference
+                    .iter()
+                    .zip(&result)
+                    .all(|(a, b)| a.to_bits() == b.to_bits())
+            );
+        }
     }
 
     #[test]

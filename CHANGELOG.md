@@ -8,6 +8,12 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ### Added
 
+- Optional tiled inverse-factor kernel for dense active-set QPs of size
+  80–256, selectable in Rust and Python.
+- Optional local initial scaling for partitioned BFGS, bounded element-based
+  row and variable scaling, and scalar shift bracketing for small exact
+  Hessians. See [structured SQP](docs/structured-sqp.md#optional-curvature-and-scaling-controls).
+
 - [POUNCE curvature pilot](docs/benchmarks/pounce-curvature/README.md): an
   optional 20-problem comparison in the S2MPJ harness with independent KKT
   and objective checks, callback counts, and analytic release regressions.

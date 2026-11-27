@@ -65,6 +65,8 @@ struct Element {
     initial_diagonal: Vec<f64>,
     matrix: DMatrix<f64>,
     work: bfgs::Workspace,
+    spectral: bool,
+    spectral_pending: bool,
     scatter: Vec<usize>,
     jacobian: CsrPattern,
     sources: Vec<usize>,
@@ -76,7 +78,13 @@ struct Element {
 }
 
 impl Element {
-    fn new(layout: Layout, diagonal: Vec<f64>, h: &CsrPattern, j: &CsrPattern) -> Self {
+    fn new(
+        layout: Layout,
+        diagonal: Vec<f64>,
+        h: &CsrPattern,
+        j: &CsrPattern,
+        spectral: bool,
+    ) -> Self {
         let Layout { rows, columns } = layout;
         let k = columns.len();
         let mut scatter = Vec::with_capacity(k * (k + 1) / 2);
@@ -113,6 +121,8 @@ impl Element {
             change: vec![0.0; sources.len()],
             sources,
             departure: vec![0.0; rows.len()],
+            spectral,
+            spectral_pending: spectral,
             s: vec![0.0; k],
             y: vec![0.0; k],
             report: CurvatureElementReport {
@@ -123,6 +133,7 @@ impl Element {
     }
 
     fn reset(&mut self) {
+        self.spectral_pending = self.spectral;
         self.matrix.fill(0.0);
         for (i, &v) in self.initial_diagonal.iter().enumerate() {
             self.matrix[(i, i)] = v;
@@ -165,6 +176,29 @@ impl Element {
         }
         for (y, &j) in self.y.iter_mut().zip(&self.columns) {
             *y *= data.scales.variables[j];
+        }
+        if self.spectral_pending {
+            let sy: f64 = self.s.iter().zip(&self.y).map(|(s, y)| s * y).sum();
+            let yy: f64 = self.y.iter().map(|y| y * y).sum();
+            let ss: f64 = self.s.iter().map(|s| s * s).sum();
+            if ss > 1e-20 && sy > 1e-12 * (ss * yy).sqrt() {
+                let spectral_scale = yy / sy;
+                let scale = spectral_scale.clamp(0.05, 20.0);
+                if spectral_scale.is_finite()
+                    && self.initial_diagonal.iter().all(|&value| {
+                        let scaled = value * scale;
+                        scaled.is_finite() && scaled > 0.0
+                    })
+                {
+                    // A prior damped update can have introduced off-diagonal
+                    // entries. Restart the whole element before bootstrapping.
+                    self.matrix.fill(0.0);
+                    for (i, &value) in self.initial_diagonal.iter().enumerate() {
+                        self.matrix[(i, i)] = value * scale;
+                    }
+                    self.spectral_pending = false;
+                }
+            }
         }
         let repair = augmented.then_some(bfgs::Repair {
             pattern: &self.jacobian,
@@ -287,7 +321,13 @@ impl Partitioned {
                             .into(),
                     ));
                 }
-                Ok(Element::new(group, diagonal, &pattern, spec.jacobian()))
+                Ok(Element::new(
+                    group,
+                    diagonal,
+                    &pattern,
+                    spec.jacobian(),
+                    settings.partitioned_initial_scaling,
+                ))
             })
             .collect::<Result<_>>()?;
         let ridge = degree

@@ -215,6 +215,11 @@ pub struct SqpOptions {
     pub structured_memory_limit_bytes: usize,
     /// Initial and reset Hessian approximation `B = scale · I`.
     pub initial_hessian_scale: f64,
+    /// Initialize each partition's BFGS matrix from its first usable secant.
+    pub partitioned_initial_scaling: bool,
+    /// Try a smaller scalar diagonal shift on rejected exact Hessians of
+    /// at most 256 variables, before using the sufficient row-sum shift.
+    pub exact_shift_bracketing: bool,
     /// Major-step infinity-norm limit relative to max(1, ||x||inf).
     /// None preserves the legacy line search. Experimental; off by default.
     pub major_step_limit: Option<f64>,
@@ -287,6 +292,8 @@ impl Default for SqpOptions {
             hessian: Hessian::Full,
             structured_memory_limit_bytes: 64 * 1024 * 1024,
             initial_hessian_scale: 1.0,
+            partitioned_initial_scaling: false,
+            exact_shift_bracketing: false,
             major_step_limit: None,
             initial_curvature_scaling: false,
             hessian_block_size: 0,
@@ -314,6 +321,19 @@ impl Default for SqpOptions {
 impl SqpOptions {
     /// Rejects non-positive or non-finite tolerances and out-of-range caps.
     pub fn validate(&self) -> Result<()> {
+        if (self.partitioned_initial_scaling || self.scaling == Scaling::Elements)
+            && self.hessian != Hessian::Partitioned
+        {
+            return Err(Error::InvalidInput(
+                "element scaling and partitioned_initial_scaling require hessian=partitioned"
+                    .into(),
+            ));
+        }
+        if self.exact_shift_bracketing && self.hessian != Hessian::Exact {
+            return Err(Error::InvalidInput(
+                "exact_shift_bracketing requires hessian=exact".into(),
+            ));
+        }
         let positive = [
             ("stationarity_tolerance", self.stationarity_tolerance),
             ("complementarity_tolerance", self.complementarity_tolerance),
@@ -910,6 +930,11 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             }
         }
         let settings = &self.settings;
+        if settings.scaling == Scaling::Elements && spec.elements().is_none() {
+            return Err(Error::InvalidInput(
+                "scaling=elements requires declared constraint elements".into(),
+            ));
+        }
         let mut hessian: Box<dyn HessianModel> = match settings.hessian {
             Hessian::Full => Box::new(Legacy::new(
                 spec.n(),
@@ -969,7 +994,7 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
         // Scales of the rows declared linear (constant), used from the
         // projection on; in Jacobian mode recomputed below from every row.
         let mut scales = match (&r.evaluation, settings.scaling) {
-            (Some(e), Scaling::Linear | Scaling::Jacobian) => {
+            (Some(e), Scaling::Linear | Scaling::Jacobian | Scaling::Elements) => {
                 Scales::of(Scaling::Linear, spec, &e.jacobian_values)
             }
             _ => Scales::identity(spec.n(), spec.m()),
@@ -1012,8 +1037,10 @@ impl<B: QpBackend> SqpSolver for NativeSqp<B> {
             }
         }
         // SNOPT's Scale option 2 uses the first point on the linear rows.
-        if let (Scaling::Jacobian, Some(e)) = (settings.scaling, &r.evaluation) {
-            scales = Scales::of(Scaling::Jacobian, spec, &e.jacobian_values);
+        if matches!(settings.scaling, Scaling::Jacobian | Scaling::Elements) {
+            if let Some(e) = &r.evaluation {
+                scales = Scales::of(settings.scaling, spec, &e.jacobian_values);
+            }
         }
         let scaled_identity = scales.is_identity();
         if settings.scaling != Scaling::None {

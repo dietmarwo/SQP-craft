@@ -76,6 +76,11 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         json!({"type":"boolean","default":false}),
     );
     p.insert(
+        "partitioned_initial_scaling".into(),
+        json!({"type":"boolean","default":false,
+            "description":"initialize each BFGS element from its first usable secant"}),
+    );
+    p.insert(
         "hessian".into(),
         json!({"type":["string","null"],"enum":["full","partitioned",null],
         "description":"defaults to full; partitioned with Clarabel required above 256 variables"}),
