@@ -330,6 +330,9 @@ matter most:
 | `initial_hessian_scale` | 1 | `B = scale·I` at the start and after resets |
 | `second_order_correction`, `merit="augmented-lagrangian"`, `hessian_update="augmented"`, `scaling`, `violation_limit`, `hessian_block_size` | off | Opt-in mechanisms; each helps on its own mechanism and costs elsewhere |
 | `qp_reuse_workspace` | false | Reuses Clarabel allocations; no effect on the active-set backend |
+| `partitioned_initial_scaling`, `scaling="elements"` | off | Opt-in, partitioned Hessians only: local spectral start of each BFGS element; element-pooled, bounded scaling (needs declared elements) |
+| `exact_shift_bracketing` | false | Opt-in, exact Hessians of at most 256 variables: smaller diagonal shift after a backend rejection |
+| `tiled_dense_inverse` | false | Opt-in, active-set QPs of 80 to 256 variables: panel kernel, bit-identical results |
 | `record_history`, `record_qp_limit` | off | Iteration and QP traces in `report` |
 
 Backend choice: the CUTEst benchmark of 1,036 problems

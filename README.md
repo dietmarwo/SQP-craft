@@ -112,7 +112,10 @@ remains serial. Default threads=1 and the 256-variable NLP limit are unchanged.
 See [the parallel plan](docs/performance-60/PLAN.md),
 [results](docs/performance-60/RESULTS.md),
 [reproduction/API guide](docs/performance-60/REPRODUCE.md) and
-[the review before merging](docs/performance-60/REVIEW.md).
+[the review before merging](docs/performance-60/REVIEW.md). Iterations 61
+to 90 added four opt-in curvature, scaling and kernel options
+([report](docs/performance-90/RESULTS.md),
+[review](docs/performance-90/REVIEW.md)).
 
 **Previous version 0.15.0: thirty further performance iterations** build on main
 `4d776bb`. They reduce validation and symmetric-product work, streamline BFGS,

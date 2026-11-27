@@ -57,7 +57,7 @@ impl Scaling {
             "jacobian" => Ok(Scaling::Jacobian),
             "elements" => Ok(Scaling::Elements),
             _ => Err(sqp_craft::Error::InvalidInput(format!(
-                "scaling must be \"none\", \"linear\" \"jacobian\", or \"elements\", got {name:?}"
+                "scaling must be \"none\", \"linear\", \"jacobian\" or \"elements\", got {name:?}"
             ))),
         }
     }

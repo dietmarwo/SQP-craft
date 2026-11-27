@@ -220,3 +220,61 @@ fn bracket_shift(lower: &CsrMatrix, margin: f64, sufficient: f64) -> Option<f64>
     let shifted = hi + margin + 0.05 * (hi - lo);
     (shifted.is_finite() && shifted < sufficient && positive(shifted)).then_some(shifted)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lower(n: usize, entries: &[(usize, usize, f64)]) -> CsrMatrix {
+        let mut indptr = vec![0];
+        let (mut indices, mut values) = (Vec::new(), Vec::new());
+        for i in 0..n {
+            for &(r, c, v) in entries.iter().filter(|e| e.0 == i) {
+                assert!(c <= r);
+                indices.push(c);
+                values.push(v);
+            }
+            indptr.push(indices.len());
+        }
+        CsrMatrix {
+            pattern: CsrPattern {
+                rows: n,
+                cols: n,
+                indptr,
+                indices,
+            },
+            values,
+        }
+    }
+
+    // [[10, 3], [3, -2]] has the eigenvalues 4 ± √45. The row sums ask for a
+    // shift of 5; a shift just above √45 − 4 = 2.708 is enough.
+    #[test]
+    fn bracketed_shift_lies_between_the_needed_and_the_row_sum_shift() {
+        let h = lower(2, &[(0, 0, 10.), (1, 0, 3.), (1, 1, -2.)]);
+        let margin = 1e-8 * 14.;
+        let sufficient = 5. + margin;
+        let needed = 45f64.sqrt() - 4.;
+        let shift = bracket_shift(&h, margin, sufficient).unwrap();
+        assert!(shift > needed + margin && shift < sufficient);
+        // Seven halvings of the bracket and a 5% allowance.
+        assert!(shift < needed + 1.05 * (sufficient - margin) / 128. + 2. * margin);
+        // The smallest eigenvalue of the shifted matrix exceeds the margin.
+        let (a, c) = (10. + shift, -2. + shift);
+        let least = 0.5 * (a + c) - (0.25 * (a - c) * (a - c) + 9.).sqrt();
+        assert!(least > margin);
+    }
+
+    // For a diagonal matrix the row sums are exact, so nothing smaller than
+    // the sufficient shift is positive definite with the margin.
+    #[test]
+    fn bracketing_declines_when_the_row_sum_shift_is_already_tight() {
+        let h = lower(2, &[(0, 0, -5.), (1, 1, 1.)]);
+        let margin = 1e-8 * 6.;
+        assert_eq!(bracket_shift(&h, margin, 5. + margin), None);
+        // A matrix that needs no shift returns one near the margin.
+        let h = lower(2, &[(0, 0, 2.), (1, 0, -3.), (1, 1, 6.)]);
+        let shift = bracket_shift(&h, 1e-7, 1. + 1e-7).unwrap();
+        assert!(shift > 1e-7 && shift < 0.01);
+    }
+}

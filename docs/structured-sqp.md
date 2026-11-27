@@ -181,3 +181,18 @@ the row-sum recovery. The proximal floor for a zero Hessian still applies.
 
 These options are experimental. The default `SqpOptions` retains the
 existing curvature and scaling policies.
+
+What to expect, from the delivery and its
+[review](performance-90/REVIEW.md):
+
+- `partitioned_initial_scaling` roughly halved the steps of the low-thrust
+  transfer problem (75 to 40 at 26 arcs, 108 to 57 at 51, 127 to 78 at 101).
+- `scaling="elements"` solves that problem where `scaling="jacobian"` ends
+  in `qp_failure`, but needs more steps than no scaling (159 against 108 at
+  51 arcs). Use it when a scaled problem is required, not as a speedup.
+- `exact_shift_bracketing` verified 182 instead of 168 of 240 further S2MPJ
+  problems with exact Hessians and halved the steps where both runs
+  verified and differed. One problem (DEVGLA2) was lost.
+- `tiled_dense_inverse` halves the time of the inverse factor at 80
+  variables and saves 17% at 256. Whole solves gain little, because the
+  factor is a small part of them.

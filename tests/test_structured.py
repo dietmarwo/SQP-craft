@@ -196,6 +196,19 @@ def test_bracketed_shift_keeps_exact_curvature_and_reduces_overshift():
     assert bracketed.report.structure["maximum_diagonal_shift"] < plain.report.structure["maximum_diagonal_shift"]
 
 
+def test_new_curvature_and_scaling_options_name_the_mode_they_need():
+    spec, start = chain_spec(12), [0.05]*12
+    for options, message in (
+            (SqpOptions(partitioned_initial_scaling=True), "require hessian=partitioned"),
+            (SqpOptions(scaling="elements"), "require hessian=partitioned"),
+            (SqpOptions(hessian="partitioned", exact_shift_bracketing=True), "requires hessian=exact"),
+            (SqpOptions(exact_shift_bracketing=True), "requires hessian=exact"),
+            (SqpOptions(hessian="exact", tiled_dense_inverse=True), "requires the active-set"),
+            (SqpOptions(scaling="element"), '"jacobian" or "elements"')):
+        with pytest.raises(ValueError, match=message):
+            solve(spec, Chain(), start, method="sqp", method_options=options)
+
+
 def test_tiled_dense_inverse_uses_the_resolved_active_set_backend():
     spec = chain_spec(96)
     start = [0.05]*96
