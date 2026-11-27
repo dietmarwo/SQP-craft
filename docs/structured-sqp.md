@@ -160,7 +160,7 @@ cliques.
 
 ## Optional curvature and scaling controls
 
-With partitioned BFGS, set `partitioned_initial_scaling=True` in Python or
+Since 0.21.0. With partitioned BFGS, set `partitioned_initial_scaling=True` in Python or
 set the identically named Rust option. Each element initializes on its first
 usable positive secant with `yᵀy / sᵀy`, clipped to [0.05, 20], while keeping
 its share of the overlapping starting diagonal. An element can initialize

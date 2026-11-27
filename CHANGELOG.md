@@ -6,6 +6,8 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-11-27
+
 ### Added
 
 - Optional tiled inverse-factor kernel for dense active-set QPs of size

@@ -205,7 +205,7 @@ the first QP (`tests/test_active_set.py`, `crates/sqp/tests/active_set_backend.r
 
 ## Optional tiled inverse factor
 
-Python's `SqpOptions(tiled_dense_inverse=True)` uses a tiled triangular solve
+Since 0.21.0. Python's `SqpOptions(tiled_dense_inverse=True)` uses a tiled triangular solve
 when the resolved backend is active-set and the QP has 80–256 variables.
 Rust callers can select it with `ActiveSetQp::default().with_tiled_inverse(true)`.
 The kernel walks groups of right-hand sides and retains each column's dot
