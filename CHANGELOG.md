@@ -13,7 +13,8 @@ the job worker share it). Dates are those of the commits that set each version.
   (`tiled_dense_inverse`). Results are bit-identical; the factor takes half
   the time at 80 variables and 17% less at 256.
 - Optional local initial scaling for partitioned BFGS
-  (`partitioned_initial_scaling`, also in `sqp.solve/1`), bounded
+  (`partitioned_initial_scaling`, also in `sqp.solve/1`, where `true`
+  requires `hessian: "partitioned"`), bounded
   element-based row and variable scaling (`scaling="elements"`), and scalar
   shift bracketing for small exact Hessians (`exact_shift_bracketing`). All
   default to off. See [structured SQP](docs/structured-sqp.md#optional-curvature-and-scaling-controls)

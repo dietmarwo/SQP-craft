@@ -87,20 +87,26 @@ measured here speaks against enabling it by default later.
 
 ## Findings and changes
 
-1. **No benchmark arm existed for the new options**, so the repository's
+1. **The job schema and the worker disagreed on the new job field.** The
+   shared job-API harness, which CI runs and the delivery did not, failed:
+   the worker reads an absent or `null` `partitioned_initial_scaling` as
+   off, while the published schema allowed a Boolean only. The schema now
+   allows `null`, as it does for `elastic_mode`, and states the cross-field
+   rule the worker enforces: `true` requires `hessian: "partitioned"`.
+2. **No benchmark arm existed for the new options**, so the repository's
    runner could not repeat the report's comparisons (the archive's scripts
    register arms at run time). `clarabel+exact+bracket` and
    `active-set+tiled` are now in `bench/solvers.py`.
-2. **The shift search had no unit test.** Two were added: the bracketed
+3. **The shift search had no unit test.** Two were added: the bracketed
    shift of a 2×2 indefinite matrix lies between the needed and the
    row-sum shift and leaves the smallest eigenvalue above the margin; a
    diagonal matrix, where the row sums are exact, declines the search.
-3. **The reference documentation did not list the options.** The option
+4. **The reference documentation did not list the options.** The option
    tables of `docs/api.md` and `ai-context.md` now have them, and
    `docs/structured-sqp.md` states what each measured, including that
    `scaling="elements"` needs more steps than no scaling.
-4. **The error message for an unknown scaling lacked a comma.**
-5. **The mode requirements of the options were untested.** One Python test
+5. **The error message for an unknown scaling lacked a comma.**
+6. **The mode requirements of the options were untested.** One Python test
    covers the six rejected combinations.
 
 ## Not verified here
