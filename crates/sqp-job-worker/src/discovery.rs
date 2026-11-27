@@ -76,6 +76,11 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         json!({"type":"boolean","default":false}),
     );
     p.insert(
+        "partitioned_initial_scaling".into(),
+        json!({"type":["boolean","null"],"default":null,
+            "description":"absent/null: false; true initializes each BFGS element from its first usable secant and requires hessian=partitioned"}),
+    );
+    p.insert(
         "hessian".into(),
         json!({"type":["string","null"],"enum":["full","partitioned",null],
         "description":"defaults to full; partitioned with Clarabel required above 256 variables"}),
@@ -120,6 +125,11 @@ pub(crate) fn payload_schemas(registry: &Registry) -> Value {
         "if":{"properties":{"backend":{"const":"auto"},"hessian":{"const":"partitioned"}},
             "required":["backend","hessian"]},
         "then":{"properties":{"elastic_mode":{"enum":[false,null]}}}
+    }));
+    solve["allOf"].as_array_mut().expect("array").push(json!({
+        "if":{"properties":{"partitioned_initial_scaling":{"const":true}},
+            "required":["partitioned_initial_scaling"]},
+        "then":{"properties":{"hessian":{"const":"partitioned"}},"required":["hessian"]}
     }));
     let mut evaluate = json!({
         "$schema": DRAFT,

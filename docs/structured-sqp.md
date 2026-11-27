@@ -157,3 +157,42 @@ checker judged each result; Uno 2.9.3 ran through unopy 0.4.17, all with a
 The large-problem route remains experimental, especially where the QP is
 ill-conditioned or the objective and constraints do not split into small
 cliques.
+
+## Optional curvature and scaling controls
+
+With partitioned BFGS, set `partitioned_initial_scaling=True` in Python or
+set the identically named Rust option. Each element initializes on its first
+usable positive secant with `yᵀy / sᵀy`, clipped to [0.05, 20], while keeping
+its share of the overlapping starting diagonal. An element can initialize
+again after a reset. The job worker accepts the same option when the selected
+Hessian mode is partitioned.
+
+For partitioned problems with declared constraint elements, `scaling="elements"`
+groups the initial Jacobian row scales by element and by equality or inequality.
+The row factors are bounded to [¼, 4] and variable factors to [½, 2] within
+the declared supports. The scales are fixed for the solve. The merit and KKT
+checks use the original coordinates.
+
+For exact Hessians, `exact_shift_bracketing=True` tries a smaller scalar
+correction after the backend rejects nonzero curvature on at most 256
+variables. The bracket starts below the sufficient row-sum bound and
+uses Cholesky checks. A failed probe or a subsequent backend rejection uses
+the row-sum recovery. The proximal floor for a zero Hessian still applies.
+
+These options are experimental. The default `SqpOptions` retains the
+existing curvature and scaling policies.
+
+What to expect, from the delivery and its
+[review](performance-90/REVIEW.md):
+
+- `partitioned_initial_scaling` roughly halved the steps of the low-thrust
+  transfer problem (75 to 40 at 26 arcs, 108 to 57 at 51, 127 to 78 at 101).
+- `scaling="elements"` solves that problem where `scaling="jacobian"` ends
+  in `qp_failure`, but needs more steps than no scaling (159 against 108 at
+  51 arcs). Use it when a scaled problem is required, not as a speedup.
+- `exact_shift_bracketing` verified 182 instead of 168 of 240 further S2MPJ
+  problems with exact Hessians and halved the steps where both runs
+  verified and differed. One problem (DEVGLA2) was lost.
+- `tiled_dense_inverse` halves the time of the inverse factor at 80
+  variables and saves 17% at 256. Whole solves gain little, because the
+  factor is a small part of them.

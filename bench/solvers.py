@@ -63,8 +63,12 @@ EXPERIMENTS: dict[str, tuple[dict, bool]] = {
     "auto+safeguard10": ({"major_step_limit": 10.0, "initial_curvature_scaling": True}, False),
     "active-set+safeguard": ({**ACTIVE, "major_step_limit": 2.0, "initial_curvature_scaling": True}, False),
     "clarabel+exact": ({**CLARABEL, "hessian": "exact"}, False),
+    # The opt-in scalar shift search for rejected exact Hessians.
+    "clarabel+exact+bracket": ({**CLARABEL, "hessian": "exact", "exact_shift_bracketing": True}, False),
     "clarabel+partitioned": ({**CLARABEL, "hessian": "partitioned", "qp_reuse_workspace": True}, True),
     "active-set+b0-gradient": (ACTIVE, False),
+    # The opt-in panel kernel for the inverse factor of 80 to 256 variables.
+    "active-set+tiled": ({**ACTIVE, "tiled_dense_inverse": True}, False),
 }
 REPORT_FIELDS = ["step_limited_iterations", "initial_curvature_scale", "qp_solves", "qp_iterations", "rejected_trials", "undefined_trials",
                  "hessian_resets", "bfgs_damped_updates", "bfgs_modified_updates",

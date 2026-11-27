@@ -8,6 +8,20 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ### Added
 
+- Optional tiled inverse-factor kernel for dense active-set QPs of size
+  80–256, selectable in Rust (`ActiveSetQp::with_tiled_inverse`) and Python
+  (`tiled_dense_inverse`). Results are bit-identical; the factor takes half
+  the time at 80 variables and 17% less at 256.
+- Optional local initial scaling for partitioned BFGS
+  (`partitioned_initial_scaling`, also in `sqp.solve/1`, where `true`
+  requires `hessian: "partitioned"`), bounded
+  element-based row and variable scaling (`scaling="elements"`), and scalar
+  shift bracketing for small exact Hessians (`exact_shift_bracketing`). All
+  default to off. See [structured SQP](docs/structured-sqp.md#optional-curvature-and-scaling-controls)
+  and the [review](docs/performance-90/REVIEW.md): the local scaling halves
+  the steps of the low-thrust transfer problem, and bracketing verified 182
+  instead of 168 of 240 further S2MPJ problems with exact Hessians.
+- Benchmark arms `clarabel+exact+bracket` and `active-set+tiled`.
 - [POUNCE curvature pilot](docs/benchmarks/pounce-curvature/README.md): an
   optional 20-problem comparison in the S2MPJ harness with independent KKT
   and objective checks, callback counts, and analytic release regressions.

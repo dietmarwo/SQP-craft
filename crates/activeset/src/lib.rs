@@ -167,6 +167,13 @@ impl QpBackend for ActiveSetQp {
 }
 
 impl ActiveSetQp {
+    /// Enables the tiled inverse-factor kernel for dense QPs of size 80–256.
+    /// Columns keep the same arithmetic as the scalar implementation.
+    pub fn with_tiled_inverse(mut self, enabled: bool) -> Self {
+        self.work.tiled_inverse = enabled;
+        self
+    }
+
     fn run(
         &mut self,
         model: &QpModel,
@@ -597,6 +604,7 @@ struct Work {
     initial_j: Vec<f64>,
     initial_dependence: f64,
     initial_valid: bool,
+    tiled_inverse: bool,
     /// Cholesky factor `L` in the lower triangle (column-major).
     l: Vec<f64>,
     /// `J = L⁻ᵀ Q`: columns `0..q` span the working set, `q..n` its complement.
@@ -779,7 +787,11 @@ impl Work {
             self.j.copy_from_slice(&self.initial_j);
             self.dependence = self.initial_dependence;
         } else {
-            dense::inverse_transpose_parallel(&self.l, &mut self.j, self.n, &self.execution);
+            if self.tiled_inverse && (80..=256).contains(&self.n) {
+                dense::inverse_transpose_tiled(&self.l, &mut self.j, self.n);
+            } else {
+                dense::inverse_transpose_parallel(&self.l, &mut self.j, self.n, &self.execution);
+            }
             self.dependence =
                 DEPENDENCE * f64::EPSILON * (self.n as f64).sqrt() * dense::norm(&self.j);
             if self.factor_reused
