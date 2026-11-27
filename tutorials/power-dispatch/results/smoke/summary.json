@@ -119,7 +119,7 @@
       "iterations": 5,
       "backend": {
         "name": "native",
-        "version": "0.29.0",
+        "version": "0.33.0",
         "raw_status": "optimal",
         "start_status": "not_provided",
         "effective_options": {
@@ -160,6 +160,8 @@
           "root_cuts": "false",
           "root_separation": "false",
           "mip_presolve": "true",
+          "adaptive_root": "false",
+          "integer_equality_presolve": "false",
           "coefficient_tightening": "true",
           "dual_presolve": "false",
           "mip_presolve_rounds": "8",
@@ -228,6 +230,7 @@
           "diagnostics.presolve_removed_columns": "1",
           "diagnostics.cold_lp_solves": "1",
           "diagnostics.cold_fallbacks": "0",
+          "diagnostics.unweighted_node_retries": "0",
           "diagnostics.unverified_infeasible_nodes": "0",
           "diagnostics.heuristic_candidates": "0",
           "diagnostics.mixed_propagation_rows": "0",

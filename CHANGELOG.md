@@ -6,6 +6,15 @@ the job worker share it). Dates are those of the commits that set each version.
 
 ## [Unreleased]
 
+### Changed
+
+- The structured-tutorials workflow installs lp-ip-craft 0.33.0 (was 0.29.0)
+  for the DC model of X2. X2's recorded summaries take the new label of that
+  backend (0.33.0) and the three effective options LP-IP-craft added since
+  0.29.0 (`adaptive_root`, `integer_equality_presolve`,
+  `diagnostics.unweighted_node_retries`); every other recorded value is
+  unchanged and fresh runs match them in both presets.
+
 ## [0.21.0] - 2026-11-27
 
 ### Added
